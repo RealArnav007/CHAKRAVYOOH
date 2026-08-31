@@ -51,20 +51,30 @@ async def process_sos_ingestion(db: AsyncSession, request: IngestRequest, gatewa
     try:
         decrypted_text = decrypt_payload(packet.payload_enc)
     except Exception as e:
-        logger.error(f"Failed to decrypt packet {packet.msg_id}: {e}")
-        decrypted_text = ""
+        logger.error(f"Decryption failed for packet {packet.msg_id}: {e}")
+        raise HTTPException(status_code=422, detail="DECRYPTION_FAILED")
         
     # 5. ML Scoring & Priority Fusion
     try:
         score_result = await score(packet, decrypted_text)
     except Exception as e:
         logger.error(f"ML Scoring failed for packet {packet.msg_id}: {e}")
-        from src.ml.interface import ScoringResult
+        from src.ml.interface import ReasoningBreakdown, ScoringResult
         score_result = ScoringResult(
             priority_score=50,
             severity=packet.severity,
             category=packet.request_type or "unknown",
-            reasoning={"fallback_used": True, "error": str(e)}
+            reasoning=ReasoningBreakdown(
+                regex_score=packet.regex_score,
+                local_model_score=packet.local_model_score,
+                groq_score=None,
+                corroboration_bonus=0,
+                location_weight=1.0,
+                trend_bonus=0,
+                confidence=packet.confidence,
+                fallback_used=True,
+                rationale=f"Scoring error: {str(e)[:120]}",
+            )
         )
 
     # 6. Persistence (SOSReport)

@@ -26,7 +26,11 @@ class PipelineTimer:
         elapsed_ms = (time.perf_counter() - self._start) * 1000
         if self.stage_name not in _stage_timings:
             _stage_timings[self.stage_name] = []
-        _stage_timings[self.stage_name].append(elapsed_ms)
+        timings = _stage_timings[self.stage_name]
+        timings.append(elapsed_ms)
+        # Cap to last 1000 samples to prevent unbounded RAM growth under load
+        if len(timings) > 1000:
+            _stage_timings[self.stage_name] = timings[-1000:]
         logger.debug(f"[METRIC] {self.stage_name}: {elapsed_ms:.2f}ms")
 
 

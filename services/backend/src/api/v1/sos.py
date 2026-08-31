@@ -45,10 +45,14 @@ async def get_sos_status(sos_id: str, db: AsyncSession = Depends(get_db_session)
     }
 
 @router.post("/{sos_id}/ack")
-async def ack_sos(sos_id: str, db: AsyncSession = Depends(get_db_session)):
+async def ack_sos(
+    sos_id: str,
+    x_gateway_id: str = Depends(check_rate_limit),
+    db: AsyncSession = Depends(get_db_session),
+):
     """
     Gateway ACK endpoint — called by the gateway after receiving backend confirmation.
-    Confirms end-to-end delivery and returns current incident linkage.
+    Confirms end-to-end delivery. Requires the same X-Gateway-ID header as /ingest.
     Required by the API/WS contract (§9, Master PRD).
     """
     from src.database.models import SOSReport

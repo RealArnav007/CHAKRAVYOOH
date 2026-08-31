@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.audit.logger import AuditAction, log_event
 from src.auth.jwt import create_access_token, create_refresh_token, verify_token
 from src.auth.otp import issue_otp, verify_otp
+from src.auth.rbac import get_current_user
 from src.database.models import RoleEnum, User
 from src.dependencies import get_db_session
 from src.security.rate_limiter import check_otp_rate_limit
@@ -126,10 +127,15 @@ async def refresh_access_token(req: TokenRefreshRequest, db: AsyncSession = Depe
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-async def logout(req: LogoutRequest, db: AsyncSession = Depends(get_db_session)):
+async def logout(
+    req: LogoutRequest,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
     """
     Revokes the given session_id. The client must discard both tokens.
+    Requires a valid access token — prevents anonymous session revocation.
     Soft-logout: access token remains valid until natural expiry (short-lived by design).
     """
     await revoke_session(db, req.session_id)
-    await log_event(db, AuditAction.LOGOUT, details={"session_id": req.session_id})
+    await log_event(db, AuditAction.LOGOUT, actor_id=current_user.user_id, details={"session_id": req.session_id})
