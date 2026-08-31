@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Header, HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.dependencies import get_db_session
@@ -17,7 +18,7 @@ async def ingest_sos(
 ):
     """
     Ingest a signed SOS packet from a Gateway node.
-    Executes schema validation, Ed25519 signature verification, replay protection, deduplication, 
+    Executes schema validation, Ed25519 signature verification, replay protection, deduplication,
     X25519 decryption, AI scoring, persistence, correlation, and Realtime dashboard broadcasting.
     """
     return await process_sos_ingestion(db, request, gateway_id=x_gateway_id)
@@ -28,17 +29,41 @@ async def get_sos_status(sos_id: str, db: AsyncSession = Depends(get_db_session)
     from sqlalchemy import select
 
     from src.database.models import SOSReport
-    
+
     stmt = select(SOSReport).where(SOSReport.sos_id == sos_id).limit(1)
     result = await db.execute(stmt)
     report = result.scalar_one_or_none()
-    
+
     if not report:
         raise HTTPException(status_code=404, detail="SOS not found")
-        
+
     return {
         "sos_id": report.sos_id,
         "delivery": "acknowledged",
         "incident_id": report.incident_id,
         "received_at": int(report.received_at.timestamp() * 1000) if report.received_at else None
+    }
+
+@router.post("/{sos_id}/ack")
+async def ack_sos(sos_id: str, db: AsyncSession = Depends(get_db_session)):
+    """
+    Gateway ACK endpoint — called by the gateway after receiving backend confirmation.
+    Confirms end-to-end delivery and returns current incident linkage.
+    Required by the API/WS contract (§9, Master PRD).
+    """
+    from src.database.models import SOSReport
+
+    stmt = select(SOSReport).where(SOSReport.sos_id == sos_id).limit(1)
+    result = await db.execute(stmt)
+    report = result.scalar_one_or_none()
+
+    if not report:
+        raise HTTPException(status_code=404, detail="SOS not found")
+
+    return {
+        "sos_id": report.sos_id,
+        "ack": True,
+        "incident_id": report.incident_id,
+        "priority_score": report.priority_score,
+        "received_at": int(report.received_at.timestamp() * 1000) if report.received_at else None,
     }

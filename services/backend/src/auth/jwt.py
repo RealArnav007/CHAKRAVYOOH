@@ -29,11 +29,19 @@ def create_refresh_token(data: dict) -> str:
     encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
     return encoded_jwt
 
-def verify_token(token: str) -> dict:
-    """Verify and decode a JWT token."""
+def verify_token(token: str, token_type: str = "access") -> dict:
+    """
+    Verify and decode a JWT token.
+    Enforces token type so a refresh token cannot be used as an access token.
+    """
     settings = get_settings()
     try:
         payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+        # Refresh tokens carry {"type": "refresh"}; access tokens have no "type" field.
+        if token_type == "access" and payload.get("type") == "refresh":
+            return {}
+        if token_type == "refresh" and payload.get("type") != "refresh":
+            return {}
         return payload
     except JWTError:
         return {}

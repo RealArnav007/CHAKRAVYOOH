@@ -89,7 +89,8 @@ async def process_sos_ingestion(db: AsyncSession, request: IngestRequest, gatewa
         payload_decrypted=decrypted_text,
         priority_score=score_result.priority_score,
         ai_category=score_result.category,
-        ai_reasoning=score_result.reasoning,
+        # .model_dump() converts ReasoningBreakdown → plain dict for SQLAlchemy JSON column
+        ai_reasoning=score_result.reasoning.model_dump(),
         gateway_id=gateway_id
     )
     db.add(report)
