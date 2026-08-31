@@ -46,4 +46,18 @@ async def recalculate_zone_severity(db: AsyncSession, zone: Zone) -> None:
         
     if old_status != zone.status:
         zone.updated_at = datetime.now(timezone.utc)
-        # Realtime ZONE_UPDATED event can be emitted here
+        
+        import time
+        from src.realtime.events import RealtimeEvent, RealtimeEventType
+        from src.realtime.connection_manager import manager as ws_manager
+        
+        event = RealtimeEvent(
+            event_type=RealtimeEventType.ZONE_UPDATED.value,
+            payload={
+                "zone_id": zone.zone_id,
+                "status": zone.status,
+                "report_count": zone.report_count
+            },
+            timestamp=int(time.time() * 1000)
+        )
+        await ws_manager.broadcast(event)
