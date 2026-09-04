@@ -1,0 +1,326 @@
+{
+  "version": "1.1.0",
+  "description": "Project Pukar Deterministic Regex Test Vectors for Android Kotlin Verification",
+  "total_vectors": 36,
+  "vectors": [
+    {
+      "input_text": "Roof collapsed in flood 4 people trapped under concrete rubble!",
+      "expected_score": 95,
+      "expected_severity": "critical",
+      "expected_category": "rescue",
+      "expected_matched_rules": [
+        "crit_entrapment_structural"
+      ]
+    },
+    {
+      "input_text": "Active building fire on 3rd floor cylinder blast spreading fast!",
+      "expected_score": 90,
+      "expected_severity": "critical",
+      "expected_category": "fire",
+      "expected_matched_rules": [
+        "crit_active_fire_blast"
+      ]
+    },
+    {
+      "input_text": "Severe bleeding from head injury victim unconscious need doctor!",
+      "expected_score": 88,
+      "expected_severity": "critical",
+      "expected_category": "medical",
+      "expected_matched_rules": [
+        "crit_medical_life_threat"
+      ]
+    },
+    {
+      "input_text": "Drowning in flood waters need boat urgently near pillar 14!",
+      "expected_score": 92,
+      "expected_severity": "critical",
+      "expected_category": "rescue",
+      "expected_matched_rules": [
+        "crit_drowning_flood_peril"
+      ]
+    },
+    {
+      "input_text": "Elderly trapped in basement water rising fast!",
+      "expected_score": 95,
+      "expected_severity": "critical",
+      "expected_category": "rescue",
+      "expected_matched_rules": [
+        "crit_entrapment_structural",
+        "crit_vulnerable_population"
+      ]
+    },
+    {
+      "input_text": "Rising water entering ground floor need rescue evacuation",
+      "expected_score": 65,
+      "expected_severity": "warn",
+      "expected_category": "rescue",
+      "expected_matched_rules": [
+        "warn_rising_floodwaters"
+      ]
+    },
+    {
+      "input_text": "No drinking water and food rations completely exhausted for 10 people",
+      "expected_score": 55,
+      "expected_severity": "warn",
+      "expected_category": "shelter",
+      "expected_matched_rules": [
+        "warn_ration_water_exhaustion"
+      ]
+    },
+    {
+      "input_text": "Shelter needed with blankets power outage since yesterday",
+      "expected_score": 50,
+      "expected_severity": "warn",
+      "expected_category": "shelter",
+      "expected_matched_rules": [
+        "warn_shelter_blankets"
+      ]
+    },
+    {
+      "input_text": "Minor cut on arm need first aid bandage",
+      "expected_score": 45,
+      "expected_severity": "warn",
+      "expected_category": "medical",
+      "expected_matched_rules": [
+        "warn_minor_injury_medical"
+      ]
+    },
+    {
+      "input_text": "Blocked road due to fallen tree near bridge",
+      "expected_score": 40,
+      "expected_severity": "warn",
+      "expected_category": "other",
+      "expected_matched_rules": [
+        "warn_hazard_road_blockage"
+      ]
+    },
+    {
+      "input_text": "We are safe at community relief camp all okay",
+      "expected_score": 10,
+      "expected_severity": "info",
+      "expected_category": "other",
+      "expected_matched_rules": [
+        "info_safe_status_checkin"
+      ]
+    },
+    {
+      "input_text": "Where is the nearest relief camp location update please?",
+      "expected_score": 20,
+      "expected_severity": "info",
+      "expected_category": "other",
+      "expected_matched_rules": [
+        "info_general_inquiry"
+      ]
+    },
+    {
+      "input_text": "मकान की छत गिर गई है 4 लोग मलबे में दबे हैं तुरंत मदद भेजो!",
+      "expected_score": 95,
+      "expected_severity": "critical",
+      "expected_category": "rescue",
+      "expected_matched_rules": [
+        "crit_entrapment_structural"
+      ]
+    },
+    {
+      "input_text": "सिलेंडर ब्लास्ट हुआ है और भीषण आग लग गई है लोग फंसे हैं!",
+      "expected_score": 90,
+      "expected_severity": "critical",
+      "expected_category": "fire",
+      "expected_matched_rules": [
+        "crit_active_fire_blast"
+      ]
+    },
+    {
+      "input_text": "सिर में गहरी चोट है और बहुत खून बह रहा है बेहोश हैं!",
+      "expected_score": 88,
+      "expected_severity": "critical",
+      "expected_category": "medical",
+      "expected_matched_rules": [
+        "crit_medical_life_threat"
+      ]
+    },
+    {
+      "input_text": "बाढ़ के पानी में डूब रहे हैं नाव भेजो तुरंत!",
+      "expected_score": 15,
+      "expected_severity": "info",
+      "expected_category": "other",
+      "expected_matched_rules": []
+    },
+    {
+      "input_text": "गर्भवती महिला प्रसव पीड़ा में है बाढ़ में फंसी है!",
+      "expected_score": 15,
+      "expected_severity": "info",
+      "expected_category": "other",
+      "expected_matched_rules": []
+    },
+    {
+      "input_text": "पानी घर में आ रहा है जलभराव बढ़ रहा है",
+      "expected_score": 65,
+      "expected_severity": "warn",
+      "expected_category": "rescue",
+      "expected_matched_rules": [
+        "warn_rising_floodwaters"
+      ]
+    },
+    {
+      "input_text": "पीने का पानी नहीं है और खाना खत्म हो गया है",
+      "expected_score": 15,
+      "expected_severity": "info",
+      "expected_category": "other",
+      "expected_matched_rules": []
+    },
+    {
+      "input_text": "कंबल चाहिए और शेल्टर में जगह चाहिए बिजली नहीं है",
+      "expected_score": 50,
+      "expected_severity": "warn",
+      "expected_category": "shelter",
+      "expected_matched_rules": [
+        "warn_shelter_blankets"
+      ]
+    },
+    {
+      "input_text": "बुखार है और दवाई चाहिए पट्टी उपलब्ध कराएं",
+      "expected_score": 45,
+      "expected_severity": "warn",
+      "expected_category": "medical",
+      "expected_matched_rules": [
+        "warn_minor_injury_medical"
+      ]
+    },
+    {
+      "input_text": "रास्ता बंद है पेड़ गिर गया है",
+      "expected_score": 40,
+      "expected_severity": "warn",
+      "expected_category": "other",
+      "expected_matched_rules": [
+        "warn_hazard_road_blockage"
+      ]
+    },
+    {
+      "input_text": "हम सब सुरक्षित हैं कैम्प पहुंच गए हैं सब ठीक है",
+      "expected_score": 10,
+      "expected_severity": "info",
+      "expected_category": "other",
+      "expected_matched_rules": [
+        "info_safe_status_checkin"
+      ]
+    },
+    {
+      "input_text": "राहत कहाँ है और कैम्प की जानकारी दीजिए",
+      "expected_score": 15,
+      "expected_severity": "info",
+      "expected_category": "other",
+      "expected_matched_rules": []
+    },
+    {
+      "input_text": "Building gir gaya 3 log fase hue hain jaldi rescue team bhejo!",
+      "expected_score": 95,
+      "expected_severity": "critical",
+      "expected_category": "rescue",
+      "expected_matched_rules": [
+        "crit_entrapment_structural"
+      ]
+    },
+    {
+      "input_text": "Ghar me cylinder phat gaya aag lag gayi hai 4 log fase hain!",
+      "expected_score": 95,
+      "expected_severity": "critical",
+      "expected_category": "rescue",
+      "expected_matched_rules": [
+        "crit_entrapment_structural",
+        "crit_active_fire_blast"
+      ]
+    },
+    {
+      "input_text": "Bohot khoon beh raha hai victim behosh ho gaya hai ambulance bhejo!",
+      "expected_score": 88,
+      "expected_severity": "critical",
+      "expected_category": "medical",
+      "expected_matched_rules": [
+        "crit_medical_life_threat"
+      ]
+    },
+    {
+      "input_text": "Pani bohot badh gaya hum doob rahe hain jaldi boat bhejo please!",
+      "expected_score": 92,
+      "expected_severity": "critical",
+      "expected_category": "rescue",
+      "expected_matched_rules": [
+        "crit_drowning_flood_peril"
+      ]
+    },
+    {
+      "input_text": "Buzurg fase hain water level dangerous ho gaya hai!",
+      "expected_score": 95,
+      "expected_severity": "critical",
+      "expected_category": "rescue",
+      "expected_matched_rules": [
+        "crit_entrapment_structural",
+        "crit_vulnerable_population"
+      ]
+    },
+    {
+      "input_text": "Pani ghar me aaraha hai ground floor par water level rising",
+      "expected_score": 65,
+      "expected_severity": "warn",
+      "expected_category": "rescue",
+      "expected_matched_rules": [
+        "warn_rising_floodwaters"
+      ]
+    },
+    {
+      "input_text": "Peene ka pani aur khana khatam ho gaya ration chahiye",
+      "expected_score": 55,
+      "expected_severity": "warn",
+      "expected_category": "shelter",
+      "expected_matched_rules": [
+        "warn_ration_water_exhaustion"
+      ]
+    },
+    {
+      "input_text": "Shelter chahiye aur kambal chahiye light nahi hai 24h se",
+      "expected_score": 50,
+      "expected_severity": "warn",
+      "expected_category": "shelter",
+      "expected_matched_rules": [
+        "warn_shelter_blankets"
+      ]
+    },
+    {
+      "input_text": "Bukhar hai aur dawa chahiye first aid kit bhejo",
+      "expected_score": 45,
+      "expected_severity": "warn",
+      "expected_category": "medical",
+      "expected_matched_rules": [
+        "warn_minor_injury_medical"
+      ]
+    },
+    {
+      "input_text": "Deewar me crack aa gaya hai aur rasta band hai",
+      "expected_score": 40,
+      "expected_severity": "warn",
+      "expected_category": "other",
+      "expected_matched_rules": [
+        "warn_hazard_road_blockage"
+      ]
+    },
+    {
+      "input_text": "Hum log safe hain family surakshit hai sab theek",
+      "expected_score": 10,
+      "expected_severity": "info",
+      "expected_category": "other",
+      "expected_matched_rules": [
+        "info_safe_status_checkin"
+      ]
+    },
+    {
+      "input_text": "Camp kahan hai update do relief team kab aayegi?",
+      "expected_score": 20,
+      "expected_severity": "info",
+      "expected_category": "other",
+      "expected_matched_rules": [
+        "info_general_inquiry"
+      ]
+    }
+  ]
+}

@@ -134,7 +134,7 @@ class SOSReport(Base):
     payload_enc = Column(Text, nullable=False)
     payload_decrypted = Column(Text, nullable=True)
     
-    priority_score = Column(Integer, nullable=True)
+    priority_score = Column(Float, nullable=True)
     ai_category = Column(String(50), nullable=True)
     ai_reasoning = Column(JSON, nullable=True)
     

@@ -1,0 +1,49 @@
+# Project Pukar - Frozen Label Definitions & Class Mappings
+# Single source of truth mirrored from services/backend/src/ml/contracts.py
+
+version: "1.0.0"
+
+# Severity Tiers (info | warn | critical)
+severity:
+  - id: "info"
+    index: 0
+    description: "Informational, safe status, or non-urgent queries"
+    score_range: [0, 34]
+  - id: "warn"
+    index: 1
+    description: "Urgent distress or deteriorating conditions without immediate fatal collapse"
+    score_range: [35, 74]
+  - id: "critical"
+    index: 2
+    description: "Direct and immediate threat to human life requiring rapid tactical dispatch"
+    score_range: [75, 100]
+
+# Emergency Classification Categories (rescue | medical | fire | shelter | other)
+category:
+  - id: "rescue"
+    index: 0
+    description: "Trapped persons, evacuation needs, flood/debris rescue, collapsed structures"
+  - id: "medical"
+    index: 1
+    description: "Injuries, burns, fractures, severe bleeding, oxygen/insulin needs"
+  - id: "fire"
+    index: 2
+    description: "Structural fires, gas leaks, explosions, chemical hazards"
+  - id: "shelter"
+    index: 3
+    description: "Displacement, potable water/food exhaustion, emergency housing"
+  - id: "other"
+    index: 4
+    description: "General status check-ins, logistics, infrastructure reports"
+
+# Supported Crisis Message Languages (en | hi | hinglish)
+language:
+  - id: "en"
+    name: "English"
+    script: "Latin"
+  - id: "hi"
+    name: "Hindi"
+    script: "Devanagari"
+  - id: "hinglish"
+    name: "Hinglish"
+    script: "Latin (Code-Mixed / Romanized Hindi)"

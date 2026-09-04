@@ -1,0 +1,47 @@
+# Project Pukar - Synthetic Data Generation Configuration
+# Configures Groq LLM Teacher prompt generation across the full 3D grid:
+# Severity (3) x Category (5) x Language (3) = 45 cells
+
+version: "1.0.0"
+
+generation:
+  model: "llama-3.1-8b-instant"
+  samples_per_cell: 4               # Default N messages generated per cell
+  temperature: 0.85
+  max_retries: 4
+  backoff_factor: 1.8
+  delay_between_calls_sec: 1.0     # Rate limit protection
+
+output:
+  parquet_path: "ml/datasets/processed/corpus_synth.parquet"
+  append_mode: false               # Overwrite or append to existing corpus
+
+pricing:
+  # Llama 3.1 8B on Groq estimated pricing per 1M tokens
+  cost_per_1m_prompt_tokens: 0.05
+  cost_per_1m_completion_tokens: 0.08
+
+grid:
+  severities:
+    - "info"
+    - "warn"
+    - "critical"
+
+  categories:
+    - "rescue"
+    - "medical"
+    - "fire"
+    - "shelter"
+    - "other"
+
+  languages:
+    - "en"
+    - "hi"
+    - "hinglish"
+
+# Contextual prompts for hard boundary and realistic noise injection
+diversity_guidelines:
+  - "Vary panic level: from frantic all-caps with typos to concise urgent updates"
+  - "Include regional abbreviations, missing punctuation, and SMS shortcuts"
+  - "Inject realistic landmarks: sector roads, nullahs, metro stations, school camps, bridge pillars"
+  - "Ensure 25% of samples represent boundary/ambiguous scenarios (e.g. rising water approaching floor vs trapped in water)"
