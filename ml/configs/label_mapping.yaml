@@ -1,0 +1,107 @@
+# Project Pukar - Public Corpus Label Mapping Table
+# Maps native annotations from public datasets to Pukar {severity, category} schemas
+
+version: "1.0.0"
+
+# 1. HumAID (Humanitarian AI Dataset - QCRI / CrisisNLP)
+humaid:
+  default:
+    severity: "info"
+    category: "other"
+  mappings:
+    "requests_or_urgent_needs":
+      severity: "critical"
+      category: "rescue"
+    "injured_or_dead_people":
+      severity: "critical"
+      category: "medical"
+    "rescue_volunteering_or_donation_effort":
+      severity: "critical"
+      category: "rescue"
+    "displaced_people_and_evacuations":
+      severity: "warn"
+      category: "shelter"
+    "infrastructure_and_utility_damage":
+      severity: "warn"
+      category: "other"
+    "caution_and_advice":
+      severity: "warn"
+      category: "other"
+    "other_relevant_information":
+      severity: "info"
+      category: "other"
+    "sympathy_and_support":
+      severity: "info"
+      category: "other"
+    "not_humanitarian":
+      severity: "info"
+      category: "other"
+
+# 2. CrisisNLP / CrisisLex (CrisisLexT26 & CrisisLexT6)
+crisisnlp:
+  default:
+    severity: "info"
+    category: "other"
+  mappings:
+    "affected_individuals":
+      severity: "critical"
+      category: "rescue"
+    "injured_or_dead_people":
+      severity: "critical"
+      category: "medical"
+    "missing_or_found_people":
+      severity: "critical"
+      category: "rescue"
+    "displaced_and_evacuations":
+      severity: "warn"
+      category: "shelter"
+    "infrastructure_and_utilities_damage":
+      severity: "warn"
+      category: "other"
+    "caution_and_advice":
+      severity: "warn"
+      category: "other"
+    "donations_and_volunteering":
+      severity: "info"
+      category: "other"
+    "sympathy_and_emotional_support":
+      severity: "info"
+      category: "other"
+    "other_useful_information":
+      severity: "info"
+      category: "other"
+    "not_related_or_irrelevant":
+      severity: "info"
+      category: "other"
+    "on-topic":
+      severity: "warn"
+      category: "other"
+    "off-topic":
+      severity: "info"
+      category: "other"
+
+# 3. Kaggle Disaster Tweets Dataset
+kaggle:
+  default_non_disaster:
+    severity: "info"
+    category: "other"
+  default_disaster:
+    severity: "warn"
+    category: "other"
+  keyword_mappings:
+    rescue:
+      keywords: ["trapped", "drowning", "collapse", "collapsed", "flood", "flooding", "avalanche", "landslide", "sinkhole", "derailment"]
+      severity: "critical"
+      category: "rescue"
+    medical:
+      keywords: ["bleeding", "injured", "injuries", "casualties", "fatality", "fatalities", "wound", "wounded", "blood", "ambulance", "paramedic"]
+      severity: "critical"
+      category: "medical"
+    fire:
+      keywords: ["fire", "wildfire", "burning", "arson", "explosion", "blaze", "flames", "bomb", "blast", "gas leak"]
+      severity: "critical"
+      category: "fire"
+    shelter:
+      keywords: ["evacuate", "evacuation", "evacuated", "homeless", "refugees", "shelter", "famine", "drought", "food shortage"]
+      severity: "warn"
+      category: "shelter"

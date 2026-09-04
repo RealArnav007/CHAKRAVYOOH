@@ -1,0 +1,53 @@
+# Project Pukar - Model Architecture & Multi-Task Classifier Config
+# Optimized for high-throughput, on-device offline inference (< 30 ms, < 5 MB budget)
+
+version: "1.0.0"
+
+model:
+  name: "pukar_multitask_crisis_net"
+  vocab_size: 5000
+  embedding_dim: 25 # 25d GloVe-Twitter / OOV initialization protects the < 5 MB edge budget
+  max_seq_len: 64
+  embedding_matrix_path: "ml/model/embedding_matrix.npy"
+  trainable_embeddings: true
+
+encoder:
+  conv_filters: 32 # Number of filters per depthwise-separable kernel branch
+  kernel_sizes: [3, 4, 5] # Multi-scale n-gram context windows for disaster phrasing
+  shared_dense_units: 64 # Bottleneck feature compression
+  dropout_rate: 0.2
+  activation: "relu"
+
+auxiliary:
+  feature_dim: 2 # [regex_score (0.0-100.0 or normalized 0.0-1.0), language_id (0: en, 1: hi, 2: hinglish)]
+  feature_names:
+    - "regex_score"
+    - "language_id"
+
+heads:
+  severity:
+    name: "severity"
+    num_classes: 3 # 0: info, 1: warn, 2: critical
+    loss_weight: 1.0
+  category:
+    name: "category"
+    num_classes: 5 # 0: rescue, 1: medical, 2: fire, 3: shelter, 4: other
+    loss_weight: 0.8
+
+training:
+  optimizer: "adam"
+  learning_rate: 0.002
+  severity_loss: "categorical_crossentropy"
+  category_loss: "categorical_crossentropy"
+  severity_metric: "accuracy"
+  category_metric: "accuracy"
+
+teacher:
+  mode: "groq" # Mode A: "groq" (zero-infra default) | Mode B: "transformer" (compact multilingual transformer)
+  groq_model: "llama-3.1-8b-instant"
+  transformer_model: "distilbert-base-multilingual-cased"
+  temperature: 2.0 # Temperature scaling for distillation softening
+  input_path: "ml/datasets/processed/train.parquet"
+  output_path: "ml/datasets/processed/train_soft.parquet"
+  cache_path: "ml/datasets/processed/corpus_autolabeled.parquet"
+

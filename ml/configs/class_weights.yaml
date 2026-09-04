@@ -1,0 +1,12 @@
+category_weights:
+  fire: 1.0645
+  medical: 1.1
+  other: 0.9429
+  rescue: 0.9429
+  shelter: 0.9706
+description: Balanced inverse-frequency class weights computed from training split
+severity_weights:
+  critical: 0.9821
+  info: 1.0185
+  warn: 1.0
+version: 1.0.0

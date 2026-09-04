@@ -1,0 +1,32 @@
+# Project Pukar - Student Knowledge Distillation Training Configuration
+version: "1.0.0"
+
+distillation:
+  alpha: 0.5 # Weight for soft KD loss (0.0 = hard labels only, 1.0 = soft labels only)
+  temperature: 2.0 # Distillation temperature T
+  severity_weight: 1.0 # Task loss multiplier for severity head
+  category_weight: 0.8 # Task loss multiplier for category head
+
+training:
+  epochs: 50
+  batch_size: 16
+  learning_rate: 0.003
+  seed: 42
+  early_stopping_patience: 12
+  reduce_lr_patience: 5
+  reduce_lr_factor: 0.5
+  min_lr: 0.00005
+
+targets:
+  val_severity_macro_f1_target: 0.85
+  val_category_macro_f1_target: 0.80
+
+paths:
+  train_dataset: "ml/datasets/processed/train_soft.parquet"
+  val_dataset: "ml/datasets/processed/val.parquet"
+  test_dataset: "ml/datasets/processed/test.parquet"
+  class_weights: "ml/configs/class_weights.yaml"
+  vocab: "ml/tokenizer/vocab.json"
+  model_config: "ml/configs/model.yaml"
+  save_model_path: "ml/model/artifacts/student_fp32.keras"
+  legacy_model_path: "ml/model/pukar_model.keras"

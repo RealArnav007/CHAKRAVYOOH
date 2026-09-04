@@ -55,31 +55,28 @@ async def process_sos_ingestion(db: AsyncSession, request: IngestRequest, gatewa
         raise HTTPException(status_code=422, detail="DECRYPTION_FAILED")
         
     # 5. ML Scoring & Priority Fusion
-    try:
-        score_result = await score(packet, decrypted_text)
-    except Exception as e:
-        logger.error(f"ML Scoring failed for packet {packet.msg_id}: {e}")
-        from src.ml.interface import ReasoningBreakdown, ScoringResult
-        score_result = ScoringResult(
-            priority_score=50,
-            severity=packet.severity,
-            category=packet.request_type or "unknown",
-            reasoning=ReasoningBreakdown(
-                regex_score=packet.regex_score,
-                local_model_score=packet.local_model_score,
-                groq_score=None,
-                corroboration_bonus=0,
-                location_weight=1.0,
-                trend_bonus=0,
-                confidence=packet.confidence,
-                fallback_used=True,
-                rationale=f"Scoring error: {str(e)[:120]}",
-            )
+    # Query existing corroborating report count for the cluster before scoring —
+    # the Priority Engine uses this to boost priority of dense incident clusters.
+    from sqlalchemy import func, select as sa_select
+    from src.database.models import SOSReport as SOSReportModel
+    from datetime import timedelta
+    cluster_window = datetime.now(timezone.utc) - timedelta(hours=2)
+    cluster_radius = 0.005  # ~500 m in decimal degrees (rough, exact calc done by PriorityEngine)
+    corr_count_result = await db.execute(
+        sa_select(func.count()).where(
+            SOSReportModel.lat.between(packet.lat - cluster_radius, packet.lat + cluster_radius),
+            SOSReportModel.lon.between(packet.lon - cluster_radius, packet.lon + cluster_radius),
+            SOSReportModel.created_at >= cluster_window,
         )
+    )
+    corroborating_count = max(0, (corr_count_result.scalar() or 1) - 1)  # exclude the current packet
+
+    # score() adapter handles all fallbacks internally — never raises
+    score_result = await score(packet, decrypted_text, corroborating_reports_count=corroborating_count)
 
     # 6. Persistence (SOSReport)
     packet_dt = datetime.fromtimestamp(packet.created_at / 1000.0, tz=timezone.utc)
-    
+
     report = SOSReport(
         msg_id=packet.msg_id,
         origin_id=packet.origin_id,
@@ -97,20 +94,21 @@ async def process_sos_ingestion(db: AsyncSession, request: IngestRequest, gatewa
         confidence=packet.confidence,
         payload_enc=packet.payload_enc,
         payload_decrypted=decrypted_text,
-        priority_score=score_result.priority_score,
-        ai_category=score_result.category,
-        # .model_dump() converts ReasoningBreakdown → plain dict for SQLAlchemy JSON column
+        priority_score=score_result.priority_score,           # float — column now Float
+        ai_category=str(score_result.category),               # StrEnum → plain string
+        # .model_dump() converts AIReasoningBreakdown → plain dict for SQLAlchemy JSON column
         ai_reasoning=score_result.reasoning.model_dump(),
         gateway_id=gateway_id
     )
     db.add(report)
     await db.commit()
     await db.refresh(report)
-    
+
     # 7. Incident Correlation
     incident_id = await correlate_incident(db, report)
     report.incident_id = incident_id
     await db.commit()
+
     
     # 8. WebSocket Broadcast
     event = RealtimeEvent(
@@ -119,7 +117,7 @@ async def process_sos_ingestion(db: AsyncSession, request: IngestRequest, gatewa
             "sos_id": report.sos_id,
             "incident_id": incident_id,
             "priority": score_result.priority_score,
-            "category": score_result.category,
+            "category": str(score_result.category),   # StrEnum → plain string for JSON serialization
             "lat": report.lat,
             "lon": report.lon
         },
