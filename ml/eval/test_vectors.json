@@ -9,7 +9,7 @@
       "expected_severity": "critical",
       "expected_category": "rescue",
       "matched_rules": [
-        "crit_trapped_immediate"
+        "crit_entrapment_structural"
       ]
     },
     {
@@ -20,7 +20,7 @@
       "expected_severity": "critical",
       "expected_category": "fire",
       "matched_rules": [
-        "crit_fire_explosion"
+        "crit_active_fire_blast"
       ]
     },
     {
@@ -31,7 +31,7 @@
       "expected_severity": "critical",
       "expected_category": "rescue",
       "matched_rules": [
-        "crit_trapped_immediate"
+        "crit_entrapment_structural"
       ]
     },
     {

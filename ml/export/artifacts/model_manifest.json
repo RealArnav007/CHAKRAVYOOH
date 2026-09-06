@@ -1,13 +1,27 @@
 {
   "model_name": "pukar_severity_classifier",
-  "format": "TFLite (float16 quantized)",
-  "input_tensor": "token_ids [1, 64] (int32)",
-  "output_tensors": {
-    "severity_probabilities": "[1, 3] float32 (0: info, 1: warn, 2: critical)",
-    "category_probabilities": "[1, 5] float32 (0: rescue, 1: medical, 2: fire, 3: shelter, 4: other)",
-    "severity_score": "[1, 1] float32 (0.0 to 100.0)"
+  "format": "TFLite (Full INT8 Post-Training Quantization)",
+  "temperature_calibrated": true,
+  "calibration_temperature": 10.0,
+  "input_tensors": {
+    "token_ids": "[1, 64] int32 (Crisis tokenizer vocab indices)",
+    "aux_features": "[1, 2] float32 ([regex_confidence_score, language_id])"
   },
-  "size_mb": 0.063,
+  "output_tensors": {
+    "severity": "[1, 3] float32 (calibrated probabilities [info, warn, critical])",
+    "category": "[1, 5] float32 (probabilities [rescue, medical, fire, shelter, other])"
+  },
+  "size_bytes": 152960,
+  "size_kb": 149.38,
+  "size_mb": 0.1459,
   "target_size_budget_mb": 5.0,
-  "size_gate_passed": true
+  "size_gate_passed": true,
+  "parity": {
+    "severity_top1_agreement": 1.0,
+    "category_top1_agreement": 1.0,
+    "severity_mae": 0.00295,
+    "category_mae": 0.01111,
+    "num_test_samples": 21,
+    "severity_parity_passed": true
+  }
 }

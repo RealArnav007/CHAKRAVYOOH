@@ -13,10 +13,7 @@ from typing import Any
 
 import yaml
 
-try:
-    from .contracts import Category, Severity
-except ImportError:
-    from services.backend.src.ml.contracts import Category, Severity
+from .contracts import Category, Severity
 
 logger = logging.getLogger("RegexEngine")
 

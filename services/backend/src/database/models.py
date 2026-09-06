@@ -137,14 +137,21 @@ class SOSReport(Base):
     priority_score = Column(Float, nullable=True)
     ai_category = Column(String(50), nullable=True)
     ai_reasoning = Column(JSON, nullable=True)
-    
+    # ScoreResult v2.0.0 ML intelligence columns
+    escalation_signal = Column(Float, nullable=True)          # zone surge multiplier 0.0-1.0
+    false_alarm_likelihood = Column(Float, nullable=True)     # drill/false-alarm probability
+    needs_human_review = Column(Boolean, default=False, nullable=True)   # commander review badge
+    injection_suspected = Column(Boolean, default=False, nullable=True)  # prompt injection flag
+    ai_correlation_id = Column(String(64), nullable=True)     # trace ID for observability
+
     incident_id = Column(String(36), ForeignKey("incidents.incident_id"), nullable=True)
     gateway_id = Column(String(64), nullable=True)
     received_at = Column(DateTime(timezone=True), default=utc_now)
-    
+
     __table_args__ = (
         Index("ix_sos_reports_location_time", "lat", "lon", "created_at"),
     )
+
 
 
 class Incident(Base):

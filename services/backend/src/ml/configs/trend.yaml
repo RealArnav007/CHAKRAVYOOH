@@ -1,0 +1,47 @@
+# Project Pukar - Zone Escalation & Trend Analysis Configuration
+# =============================================================
+# Mathematical hyperparameters for sliding-window arrival rate & acceleration detection.
+# Feeds zone severity escalation and the "zone ignites" demo beat.
+
+sliding_windows:
+  # Recent active observation window (seconds) - 5 minutes
+  recent_window_seconds: 300.0
+  
+  # Prior baseline comparison window (seconds) - 15 minutes total (so prior segment is 10 min)
+  prior_window_seconds: 900.0
+  
+  # Minimum timestamps needed to compute non-trivial rate/acceleration
+  min_reports_for_acceleration: 2
+
+rate_scaling:
+  # Rate of reports/min that saturates the rate component to 1.0
+  saturation_rate_per_min: 4.0
+  
+  # Weight given to raw arrival rate vs rate acceleration
+  rate_weight: 0.55
+  acceleration_weight: 0.45
+
+acceleration_scaling:
+  # Acceleration (reports/min delta) that saturates acceleration component to 1.0
+  saturation_acceleration: 2.5
+  
+  # Damping factor applied when acceleration is negative (decelerating)
+  deceleration_damping: 0.50
+
+burst_detection:
+  # Max inter-arrival time (seconds) to classify arrivals as a concentrated burst
+  burst_interval_seconds: 45.0
+  
+  # Minimum consecutive quick arrivals to trigger burst multiplier
+  min_burst_cluster_size: 3
+  
+  # Additional signal boost when active burst is detected
+  burst_signal_bonus: 0.15
+
+state_thresholds:
+  # Escalation signal thresholds mapping to state_hint
+  ignited: 0.75
+  surging: 0.50
+  escalating: 0.25
+  steady: 0.08
+  quiet: 0.0

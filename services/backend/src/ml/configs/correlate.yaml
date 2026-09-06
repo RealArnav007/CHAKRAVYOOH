@@ -1,0 +1,27 @@
+# Project Pukar - Semantic Incident Correlation Configuration
+# =============================================================
+# Thresholds and model configurations for semantic deduplication and incident clustering.
+
+model:
+  name: "paraphrase-multilingual-MiniLM-L12-v2"
+  device: "cpu" # Default to CPU for deterministic, lightweight backend serving
+  normalize_embeddings: true
+  max_sequence_length: 128
+
+clustering:
+  # Cosine similarity threshold to consider two reports as the same physical incident
+  similarity_threshold: 0.72
+  
+  # High confidence threshold for automatic merging without human dispatcher confirmation
+  high_confidence_threshold: 0.85
+  
+  # Maximum candidate comparisons to process per query
+  max_candidates: 50
+
+  # Cluster hint templates based on domain
+  cluster_hints:
+    collapse: "Structural Entrapment Cluster"
+    flood: "Water Rescue & Inundation Cluster"
+    fire: "Active Structure Fire Cluster"
+    medical: "Mass Casualty / Medical Triage Cluster"
+    evacuation: "Evacuation & Transit Cluster"
