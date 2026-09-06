@@ -1,4 +1,6 @@
-<!DOCTYPE html>
+import os
+
+html_code = """<!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
   <meta charset="UTF-8">
@@ -1018,3 +1020,15 @@
   </script>
 </body>
 </html>
+"""
+
+with open('static/pukaar_command_center.html', 'w') as f:
+    f.write(html_code)
+
+with open('static/index.html', 'w') as f:
+    f.write(html_code)
+
+with open('index.html', 'w') as f:
+    f.write(html_code)
+
+print("Beautified and enlarged officer credentials selection card on login page.")
