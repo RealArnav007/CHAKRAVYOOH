@@ -31,23 +31,27 @@ Artifacts:
 Saves calibrated temperature and diagnostic stats to ml/model/artifacts/calibration.json.
 """
 
-from __future__ import annotations
-
 import argparse
 import datetime
 import json
 import logging
+import sys
 from pathlib import Path
 from typing import Any
 
-import numpy as np
-import pandas as pd
-from scipy.optimize import minimize_scalar
+# Ensure repo root is on sys.path for direct CLI invocations
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
-from ml.model.train import prepare_dataset_arrays
-from ml.tokenizer.tokenizer import CrisisTokenizer
-from services.backend.src.ml.contracts import Severity
-from services.backend.src.ml.regex_engine import RegexEngine
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+from scipy.optimize import minimize_scalar  # noqa: E402
+
+from ml.model.train import prepare_dataset_arrays  # noqa: E402
+from ml.tokenizer.tokenizer import CrisisTokenizer  # noqa: E402
+from services.backend.src.ml.contracts import Severity  # noqa: E402
+from services.backend.src.ml.regex_engine import RegexEngine  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("pukar.calibrate")

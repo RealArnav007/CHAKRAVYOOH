@@ -1,0 +1,68 @@
+# Project Pukar - Priority Score Fusion Weights & Decision Thresholds
+# Editable configuration defining how multi-modal triage signals are combined into a final 0-100 priority score.
+
+version: "1.0.0"
+
+# Multi-Modal Component Weights (must sum to 1.0)
+weights:
+  w_severity: 0.25      # Trusted on-device packet header severity assessment
+  w_regex: 0.20         # Deterministic regex / critical keyword matching score
+  w_local_model: 0.20   # On-device TFLite neural classifier score
+  w_groq: 0.35          # Cloud LLM semantic triage urgency score
+
+# Priority Score to Severity Tier Thresholds
+thresholds:
+  critical: 75.0        # Priority >= 75.0 -> CRITICAL tier
+  warn: 35.0            # Priority >= 35.0 and < 75.0 -> WARN tier
+  info: 0.0             # Priority < 35.0 -> INFO tier
+
+# Numeric Baseline Anchors for Discrete Severity Levels
+severity_numeric_anchors:
+  info: 20.0
+  warn: 55.0
+  critical: 90.0
+
+# Dynamic Environmental Modifiers & Bonusing (Harshit's Incident Layer)
+# NOTE ON INCIDENT TRIAGE ARCHITECTURE:
+# Standalone per-report severity is kept strictly separate from cluster incident priority.
+# Multiple duplicate reports in a geographic cluster do NOT linearly inflate priority score.
+# Harshit's correlation engine clusters packets; corroboration bonus uses bounded sub-linear saturation.
+modifiers:
+  corroboration:
+    bonus_per_report: 4.0          # Sub-linear bonus added per corroborating report in cluster
+    max_corroboration_bonus: 15.0  # Hard saturation cap preventing duplicate reports from linearly inflating priority
+  
+  vulnerability_bonus:
+    child_or_elderly: 8.0          # Bonus points if text/telemetry indicates minors or elderly
+    pregnant: 10.0                 # Bonus points for maternity distress
+    medical_equipment: 10.0        # Bonus points if oxygen/insulin/dialysis mentioned
+    trapped_bonus: 10.0            # Bonus points for physical entrapment
+    medical_need_bonus: 5.0        # Bonus points for urgent medical triage
+    victim_count_threshold: 3      # Threshold count for mass casualty escalation
+  
+  temporal_decay:
+    half_life_hours: 6.0           # Half-life duration before priority begins to decay
+    min_decay_factor: 0.5          # Floor preventing reports from decaying to zero
+
+  spatial_location:
+    weight: 1.0                    # Multiplier for spatial hazard / floodplain index (-10 to +10)
+    max_location_bonus: 10.0       # Clamp bound for location risk modifier
+
+  escalation_trend:
+    weight: 1.0                    # Multiplier for incoming report acceleration rate (-10 to +10)
+    max_trend_bonus: 10.0          # Clamp bound for temporal escalation trend
+
+
+# Disagreement Detection & Quality Assurance
+disagreement:
+  score_delta_threshold: 30.0      # Score delta between local model and server regex triggering disagreement flag
+  flag_degraded_local: true        # Record possible degraded on-device run diagnostics
+
+# Groq Cloud Triage Resilience & Latency Bounds
+groq_enabled: true                 # Master flag: when false or on error, falls back to regex + local_model
+groq_timeout_ms: 2000              # Maximum latency budget (ms) before degrading to rules-only triage
+
+groq:
+  groq_enabled: true               # Namespace config mapping
+  groq_timeout_ms: 2000            # Namespace config mapping
+

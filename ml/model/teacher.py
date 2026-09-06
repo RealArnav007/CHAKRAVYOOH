@@ -35,17 +35,17 @@ import logging
 import sys
 from pathlib import Path
 
-import numpy as np
-import pandas as pd
-import yaml
-from dotenv import load_dotenv
-
-from ml.data_gen.autolabel import AutoLabelOracle, compute_text_hash
-
 # Ensure repo root is on sys.path for direct CLI invocations
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
+
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+import yaml  # noqa: E402
+from dotenv import load_dotenv  # noqa: E402
+
+from ml.data_gen.autolabel import AutoLabelOracle, compute_text_hash  # noqa: E402
 
 load_dotenv()
 

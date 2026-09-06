@@ -1,0 +1,149 @@
+# Project Pukar - Deterministic & Fallback Entity Extraction Rules
+# =================================================================
+# Multilingual (English, Hindi, Hinglish) regex and keyword rules
+# used as immediate deterministic extraction and graceful fallback when Groq is unavailable.
+
+people_count:
+  patterns:
+    - regex: '(?i)(?:^|[^\w])(?P<count>\d{1,3})\s*(?:people|persons?|members?|victims?|individuals?|log|jan|vyakti|bachhe|bache|family members?|elderly|children|kids|infants?|seniors?|residents?)'
+    - regex: '(?i)(?:^|[^\w])(?:family of|group of)\s*(?P<count>\d{1,3})'
+    - regex: '(?i)(?:^|[^\w])(?P<count>\d{1,3})\s*(?:trapped|fase|fase hue|injured|ghayal|dabe|under debris|stranded)'
+  word_numbers:
+    "ek": 1
+    "one": 1
+    "single": 1
+    "do": 2
+    "two": 2
+    "both": 2
+    "teen": 3
+    "tin": 3
+    "three": 3
+    "char": 4
+    "chaar": 4
+    "four": 4
+    "paanch": 5
+    "panch": 5
+    "five": 5
+    "chhah": 6
+    "che": 6
+    "chhe": 6
+    "six": 6
+    "saat": 7
+    "sat": 7
+    "seven": 7
+    "aath": 8
+    "ath": 8
+    "eight": 8
+    "nau": 9
+    "nine": 9
+    "das": 10
+    "ten": 10
+
+injuries:
+  rules:
+    - id: "bleeding"
+      regex: '(?i)\b(bleeding|bleed|hemorrhage|blood loss|khoon|khoon beh raha|rakta)\b'
+      label: "bleeding"
+    - id: "fracture"
+      regex: '(?i)\b(fracture|fractured|broken bone|broken leg|broken arm|haddi toot|tuta haath|tuta pair|toota pair|toota haath)\b'
+      label: "fracture"
+    - id: "head_injury"
+      regex: '(?i)\b(head injury|head trauma|concussion|sir me chot|sir par chot|sar pe chot)\b'
+      label: "head_injury"
+    - id: "burns"
+      regex: '(?i)\b(burn|burns|burned|jal gaya|jhalas gaya|aag se jala)\b'
+      label: "burns"
+    - id: "unconscious"
+      regex: '(?i)\b(unconscious|passed out|fainted|unresponsive|behosh|hosh nahi)\b'
+      label: "unconscious"
+    - id: "asphyxiation"
+      regex: '(?i)\b(smoke inhalation|smoke exposure|heavy smoke|suffocating|cannot breathe|choking|saans nahi aa rahi|dam ghut raha)\b'
+      label: "asphyxiation"
+    - id: "heart_condition"
+      regex: '(?i)\b(heart attack|chest pain|cardiac arrest|dil ka daura|seene me dard)\b'
+      label: "chest_pain"
+    - id: "general_injury"
+      regex: '(?i)\b(injured|injury|wounds?|wound|chot|ghayal|zakhmi|severe pain|dard)\b'
+      label: "general_trauma"
+
+hazards:
+  rules:
+    - id: "structural_collapse"
+      regex: '(?i)\b(structural_collapse|building collapse|building gir|wall collapse|roof collapse|gir gaya|dhas gaya|malba|debris|rubble|collapse|collapsed|tuta makan)\b'
+      label: "structural_collapse"
+    - id: "fire"
+      regex: '(?i)\b(fire|blaze|flames|smoke|aag|dhuan|dhuaan|sholay)\b'
+      label: "fire"
+    - id: "flood"
+      regex: '(?i)\b(flood|flash flood|water rising|water level|pani bhar|doob|drowning|paani chhat|paani 4 feet|inundated)\b'
+      label: "flood"
+    - id: "gas_leak"
+      regex: '(?i)\b(gas leak|lpg leak|cylinder leak|gas smell|gas ka leak)\b'
+      label: "gas_leak"
+    - id: "electrocution"
+      regex: '(?i)\b(electrocution|electric wire|short circuit|current|bijli ka taar|live wire)\b'
+      label: "electrocution"
+    - id: "landslide"
+      regex: '(?i)\b(landslide|mudslide|rockfall|bhooskhalan|pahad gir)\b'
+      label: "landslide"
+
+needs:
+  rules:
+    - id: "rescue"
+      regex: '(?i)\b(rescue|boat|ladder|ropes|save us|bachao|madad|fase|phase|trapped|stuck|help)\b'
+      category: "rescue"
+    - id: "medical"
+      regex: '(?i)\b(medical|doctor|ambulance|paramedic|first aid|dawa|medicine|hospital|oxygen|blood|chot|ill|sick|dawai)\b'
+      category: "medical"
+    - id: "fire"
+      regex: '(?i)\b(fire engine|fire truck|firefighter|damkal|aag bujhao|extinguisher)\b'
+      category: "fire"
+    - id: "shelter"
+      regex: '(?i)\b(shelter|tents|blanket|drinking water|clean water|food|khana|rashan|chhat|stay)\b'
+      category: "shelter"
+    - id: "evacuation"
+      regex: '(?i)\b(evacuate|evacuation|airlift|relocate|nikalo|bahar nikalo|transport)\b'
+      category: "evacuation"
+
+landmarks:
+  structural_locations:
+    - regex: '(?i)\b(roof|rooftop|chhat|chath)\b'
+      label: "roof"
+    - regex: '(?i)\b(basement|tahkhana)\b'
+      label: "basement"
+    - regex: '(?i)\b(ground floor|first floor|second floor|2nd floor|3rd floor|manzil)\b'
+      label: "floor_level"
+    - regex: '(?i)\b(bridge|pul|flyover)\b'
+      label: "bridge"
+    - regex: '(?i)\b(temple|mandir|masjid|mosque|gurudwara|church)\b'
+      label: "religious_place"
+    - regex: '(?i)\b(hospital|clinic|dispensary)\b'
+      label: "hospital"
+    - regex: '(?i)\b(school|college)\b'
+      label: "school"
+    - regex: '(?i)\b(chowk|circle|crossroad|chauraha)\b'
+      label: "intersection"
+  patterns:
+    - regex: '(?i)\b(?:near|behind|opposite|beside|at)\s+([A-Za-z0-9\s]{3,25})(?:,|$|\.|\b)'
+    - regex: '(?i)\b([A-Za-z0-9\s]{3,25})\s+(?:ke paas|ke peeche|ke samne|ke bagal me)\b'
+
+mobility:
+  trapped_patterns:
+    - '(?i)\b(trapped|stuck|pinned|locked|cannot escape|cannot move|under debris|marooned|stranded|fase|fasa|fasi|phase|malbe me|dabe hue|band hain|chhat par|on roof)\b'
+  mobile_patterns:
+    - '(?i)\b(mobile|can walk|walking|moving|safely evacuated|bahar nikal gaye|chal sakte|running)\b'
+
+vulnerable:
+  rules:
+    - id: "child"
+      regex: '(?i)\b(child|children|baby|infant|kid|kids|toddler|bacche|bache|baccha|chhota bacha|balk|masoom)\b'
+      label: "child"
+    - id: "elderly"
+      regex: '(?i)\b(elderly|old person|old man|old woman|senior citizen|grandfather|grandmother|buddhe|bujurg|dadaji|naniji|vriddh|dadi|nani|dada|nana)\b'
+      label: "elderly"
+    - id: "disabled"
+      regex: '(?i)\b(disabled|handicapped|wheelchair|blind|deaf|divyang|paralyzed|bedridden|chal nahi sakte)\b'
+      label: "disabled"
+    - id: "pregnant"
+      regex: '(?i)\b(pregnant|pregnancy|garbhvati|expecting)\b'
+      label: "pregnant"

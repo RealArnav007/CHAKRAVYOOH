@@ -37,22 +37,22 @@ import sys
 from pathlib import Path
 from typing import Any
 
-import numpy as np
-import pandas as pd
-import tensorflow as tf
-import yaml
-from dotenv import load_dotenv
-from sklearn.metrics import f1_score
-
-from ml.model.architecture import build_model
-from ml.tokenizer.tokenizer import CrisisTokenizer
-from services.backend.src.ml.contracts import Category, Language, Severity
-from services.backend.src.ml.regex_engine import RegexEngine
-
 # Ensure repo root is on sys.path for direct CLI invocations
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
+
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+import tensorflow as tf  # noqa: E402
+import yaml  # noqa: E402
+from dotenv import load_dotenv  # noqa: E402
+from sklearn.metrics import f1_score  # noqa: E402
+
+from ml.model.architecture import build_model  # noqa: E402
+from ml.tokenizer.tokenizer import CrisisTokenizer  # noqa: E402
+from services.backend.src.ml.contracts import Category, Language, Severity  # noqa: E402
+from services.backend.src.ml.regex_engine import RegexEngine  # noqa: E402
 
 load_dotenv()
 

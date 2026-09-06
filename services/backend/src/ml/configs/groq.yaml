@@ -1,0 +1,29 @@
+# Project Pukar - Groq Cloud LLM Configuration
+# ===============================================
+
+model: "llama-3.3-70b-versatile"
+timeout_seconds: 2.0
+max_retries: 2
+temperature: 0.1
+max_tokens: 300
+
+# JSON Repair & Corrective Re-prompting
+json_repair:
+  max_corrective_prompts: 1 # One corrective re-prompt before falling back
+
+# Self-Consistency Sampling (Borderline cases only to keep cost down)
+self_consistency:
+  enabled: true
+  sample_count: 3 # N=3 majority voting
+  sample_temperature: 0.3 # Low temperature for candidate diversity
+  confidence_threshold: 0.75 # Trigger voting if initial confidence < 0.75
+  borderline_urgency_scores: [50, 60, 70] # Urgency scores on the boundary
+  borderline_urgencies: [3, 4] # Urgency 3 or 4 on the warn/critical boundary
+  borderline_severities: ["warn"] # Boundary severity tier
+
+# Centralized Error Taxonomy Classification
+error_taxonomy:
+  rate_limit_keywords: ["rate_limit", "429", "resource_exhausted", "quota"]
+  auth_error_keywords: ["invalid_api_key", "401", "authentication", "unauthorized", "permission_denied"]
+  timeout_keywords: ["timeout", "timed out", "deadline_exceeded", "connection_timeout"]
+  server_error_keywords: ["500", "502", "503", "504", "internal_server_error", "service_unavailable"]
