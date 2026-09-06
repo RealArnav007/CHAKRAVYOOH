@@ -1,2 +1,2 @@
-# mesh-sos-relay
-Offline peer-to-peer SOS relay — emergency messages hop phone-to-phone with no network until they reach connectivity.
+# Pukar
+Pukar is an offline-first emergency communication platform. When disasters knock out cell towers and internet, ordinary Android phones form a self-healing mesh: a victim's SOS hops phone-to-phone over Wi-Fi Aware/Bluetooth with no network at all, until it reaches a single phone that still has connectivity — which silently forwards it to a cloud command center. Every message is end-to-end encrypted and signed, so relay phones can't read or tamper with it. On arrival, on-device and cloud AI grade severity, cluster reports into incidents, and hand officials a live, prioritized dispatch map. Phone = communicate. Backend = understand. Web = act.
