@@ -149,6 +149,64 @@ class StageClassificationHead(nn.Module):
         return logits, probs
 
 
+# Alias StageHead -> StageClassificationHead
+StageHead = StageClassificationHead
+
+
+class StageModel(nn.Module):
+    """Non-image lifecycle stage classification model combining EnvBranch (64-d) and TrackBranch (128-d)."""
+
+    def __init__(
+        self,
+        env_dim: int = 6,
+        env_out_dim: int = 64,
+        track_dim: int = 7,
+        track_hidden_dim: int = 128,
+        track_layers: int = 2,
+        num_stages: int = 6,
+        dropout: float = 0.2,
+    ) -> None:
+        super().__init__()
+        from ml.cyclone.models.env_branch import EnvBranch
+        from ml.cyclone.models.track_branch import TrackBranch
+
+        self.env_branch = EnvBranch(in_dim=env_dim, hidden_dim=64, out_dim=env_out_dim, dropout=dropout)
+        self.track_branch = TrackBranch(
+            input_dim=track_dim,
+            hidden_dim=track_hidden_dim,
+            num_layers=track_layers,
+            out_dim=track_hidden_dim,
+            dropout=dropout,
+        )
+        fused_dim = env_out_dim + track_hidden_dim  # 64 + 128 = 192-d
+        self.stage_head = StageHead(
+            embedding_dim=fused_dim,
+            num_stages=num_stages,
+            hidden_dim=128,
+            dropout=dropout,
+        )
+
+    def forward(
+        self,
+        env_vector: torch.Tensor,
+        track_sequence: torch.Tensor,
+        seq_lengths: Optional[torch.Tensor] = None,
+    ) -> Dict[str, torch.Tensor]:
+        """Forward pass emitting stage logits and probabilities from environmental and track dynamics."""
+        env_emb = self.env_branch(env_vector)
+        track_emb = self.track_branch(track_sequence, seq_lengths=seq_lengths)
+
+        fused_emb = torch.cat([env_emb, track_emb], dim=-1)
+        logits, probs = self.stage_head(fused_emb)
+
+        return {
+            "stage_logits": logits,
+            "stage_probs": probs,
+            "predicted_stage_idx": torch.argmax(probs, dim=-1),
+            "embedding": fused_emb,
+        }
+
+
 # -----------------------------------------------------------------------------
 # 4. Intensity Estimation Head
 # -----------------------------------------------------------------------------

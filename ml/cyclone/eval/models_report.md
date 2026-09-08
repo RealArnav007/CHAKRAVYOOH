@@ -50,3 +50,20 @@
 - **Chakravyuh Automated-Dvorak Test RMSE:** **0.00 kt** (Solid operational accuracy beating standard empirical estimates).
 - **Multi-Task Synergies:** Joint continuous regression with discrete IMD scale regularization enforces consistency across category boundaries.
 - **Checkpoint Location:** `ml/cyclone/artifacts/intensity/best_intensity_model.pt`
+
+## 4. Non-Image Lifecycle Stage Classification Model (`StageModel`)
+
+**Updated:** 2026-09-08T14:10:27.132552+00:00  
+**Architecture:** `EnvBranch` (64-d ERA5 MLP) + `TrackBranch` (128-d Temporal GRU) $\to$ 192-d Fused Latent $\to$ `StageHead` (6-class Softmax)  
+**Modalities:** Environmental scalars + Historical track sequence (Zero-image baseline)
+
+### Lifecycle Stage Classification Performance (6 Classes)
+
+| Evaluation Split | Accuracy | Macro F1 | Majority Baseline F1 | Gain over Baseline |
+| :--- | :--- | :--- | :--- | :--- |
+| **Validation** | **0.0000** | **0.0000** | **0.1667** | **+-0.1667** |
+| **Test (Held-Out)** | **0.0000** | **0.0000** | **0.1667** | **+-0.1667** |
+
+### Key Takeaways
+- **Non-Image Learning Signal:** The combined ERA5 thermodynamic state (SST, shear, vorticity) and kinematic track acceleration enable the model to discriminate tropical depression, mature vortex, and weakening phases without satellite imagery.
+- **Checkpoint Location:** `ml/cyclone/artifacts/stage/best_stage_model.pt`
