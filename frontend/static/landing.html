@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Beacon | Emergency Communication Fabric</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚨</text></svg>">
+    <link rel="stylesheet" href="css/index.css?v=3.0">
+    <link rel="stylesheet" href="/static/css/index.css?v=3.0">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0b0f19; color: #f3f4f6; margin: 0; padding: 0; min-height: 100vh; display: flex; flex-direction: column; }
+        .hero { text-align: center; padding: 3.5rem 1rem 1.5rem; max-width: 880px; margin: 0 auto; position: relative; z-index: 1; }
+        .hero h1 { font-size: 3.5rem; font-weight: 800; background: linear-gradient(135deg, #2de1c4 0%, #38bdf8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.75rem; letter-spacing: -1px; }
+        .tagline { font-size: 1.2rem; color: #9ca3af; font-style: italic; margin-bottom: 1.25rem; }
+        
+        .portal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; max-width: 1100px; margin: 0 auto; padding: 1.5rem 2rem; width: 90%; position: relative; z-index: 1; }
+        
+        .portal-card { background: rgba(15, 22, 32, 0.75); border: 1px solid rgba(100, 220, 255, 0.15); backdrop-filter: blur(16px); border-radius: 20px; padding: 2rem; text-decoration: none; color: inherit; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); display: flex; flex-direction: column; align-items: center; text-align: center; }
+        .portal-card:hover { transform: translateY(-6px); border-color: #38bdf8; box-shadow: 0 12px 35px rgba(56, 189, 248, 0.2); }
+        .portal-icon { font-size: 3.2rem; margin-bottom: 0.85rem; }
+        .portal-title { font-size: 1.35rem; font-weight: 700; color: #f9fafb; margin-bottom: 0.4rem; }
+        .portal-desc { font-size: 0.92rem; color: #9ca3af; line-height: 1.5; }
+        
+        .tech-money-shot { max-width: 1100px; margin: 1.5rem auto; padding: 1.75rem 2rem; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(100, 220, 255, 0.15); border-radius: 20px; width: 90%; text-align: center; position: relative; z-index: 1; }
+        .flow-diagram { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 0.85rem; margin-top: 1.25rem; font-family: 'JetBrains Mono', monospace; }
+        .flow-node { background: rgba(30, 41, 59, 0.8); padding: 0.6rem 1.1rem; border-radius: 10px; border: 1px solid #334155; font-size: 0.88rem; color: #38bdf8; }
+        .flow-arrow { color: #2de1c4; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <!-- Enterprise Top Navigation Bar with Fancy Glassmorphic Pill Tabs -->
+    <nav class="beacon-navbar">
+        <a href="landing.html" class="beacon-brand">
+            <div class="beacon-logo-icon">🚨</div>
+            <span class="beacon-brand-name">PROJECT BEACON</span>
+        </a>
+
+        <div class="beacon-nav-links">
+            <a href="landing.html" class="beacon-nav-item active">📊 Overview</a>
+            <a href="victim.html" class="beacon-nav-item">🚨 Citizen SOS</a>
+            <a href="officer.html" class="beacon-nav-item">🛡️ Officer Command</a>
+            <a href="admin.html" class="beacon-nav-item">⚙️ National Admin</a>
+        </div>
+
+        <div>
+            <a href="#authSection" id="navAuthBtn" class="btn-auth-blue" onclick="scrollToAuthSection()">
+                🔑 Login / Auth
+            </a>
+        </div>
+    </nav>
+
+    <div class="hero">
+        <h1>PROJECT BEACON</h1>
+        <div class="tagline">"When infrastructure fails, people become the network."</div>
+
+        <!-- Prominent Red Glowing Emergency SOS Shortcut Button -->
+        <div style="margin: 1.25rem 0 1.75rem;">
+            <a href="victim.html" class="btn-danger" style="padding: 0.85rem 2.2rem; font-size: 1.05rem; font-weight: 800; border-radius: 9999px; text-decoration: none; display: inline-flex; align-items: center; gap: 0.6rem; box-shadow: 0 0 45px rgba(255, 59, 48, 0.7), 0 0 20px rgba(255, 59, 48, 0.5); border: 2px solid rgba(255,255,255,0.4);">
+                🚨 BROADCAST EMERGENCY SOS NOW ➔
+            </a>
+        </div>
+
+        <p style="color: #cbd5e1; max-width: 680px; margin: 0 auto; line-height: 1.6; font-size: 0.98rem;">
+            Decentralized emergency communication infrastructure built to route distress signals through offline mesh networks, edge gateways, AI triage engines, and tactical responder command centers.
+        </p>
+    </div>
+
+    <div class="portal-grid">
+        <a href="victim.html" class="portal-card" style="border-color: rgba(255,59,48,0.4); box-shadow: 0 0 25px rgba(255,59,48,0.18);">
+            <div class="portal-icon">🚨</div>
+            <div class="portal-title" style="color: #ff6b6b;">Victim Portal (SOS)</div>
+            <div class="portal-desc">Broadcast emergency SOS packets with live GPS location & transmission lifecycle tracking.</div>
+        </a>
+
+        <a href="officer.html" class="portal-card">
+            <div class="portal-icon">🛡️</div>
+            <div class="portal-title">Officer Command</div>
+            <div class="portal-desc">Tactical command dashboard with priority incident queue, live Leaflet map & AI triage.</div>
+        </a>
+
+        <a href="admin.html" class="portal-card">
+            <div class="portal-icon">⚙️</div>
+            <div class="portal-title">National Admin</div>
+            <div class="portal-desc">Nationwide telemetry console, Mass Casualty Incident Cluster detection & user provisioning.</div>
+        </a>
+    </div>
+
+    <div class="tech-money-shot">
+        <h3 style="color: #f8fafc; margin-bottom: 0.4rem; font-size: 1.15rem;">Distributed Communication Topology</h3>
+        <p style="color: #94a3b8; font-size: 0.88rem;">Store-Carry-Forward Mesh → Gateway Ingestion → Groq AI Triage → Officer Dispatch</p>
+        <div class="flow-diagram">
+            <div class="flow-node">Android Victim Node</div>
+            <div class="flow-arrow">➔</div>
+            <div class="flow-node">Multi-hop Mesh</div>
+            <div class="flow-arrow">➔</div>
+            <div class="flow-node">Beacon Gateway</div>
+            <div class="flow-arrow">➔</div>
+            <div class="flow-node">FastAPI Core</div>
+            <div class="flow-arrow">➔</div>
+            <div class="flow-node">Groq Llama-3 AI</div>
+            <div class="flow-arrow">➔</div>
+            <div class="flow-node">Officer Command</div>
+        </div>
+    </div>
+
+    <!-- Dedicated Bottom Authentication Console -->
+    <div class="app-container" style="padding-top: 0;">
+        <div id="authSection" class="glass-panel" style="margin-top: 1.5rem; border-color: var(--color-cyan); box-shadow: var(--glow-medium);">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+                <div class="beacon-logo-icon" style="width: 34px; height: 34px; font-size: 1rem; background: linear-gradient(135deg, var(--color-cyan), var(--color-green));">🔑</div>
+                <div>
+                    <h3 style="font-size: 1.2rem; font-weight: 800; font-family: var(--font-mono); color: var(--text-primary); margin: 0;">
+                        IDENTITY AUTHENTICATION & PROVISIONING CONSOLE
+                    </h3>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 2px;">
+                        Brevo SMTP 6-Digit OTP Login & RBAC Identity Control
+                    </p>
+                </div>
+            </div>
+
+            <!-- STEP 1: Email Form -->
+            <div id="authBottomStepEmail" style="max-width: 540px;">
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; font-size: 0.78rem; font-family: var(--font-mono); color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase;">
+                        OFFICIAL WORK EMAIL
+                    </label>
+                    <input type="email" id="authBottomEmailInput" class="beacon-input" placeholder="officer@beacon.app" />
+                </div>
+
+                <button id="btnBottomSendOtp" onclick="handleBottomSendOtp()" class="btn-primary" style="padding: 0.85rem 1.5rem; width: 100%;">
+                    REQUEST 6-DIGIT OTP CODE ➔
+                </button>
+                <div id="authBottomEmailMsg" style="font-size: 0.82rem; text-align: center; margin-top: 0.85rem; color: var(--color-cyan); display: none;"></div>
+            </div>
+
+            <!-- STEP 2: 6-Digit OTP Grid -->
+            <div id="authBottomStepOtp" style="max-width: 540px; display: none;">
+                <p style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 0.5rem;">
+                    Enter 6-digit verification code sent to <strong id="authBottomTargetEmail" style="color: var(--color-cyan);"></strong>.
+                </p>
+                <p style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--color-orange); margin-bottom: 1rem;">
+                    ⏱️ CODE EXPIRES IN: <span id="authBottomTimer">05:00</span>
+                </p>
+
+                <div class="otp-box-grid">
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="0" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="1" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="2" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="3" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="4" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="5" />
+                </div>
+
+                <button id="btnBottomVerifyOtp" onclick="handleBottomVerifyOtp()" class="btn-primary" style="padding: 0.85rem 1.5rem; width: 100%;">
+                    VERIFY & AUTHENTICATE ➔
+                </button>
+                <div id="authBottomOtpMsg" style="font-size: 0.82rem; text-align: center; margin-top: 0.85rem; color: var(--color-red); display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/mesh-bg.js?v=3.0"></script>
+    <script src="/static/js/mesh-bg.js?v=3.0"></script>
+    <script src="js/auth-modal.js?v=3.0"></script>
+    <script src="/static/js/auth-modal.js?v=3.0"></script>
+</body>
+</html>

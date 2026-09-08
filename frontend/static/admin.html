@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Beacon | National Administration & Cluster Telemetry</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+    <link rel="stylesheet" href="css/index.css?v=3.0">
+    <link rel="stylesheet" href="/static/css/index.css?v=3.0">
+</head>
+<body>
+
+    <!-- Enterprise Top Navigation Bar with Fancy Glassmorphic Pill Tabs -->
+    <nav class="beacon-navbar">
+        <a href="landing.html" class="beacon-brand">
+            <div class="beacon-logo-icon">⚙️</div>
+            <span class="beacon-brand-name">PROJECT BEACON</span>
+        </a>
+
+        <div class="beacon-nav-links">
+            <a href="landing.html" class="beacon-nav-item">📊 Overview</a>
+            <a href="victim.html" class="beacon-nav-item">🚨 Citizen SOS</a>
+            <a href="officer.html" class="beacon-nav-item">🛡️ Officer Command</a>
+            <a href="admin.html" class="beacon-nav-item active">⚙️ National Admin</a>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: var(--space-padding-sm);">
+            <button onclick="fetchStats()" class="btn-primary" style="padding: 0.4rem 0.9rem; font-size: 0.8rem;">
+                🔄 Refresh
+            </button>
+            <a href="#authSection" id="navAuthBtn" class="btn-auth-blue" onclick="scrollToAuthSection()">
+                🔑 Login / Auth
+            </a>
+        </div>
+    </nav>
+
+    <div class="app-container">
+        <!-- Telemetry Stats Counter Grid -->
+        <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem;">
+            <div class="stat-card glass-panel" style="text-align: center; padding: 1.5rem;">
+                <div class="stat-val" id="valTotal" style="font-size: 2.2rem; font-weight: 800; font-family: var(--font-mono); color: var(--color-cyan);">0</div>
+                <div class="stat-lbl" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">Total Dispatches Ingested</div>
+            </div>
+
+            <div class="stat-card glass-panel" style="text-align: center; padding: 1.5rem;">
+                <div class="stat-val" id="valActive" style="font-size: 2.2rem; font-weight: 800; font-family: var(--font-mono); color: var(--color-red);">0</div>
+                <div class="stat-lbl" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">Active Unresolved Emergencies</div>
+            </div>
+
+            <div class="stat-card glass-panel" style="text-align: center; padding: 1.5rem;">
+                <div class="stat-val" id="valGateways" style="font-size: 2.2rem; font-weight: 800; font-family: var(--font-mono); color: var(--color-green);">0</div>
+                <div class="stat-lbl" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">Active Gateway Relay Nodes</div>
+            </div>
+
+            <div class="stat-card glass-panel" style="text-align: center; padding: 1.5rem;">
+                <div class="stat-val" id="valClusters" style="font-size: 2.2rem; font-weight: 800; font-family: var(--font-mono); color: var(--color-orange);">0</div>
+                <div class="stat-lbl" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">Mass Casualty Incident Clusters</div>
+            </div>
+        </div>
+
+        <!-- User & Officer Provisioning Panel (RBAC Control) -->
+        <div class="glass-panel" style="margin-bottom: 1.5rem;">
+            <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.4rem; font-family: var(--font-mono);">
+                USER & OFFICER PROVISIONING (RBAC CONTROL)
+            </h3>
+            <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.25rem;">
+                Provision national administrator accounts and regional emergency officer credentials.
+            </p>
+
+            <div style="display: flex; flex-wrap: wrap; gap: var(--space-padding); align-items: center;">
+                <input type="email" id="provEmail" placeholder="Officer / Admin Email" class="beacon-input" style="flex: 1; min-width: 220px;">
+                <input type="text" id="provName" placeholder="Full Name / Officer Rank" class="beacon-input" style="flex: 1; min-width: 200px;">
+                
+                <select id="provRole" class="beacon-input" style="flex: 0.6; min-width: 140px;">
+                    <option value="OFFICER">OFFICER</option>
+                    <option value="ADMIN">ADMIN</option>
+                    <option value="VICTIM">VICTIM</option>
+                </select>
+
+                <input type="text" id="provRegion" placeholder="Jurisdiction Region (e.g. DL-CENTRAL)" class="beacon-input" style="flex: 1; min-width: 200px;">
+
+                <button onclick="provisionUser()" class="btn-primary" style="padding: 0.85rem 1.5rem;">
+                    PROVISION IDENTITY
+                </button>
+            </div>
+        </div>
+
+        <!-- Mass Casualty Incident Cluster Telemetry Panel -->
+        <div class="glass-panel">
+            <h3 style="font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.4rem; font-family: var(--font-mono);">
+                MASS CASUALTY INCIDENT CLUSTERS
+            </h3>
+            <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.25rem;">
+                Collective intelligence engine monitoring victim density (>3 victims within 500m radius).
+            </p>
+
+            <div id="clustersContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem;">
+                <div style="text-align: center; padding: 2rem; color: var(--text-muted); grid-column: 1 / -1;">
+                    <p style="font-size: 0.9rem;">No active mass casualty clusters detected.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dedicated Bottom Authentication Console -->
+        <div id="authSection" class="glass-panel" style="margin-top: 1.5rem; border-color: var(--color-cyan); box-shadow: var(--glow-medium);">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+                <div class="beacon-logo-icon" style="width: 34px; height: 34px; font-size: 1rem; background: linear-gradient(135deg, var(--color-cyan), var(--color-green));">🔑</div>
+                <div>
+                    <h3 style="font-size: 1.2rem; font-weight: 800; font-family: var(--font-mono); color: var(--text-primary); margin: 0;">
+                        IDENTITY AUTHENTICATION & PROVISIONING CONSOLE
+                    </h3>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 2px;">
+                        Brevo SMTP 6-Digit OTP Login & RBAC Identity Control
+                    </p>
+                </div>
+            </div>
+
+            <!-- STEP 1: Email Form -->
+            <div id="authBottomStepEmail" style="max-width: 540px;">
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; font-size: 0.78rem; font-family: var(--font-mono); color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase;">
+                        OFFICIAL WORK EMAIL
+                    </label>
+                    <input type="email" id="authBottomEmailInput" class="beacon-input" placeholder="officer@beacon.app" />
+                </div>
+
+                <button id="btnBottomSendOtp" onclick="handleBottomSendOtp()" class="btn-primary" style="padding: 0.85rem 1.5rem; width: 100%;">
+                    REQUEST 6-DIGIT OTP CODE ➔
+                </button>
+                <div id="authBottomEmailMsg" style="font-size: 0.82rem; text-align: center; margin-top: 0.85rem; color: var(--color-cyan); display: none;"></div>
+            </div>
+
+            <!-- STEP 2: 6-Digit OTP Grid -->
+            <div id="authBottomStepOtp" style="max-width: 540px; display: none;">
+                <p style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 0.5rem;">
+                    Enter 6-digit verification code sent to <strong id="authBottomTargetEmail" style="color: var(--color-cyan);"></strong>.
+                </p>
+                <p style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--color-orange); margin-bottom: 1rem;">
+                    ⏱️ CODE EXPIRES IN: <span id="authBottomTimer">05:00</span>
+                </p>
+
+                <div class="otp-box-grid">
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="0" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="1" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="2" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="3" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="4" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="5" />
+                </div>
+
+                <button id="btnBottomVerifyOtp" onclick="handleBottomVerifyOtp()" class="btn-primary" style="padding: 0.85rem 1.5rem; width: 100%;">
+                    VERIFY & AUTHENTICATE ➔
+                </button>
+                <div id="authBottomOtpMsg" style="font-size: 0.82rem; text-align: center; margin-top: 0.85rem; color: var(--color-red); display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/mesh-bg.js?v=3.0"></script>
+    <script src="/static/js/mesh-bg.js?v=3.0"></script>
+    <script src="js/auth-modal.js?v=3.0"></script>
+    <script src="/static/js/auth-modal.js?v=3.0"></script>
+    <script src="js/admin.js?v=3.0"></script>
+    <script src="/static/js/admin.js?v=3.0"></script>
+</body>
+</html>

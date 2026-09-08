@@ -1,3 +1,6 @@
+import logging
+
+import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, constr
 from sqlalchemy import select
@@ -12,7 +15,25 @@ from src.dependencies import get_db_session
 from src.security.rate_limiter import check_otp_rate_limit
 from src.sessions.manager import create_session, revoke_session
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
+
+
+# ── Password helpers ──────────────────────────────────────────────────────────
+def _hash_password(plain: str) -> str:
+    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt()).decode()
+
+def _verify_password(plain: str, hashed: str) -> bool:
+    try:
+        return bcrypt.checkpw(plain.encode(), hashed.encode())
+    except Exception:
+        return False
+
+# Pre-computed at module load — guarantees constant-time bcrypt path even when
+# the email is not found in DB (prevents user-enumeration via timing).
+_DUMMY_HASH: str = bcrypt.hashpw(b"__dummy_password_for_timing_safety__", bcrypt.gensalt()).decode()
+
 
 class OTPRequest(BaseModel):
     email: constr(pattern=r"^[\w\.\+-]+@[\w\.-]+\.\w+$")  # Basic RFC regex instead of EmailStr
@@ -37,6 +58,21 @@ class TokenResponse(BaseModel):
     token_type: str
     role: str
     session_id: str
+
+
+class RegisterRequest(BaseModel):
+    full_name: str = Field(..., min_length=2, max_length=100)
+    badge_id: str = Field(..., min_length=3, max_length=50)
+    phone: str = Field(default="", max_length=20)
+    email: constr(pattern=r"^[\w\.\+-]+@[\w\.-]+\.\w+$")
+    password: str = Field(..., min_length=6, max_length=128)
+    role: str = Field(default=RoleEnum.VIEWER.value)
+
+
+class PasswordLoginRequest(BaseModel):
+    email: constr(pattern=r"^[\w\.\+-]+@[\w\.-]+\.\w+$")
+    password: str
+
 
 
 @router.post("/otp/request", dependencies=[Depends(check_otp_rate_limit)])
@@ -162,3 +198,94 @@ async def logout(
 
     await revoke_session(db, req.session_id)
     await log_event(db, AuditAction.LOGOUT, actor_id=current_user.user_id, details={"session_id": req.session_id})
+
+
+# ── Self-Registration ─────────────────────────────────────────────────────────
+@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db_session)):
+    """
+    Create a new officer account.
+    - email must be unique
+    - password is bcrypt-hashed before storage
+    - role defaults to VIEWER; can be elevated later by SUPER_ADMIN
+    - Returns a full JWT session immediately (auto-login after register)
+    """
+    # Reject duplicate email
+    existing = await db.execute(select(User).where(User.email == req.email).limit(1))
+    if existing.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this email already exists. Please sign in.",
+        )
+
+    # Validate role — public registration is always VIEWER unless admin sets it
+    safe_role = RoleEnum.VIEWER.value  # enforce — no self-elevation
+
+    user = User(
+        email=req.email,
+        hashed_password=_hash_password(req.password),
+        role=safe_role,
+        is_active=True,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    token_data = {"sub": user.user_id, "role": user.role}
+    access_token  = create_access_token(data=token_data)
+    session       = await create_session(db, user.user_id)
+    token_data["session_id"] = session.session_id
+    refresh_token = create_refresh_token(data=token_data)
+
+    await log_event(db, AuditAction.OTP_VERIFIED, actor_id=user.user_id,
+                    details={"email": req.email, "action": "self_register"})
+
+    logger.info("New user registered: %s (badge=%s)", req.email, req.badge_id)
+
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+        role=user.role,
+        session_id=session.session_id,
+    )
+
+
+# ── Password Login ────────────────────────────────────────────────────────────
+@router.post("/login/password", response_model=TokenResponse)
+async def login_password(req: PasswordLoginRequest, db: AsyncSession = Depends(get_db_session)):
+    """
+    Login with email + password (alternative to OTP).
+    Uses constant-time bcrypt comparison to prevent timing attacks.
+    """
+    stmt = select(User).where(User.email == req.email).limit(1)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+
+    # Constant-time path: always run bcrypt even on miss to prevent user enumeration.
+    # _DUMMY_HASH is a real bcrypt hash pre-computed at import time — ensures the full
+    # ~100ms hashing cost is paid even when the email does not exist in the DB.
+    stored_hash = user.hashed_password if (user and user.hashed_password) else _DUMMY_HASH
+
+    if not _verify_password(req.password, stored_hash) or not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password.",
+        )
+
+    token_data = {"sub": user.user_id, "role": user.role}
+    access_token  = create_access_token(data=token_data)
+    session       = await create_session(db, user.user_id)
+    token_data["session_id"] = session.session_id
+    refresh_token = create_refresh_token(data=token_data)
+
+    await log_event(db, AuditAction.OTP_VERIFIED, actor_id=user.user_id,
+                    details={"email": req.email, "action": "password_login"})
+
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+        role=user.role,
+        session_id=session.session_id,
+    )

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Beacon | Officer Tactical Command Center</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <link rel="stylesheet" href="css/index.css?v=3.0">
+    <link rel="stylesheet" href="/static/css/index.css?v=3.0">
+    <style>
+        body {
+            overflow-y: auto;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .main-layout {
+            display: flex;
+            height: calc(100vh - 65px);
+            position: relative;
+            z-index: 1;
+        }
+
+        .sidebar {
+            width: 440px;
+            background: rgba(5, 8, 12, 0.92);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid var(--border-subtle);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: var(--space-padding);
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .incident-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--space-padding);
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-gap);
+        }
+
+        .map-view {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #030507;
+        }
+
+        .incident-card {
+            background: var(--surface-base);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: var(--space-padding-sm);
+            transition: all var(--ease-card);
+        }
+
+        .incident-card:hover {
+            border-color: var(--border-active);
+            box-shadow: var(--glow-subtle);
+        }
+
+        .incident-card.priority-5, .incident-card.priority-4 {
+            border-left: 4px solid var(--color-red);
+        }
+
+        .incident-card.priority-3 {
+            border-left: 4px solid var(--color-orange);
+        }
+
+        .incident-card.priority-2, .incident-card.priority-1 {
+            border-left: 4px solid var(--color-green);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Enterprise Top Navigation Bar with Fancy Glassmorphic Pill Tabs -->
+    <nav class="beacon-navbar">
+        <a href="landing.html" class="beacon-brand">
+            <div class="beacon-logo-icon">🛡️</div>
+            <span class="beacon-brand-name">PROJECT BEACON</span>
+        </a>
+
+        <div class="beacon-nav-links">
+            <a href="landing.html" class="beacon-nav-item">📊 Overview</a>
+            <a href="victim.html" class="beacon-nav-item">🚨 Citizen SOS</a>
+            <a href="officer.html" class="beacon-nav-item active">🛡️ Officer Command</a>
+            <a href="admin.html" class="beacon-nav-item">⚙️ National Admin</a>
+        </div>
+
+        <div>
+            <a href="#authSection" id="navAuthBtn" class="btn-auth-blue" onclick="scrollToAuthSection()">
+                🔑 Login / Auth
+            </a>
+        </div>
+    </nav>
+
+    <div class="main-layout">
+        <!-- Sidebar Incident Queue -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div>
+                    <h3 style="margin: 0; font-size: 1.05rem; color: var(--text-primary); font-weight: 700;">
+                        Priority Emergency Queue
+                    </h3>
+                    <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;">
+                        Real-time AI Triage Feed
+                    </p>
+                </div>
+                <span id="queueCount" class="beacon-status-pill" style="font-size: 0.75rem;">
+                    0 Active
+                </span>
+            </div>
+
+            <div class="incident-list" id="incidentList">
+                <div style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+                    <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📡</div>
+                    <p style="font-size: 0.9rem;">Monitoring Gateway Ingestion Streams...</p>
+                    <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 4px;">Active emergency broadcasts will stream here automatically.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Leaflet Map View -->
+        <div class="map-view">
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <!-- Dedicated Bottom Authentication Console -->
+    <div class="app-container" style="padding-top: var(--space-section);">
+        <div id="authSection" class="glass-panel" style="margin-top: 1rem; border-color: var(--color-cyan); box-shadow: var(--glow-medium);">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+                <div class="beacon-logo-icon" style="width: 34px; height: 34px; font-size: 1rem; background: linear-gradient(135deg, var(--color-cyan), var(--color-green));">🔑</div>
+                <div>
+                    <h3 style="font-size: 1.2rem; font-weight: 800; font-family: var(--font-mono); color: var(--text-primary); margin: 0;">
+                        OFFICER IDENTITY AUTHENTICATION CONSOLE
+                    </h3>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 2px;">
+                        Brevo SMTP 6-Digit OTP Login for Responder Telemetry Access
+                    </p>
+                </div>
+            </div>
+
+            <!-- STEP 1: Email Form -->
+            <div id="authBottomStepEmail" style="max-width: 540px;">
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; font-size: 0.78rem; font-family: var(--font-mono); color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase;">
+                        OFFICIAL WORK EMAIL
+                    </label>
+                    <input type="email" id="authBottomEmailInput" class="beacon-input" placeholder="officer@beacon.app" />
+                </div>
+
+                <button id="btnBottomSendOtp" onclick="handleBottomSendOtp()" class="btn-primary" style="padding: 0.85rem 1.5rem; width: 100%;">
+                    REQUEST 6-DIGIT OTP CODE ➔
+                </button>
+                <div id="authBottomEmailMsg" style="font-size: 0.82rem; text-align: center; margin-top: 0.85rem; color: var(--color-cyan); display: none;"></div>
+            </div>
+
+            <!-- STEP 2: 6-Digit OTP Grid -->
+            <div id="authBottomStepOtp" style="max-width: 540px; display: none;">
+                <p style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 0.5rem;">
+                    Enter 6-digit verification code sent to <strong id="authBottomTargetEmail" style="color: var(--color-cyan);"></strong>.
+                </p>
+                <p style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--color-orange); margin-bottom: 1rem;">
+                    ⏱️ CODE EXPIRES IN: <span id="authBottomTimer">05:00</span>
+                </p>
+
+                <div class="otp-box-grid">
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="0" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="1" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="2" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="3" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="4" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="5" />
+                </div>
+
+                <button id="btnBottomVerifyOtp" onclick="handleBottomVerifyOtp()" class="btn-primary" style="padding: 0.85rem 1.5rem; width: 100%;">
+                    VERIFY & AUTHENTICATE ➔
+                </button>
+                <div id="authBottomOtpMsg" style="font-size: 0.82rem; text-align: center; margin-top: 0.85rem; color: var(--color-red); display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <audio id="alertSound" src="https://assets.mixkit.co/sfx/preview/mixkit-software-interface-start-2574.mp3" preload="auto"></audio>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="js/mesh-bg.js?v=3.0"></script>
+    <script src="/static/js/mesh-bg.js?v=3.0"></script>
+    <script src="js/auth-modal.js?v=3.0"></script>
+    <script src="/static/js/auth-modal.js?v=3.0"></script>
+    <script src="js/officer.js?v=3.0"></script>
+    <script src="/static/js/officer.js?v=3.0"></script>
+</body>
+</html>
