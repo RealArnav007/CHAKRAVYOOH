@@ -1,4 +1,4 @@
-# 🌪️ Cyclone Intelligence System
+# Cyclone Intelligence System
 
 An AI-powered multi-source satellite intelligence platform designed to
 identify, classify, track, and predict tropical cyclone patterns.
@@ -7,7 +7,7 @@ The system combines data from multiple satellite sources with AI/ML,
 geospatial analysis, temporal pattern recognition, and predictive
 modelling to transform raw satellite observations into actionable
 cyclone intelligence.
-## 🎯 Problem
+## Problem
 
 Tropical cyclones evolve dynamically across time and space, making early
 identification and accurate prediction challenging.
