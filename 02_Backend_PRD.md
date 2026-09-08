@@ -1,4 +1,4 @@
-# Backend PRD — Offline Mesh SOS Relay (Cloud Service)
+# Backend PRD — Chakravyooh Cloud Service
 ### Ingest · dedup · enrich · escalate · notify
 
 **Owner:** Backend Lead (`<add teammate name>`)

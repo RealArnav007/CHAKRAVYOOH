@@ -28,3 +28,6 @@ render.experimental.xml
 *.keystore
 google-services.json
 *.hprof
+.vscode/
+android-app/gradle*/
+android-app/*.zip

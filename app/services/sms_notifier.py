@@ -150,14 +150,14 @@ def _send_brevo_email(
 
           <p style="margin: 24px 0 0; font-size: 12px; color: #666;">
             Origin device: <code>{origin_id}</code><br>
-            This is an automated alert from the Project Beacon mesh-SOS relay system.
+            This is an automated alert from the Chakravyooh Emergency Intelligence & Operations system.
           </p>
         </div>
 
         <!-- Footer -->
         <div style="background: #0A0B0D; padding: 14px 28px; border-top: 1px solid #222;">
           <p style="margin: 0; font-size: 11px; color: #444;">
-            IIC 3.0 · Project Beacon · Offline Mesh Emergency Relay
+            IIC 3.0 · Chakravyooh · Tropical Cyclone Intelligence & Resilient Operations
           </p>
         </div>
       </div>

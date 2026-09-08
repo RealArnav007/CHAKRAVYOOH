@@ -1,4 +1,4 @@
-# Frontend PRD — Offline Mesh SOS Relay (Android Client)
+# Frontend PRD — Chakravyooh Android Client
 ### Peer-to-peer emergency messaging that works with no network
 
 **Owner:** Client Lead (Rishabh)

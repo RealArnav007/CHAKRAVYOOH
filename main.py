@@ -106,6 +106,18 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(api_router, prefix="/api/v1")
 
 @app.get("/")
+async def serve_root():
+    return FileResponse("static/chakravyooh_command_center.html")
+
+@app.get("/chakravyooh")
+async def serve_chakravyooh():
+    return FileResponse("static/chakravyooh_command_center.html")
+
+@app.get("/portal")
+async def serve_portal():
+    return FileResponse("static/chakravyooh_command_center.html")
+
+@app.get("/landing")
 async def serve_landing():
     return FileResponse("static/landing.html")
 

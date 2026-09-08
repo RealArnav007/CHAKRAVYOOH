@@ -1,4 +1,4 @@
-# API Contract — Offline Mesh SOS Relay
+# API Contract — Chakravyooh Platform
 ### Single source of truth · match field names and types EXACTLY
 
 **Team:** IIC 3.0 · Open Innovation
