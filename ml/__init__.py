@@ -1,3 +1,1 @@
-"""
-Project Pukar - ML & Intelligence Package
-"""
+"""Chakravyuh Machine Learning Package."""

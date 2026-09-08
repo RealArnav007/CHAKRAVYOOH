@@ -1,0 +1,46 @@
+# ==============================================================================
+# Chakravyuh Cyclone Intelligence Engine — Historical Replay Configuration
+# ==============================================================================
+
+# Default historical replay storm
+default_storm_id: "CYC-2020-BAY-001"
+default_storm_name: "Amphan"
+basin: "North Indian Ocean"
+
+# Available historical storm presets
+storms:
+  amphan_2020:
+    cyclone_id: "CYC-2020-BAY-001"
+    name: "Amphan"
+    season: 2020
+    start_time: "2020-05-16T00:00:00Z"
+    landfall_time: "2020-05-20T12:00:00Z"
+    end_time: "2020-05-21T06:00:00Z"
+    step_hours: 3
+    landfall_coords: { lat: 21.65, lon: 88.35 }
+    presets:
+      genesis: "2020-05-16T06:00:00Z"
+      rapid_intensification: "2020-05-17T18:00:00Z"
+      landfall_minus_24h: "2020-05-19T12:00:00Z"
+      landfall: "2020-05-20T12:00:00Z"
+
+  biparjoy_2023:
+    cyclone_id: "CYC-2023-ARB-001"
+    name: "Biparjoy"
+    season: 2023
+    start_time: "2023-06-06T06:00:00Z"
+    landfall_time: "2023-06-15T18:00:00Z"
+    end_time: "2023-06-17T00:00:00Z"
+    step_hours: 6
+    landfall_coords: { lat: 23.25, lon: 68.60 }
+    presets:
+      genesis: "2023-06-06T06:00:00Z"
+      landfall_minus_24h: "2023-06-14T18:00:00Z"
+      landfall: "2023-06-15T18:00:00Z"
+
+# Replay Execution Parameters
+playback:
+  playback_speed: 1.0          # Delay multiplier in seconds between consecutive frames
+  output_format: "jsonl"       # "jsonl", "stdout", "post"
+  producer_endpoint: "http://localhost:8000/api/v1/cyclone/intelligence"
+  drop_directory: "ml/cyclone/data/replay_feed"

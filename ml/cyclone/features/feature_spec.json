@@ -1,0 +1,65 @@
+{
+  "spec_version": "1.0",
+  "forecast_horizons_hours": [6, 12, 24, 48, 72],
+  "history_steps": 8,
+  "motion_features": [
+    "current_speed_kt",
+    "current_heading_deg",
+    "heading_sin",
+    "heading_cos",
+    "dv_6h",
+    "dv_12h",
+    "dv_24h",
+    "dp_6h",
+    "dp_12h",
+    "dp_24h",
+    "acceleration_kt_per_h",
+    "curvature_deg_per_h",
+    "lat",
+    "lon",
+    "coriolis_param",
+    "days_since_genesis"
+  ],
+  "environmental_features": [
+    "sst_c",
+    "shear_ms",
+    "rh500",
+    "vort850",
+    "mslp_mb",
+    "wind10m_ms"
+  ],
+  "track_sequence_features": [
+    "t_offset_h",
+    "lat",
+    "lon",
+    "wind_kt",
+    "pres_mb",
+    "speed_kt",
+    "heading_deg"
+  ],
+  "environmental_imputer_medians": {
+    "sst_c": 28.5,
+    "shear_ms": 12.0,
+    "rh500": 65.0,
+    "vort850": 15.0,
+    "mslp_mb": 1006.0,
+    "wind10m_ms": 8.0
+  },
+  "imd_level_classes": [
+    "DEPRESSION",
+    "DEEP_DEPRESSION",
+    "CYCLONIC_STORM",
+    "SEVERE_CYCLONIC_STORM",
+    "VERY_SEVERE_CYCLONIC_STORM",
+    "EXTREMELY_SEVERE_CYCLONIC_STORM",
+    "SUPER_CYCLONIC_STORM"
+  ],
+  "stage_classes": [
+    "NO_SIGNIFICANT_SYSTEM",
+    "DEVELOPING_DISTURBANCE",
+    "TROPICAL_DEPRESSION",
+    "MATURE_TROPICAL_CYCLONE",
+    "WEAKENING_SYSTEM",
+    "POST_TROPICAL_REMNANT"
+  ]
+}

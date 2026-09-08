@@ -1,6 +1,10 @@
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any, List, Literal, Optional
 from pydantic import BaseModel, Field
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Coordinate & Trajectory Models
+# ─────────────────────────────────────────────────────────────────────────────
 
 class CyclonePosition(BaseModel):
     lat: float
@@ -38,19 +42,46 @@ class CyclonePrediction(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
     uncertainty: CycloneUncertainty
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Master PRD §17 — Freshness Metadata
+# ─────────────────────────────────────────────────────────────────────────────
+
+class CycloneFreshness(BaseModel):
+    """Temporal validity window for intelligence data. Prevents stale predictions driving alerts."""
+    generated_at: datetime
+    valid_until: Optional[datetime] = None
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Master Frozen CycloneIntelligence Contract (§17)
+# Compatible with Rishabh's ML schema (tier, name required, freshness)
+# ─────────────────────────────────────────────────────────────────────────────
+
 class CycloneIntelligence(BaseModel):
     schema_version: str = "1.0"
     cyclone_id: str
-    name: Optional[str] = None
+    name: str = "Unknown"                          # Required by Rishabh's ML schema (min_length=1)
     timestamp: datetime
     basin: str
+
     identification: CycloneIdentification
     classification: Optional[CycloneClassification] = None
     intensity: Optional[CycloneIntensity] = None
     prediction: Optional[CyclonePrediction] = None
+
     sources: List[str] = Field(default_factory=list)
     model_version: str = "Chakravyooh-brain-0.1"
+
+    # Master PRD §17 — Engine execution tier (matches Rishabh's ML schema)
+    tier: Literal["tier1", "tier0", "mixed"] = "tier1"
+
+    # Master PRD §17 — Freshness metadata (optional, provided by Rishabh's ML output)
+    freshness: Optional[CycloneFreshness] = None
+
     extra: dict[str, Any] = Field(default_factory=dict)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Risk Engine Output Contract
+# ─────────────────────────────────────────────────────────────────────────────
 
 class ZoneRiskSnapshot(BaseModel):
     zone_id: str
@@ -58,3 +89,4 @@ class ZoneRiskSnapshot(BaseModel):
     risk: str
     score: float
     eta_hours: Optional[float] = None
+

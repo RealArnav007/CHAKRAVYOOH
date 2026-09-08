@@ -12,7 +12,8 @@ from src.cyclone.store import (
     get_active_alerts
 )
 from src.cyclone.risk_engine import evaluate_risk
-from src.cyclone.alerts import generate_alerts
+from src.cyclone.alerts import generate_alerts, get_authority_public_key_hex, AUTHORITY_KEY_ID
+from src.cyclone.processor import process_cyclone_intelligence
 from src.database.session import async_session_maker
 from src.realtime.connection_manager import manager as ws_manager
 from src.cyclone.events import get_intelligence_events, get_risk_updated_event
@@ -23,56 +24,6 @@ from src.cyclone.replay import init_replay_routes
 
 router = APIRouter(prefix="/cyclone", tags=["Cyclone Intelligence"])
 init_replay_routes(router)
-
-async def process_cyclone_intelligence(intelligence: CycloneIntelligence, intelligence_json: dict):
-    # 1. Use an isolated db session
-    async with async_session_maker() as db:
-        try:
-            # 2. Save frame and upsert latest
-            is_new, latest = await save_intelligence_frame(db, intelligence_json)
-            if not is_new:
-                return # Idempotent: already processed this frame
-                
-            events_to_broadcast = []
-            
-            # 3. Collect events for raw AI intelligence
-            events_to_broadcast.extend(get_intelligence_events(intelligence))
-            
-            # 4. Evaluate Risk for all Zones
-            risks = await evaluate_risk(db, intelligence)
-            if risks:
-                await save_zone_risks(db, risks)
-                
-                # 5. Enforce No-Downgrade Zone Elevation
-                zone_ids = [r.zone_id for r in risks]
-                stmt = select(Zone).where(Zone.zone_id.in_(zone_ids))
-                zones = (await db.execute(stmt)).scalars().all()
-                zone_map = {z.zone_id: z for z in zones}
-                
-                for risk in risks:
-                    zone = zone_map.get(risk.zone_id)
-                    if zone:
-                        elevated, evts = await elevate_zone_for_cyclone(zone, risk.risk_level)
-                        if elevated:
-                            events_to_broadcast.extend(evts)
-                
-                # 6. Generate Alerts and Warnings
-                _, alert_evts = await generate_alerts(db, intelligence, risks)
-                events_to_broadcast.extend(alert_evts)
-                
-                # 7. Collect Risk Updated event
-                events_to_broadcast.append(get_risk_updated_event(intelligence.cyclone_id, risks))
-                
-            # 8. Commit everything atomically
-            await db.commit()
-            
-            # 9. Broadcast real-time events (Outbox Pattern)
-            for evt in events_to_broadcast:
-                await ws_manager.broadcast(evt)
-                
-        except Exception:
-            await db.rollback()
-            raise
 
 
 @router.post("/intelligence", status_code=status.HTTP_202_ACCEPTED)
@@ -137,8 +88,23 @@ async def list_active_cyclones(db: AsyncSession = Depends(get_db)):
 
 @router.get("/alerts")
 async def list_alerts(db: AsyncSession = Depends(get_db)):
+    """Returns all ACTIVE cyclone warning alerts with signature data for client verification."""
     alerts = await get_active_alerts(db)
     return alerts
+
+@router.get("/alerts/authority-key")
+async def get_alert_authority_key():
+    """
+    Returns the Ed25519 public key used by the Chakravyooh authority to sign all CYCLONE_WARNING
+    alerts (Master PRD §22). Android and mesh clients should cache this key and use it to verify
+    alert signatures offline before accepting or relaying any warning.
+    """
+    return {
+        "authority_key_id": AUTHORITY_KEY_ID,
+        "public_key_hex": get_authority_public_key_hex(),
+        "algorithm": "Ed25519",
+        "usage": "Verify the `signature` field in CYCLONE_WARNING alerts against this public key.",
+    }
 
 @router.get("/{id}")
 async def get_cyclone(id: str, db: AsyncSession = Depends(get_db)):

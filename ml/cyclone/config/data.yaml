@@ -1,0 +1,47 @@
+# ==============================================================================
+# Chakravyuh Cyclone Intelligence Engine — Data Ingestion & Preprocessing Config
+# ==============================================================================
+
+# Target basin of interest
+basin: "North Indian Ocean"  # Options: "North Indian Ocean", "Western North Pacific", "Global"
+
+# Satellite Imagery Specifications
+satellite:
+  image_size: 224             # Target patch resolution (height = width = 224)
+  channels: 1                 # 1 for single-band IR (TBB/brightness temp), 3 for RGB/multi-channel
+  crop_size_km: 1000.0        # Physical storm-centered crop bounding box in km
+  ir_band: "TIR1"             # IR channel identifier (e.g., 10.8µm / TIR1)
+  normalization:
+    temp_min_k: 180.0         # Minimum brightness temperature in Kelvin (cloud tops)
+    temp_max_k: 310.0         # Maximum brightness temperature in Kelvin (warm sea/land)
+
+# Atmospheric & Environmental Variables (ERA5 / INCOIS)
+environmental:
+  variables:
+    - "sst"                   # Sea Surface Temperature (K)
+    - "vertical_wind_shear"   # Magnitude of 850 hPa - 200 hPa wind vector difference (m/s)
+    - "rh_500"                # Relative Humidity at 500 hPa (%)
+    - "vorticity_850"         # Relative Vorticity at 850 hPa (s^-1)
+    - "ohc"                   # Ocean Heat Content (kJ/cm^2)
+  spatial_radius_deg: 5.0     # Radius for spatial averaging of atmospheric environment
+  time_resolution_hours: 1    # Reanalysis temporal resolution
+
+# Historical Track & Trajectory Sequence
+track:
+  history_steps: 8            # Past timesteps to condition trajectory prediction (e.g., 8 * 3h = 24h)
+  step_interval_hours: 3      # Interval between consecutive track points
+  features:
+    - "lat"
+    - "lon"
+    - "max_wind_kt"
+    - "min_pressure_mb"
+    - "speed_kt"
+    - "heading_deg"
+
+# Dataset Storage Paths
+paths:
+  data_root: "ml/cyclone/data"
+  ibtracs_csv: "ml/cyclone/data/ibtracs.NI.list.v04r00.csv"
+  satellite_dir: "ml/cyclone/data/satellite"
+  era5_dir: "ml/cyclone/data/era5"
+  processed_dir: "ml/cyclone/data/processed"

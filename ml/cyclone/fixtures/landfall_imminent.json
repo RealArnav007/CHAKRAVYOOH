@@ -1,0 +1,94 @@
+{
+  "schema_version": "1.0",
+  "cyclone_id": "CYC-2020-BAY-001",
+  "name": "Replay-Amphan",
+  "timestamp": "2020-05-19T12:00:00Z",
+  "basin": "North Indian Ocean",
+  "identification": {
+    "detected": true,
+    "confidence": 0.98
+  },
+  "classification": {
+    "stage": "MATURE_TROPICAL_CYCLONE",
+    "confidence": 0.95
+  },
+  "intensity": {
+    "level": "VERY_SEVERE_CYCLONIC_STORM",
+    "scale": "IMD",
+    "max_wind_kt": 85.0,
+    "min_pressure_mb": 950.0,
+    "confidence": 0.91
+  },
+  "prediction": {
+    "current_position": {
+      "lat": 18.50,
+      "lon": 86.80
+    },
+    "heading_deg": 25.0,
+    "speed_kt": 11.5,
+    "forecast_hours": 72,
+    "predicted_path": [
+      {
+        "t_plus_h": 0,
+        "lat": 18.50,
+        "lon": 86.80
+      },
+      {
+        "t_plus_h": 6,
+        "lat": 19.45,
+        "lon": 87.20
+      },
+      {
+        "t_plus_h": 12,
+        "lat": 20.40,
+        "lon": 87.65
+      },
+      {
+        "t_plus_h": 24,
+        "lat": 21.90,
+        "lon": 88.40
+      },
+      {
+        "t_plus_h": 48,
+        "lat": 24.10,
+        "lon": 89.50
+      },
+      {
+        "t_plus_h": 72,
+        "lat": 26.20,
+        "lon": 90.70
+      }
+    ],
+    "confidence": 0.88,
+    "uncertainty": {
+      "cone_radius_km": [
+        0.0,
+        46.0,
+        78.0,
+        132.0,
+        205.0,
+        290.0
+      ]
+    }
+  },
+  "sources": [
+    "ibtracs_replay",
+    "insat3d_ir",
+    "era5"
+  ],
+  "model_version": "chakravyuh-brain-0.1",
+  "tier": "tier1",
+  "extra": {
+    "saffir_simpson": "Category 3",
+    "intensity_class_probs": {
+      "VSCS": 0.74,
+      "ESCS": 0.16,
+      "SCS": 0.10
+    },
+    "landfall_point": {
+      "lat": 21.65,
+      "lon": 88.35,
+      "eta_hours": 22.5
+    }
+  }
+}
