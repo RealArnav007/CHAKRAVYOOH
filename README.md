@@ -1,66 +1,101 @@
-# Pukar 🚨
+﻿# 🌀 Chakravyooh (चक्रव्यूह)
 
-> **Pukar** is an offline-first emergency communication platform. When disasters knock out cell towers and internet, ordinary Android phones form a self-healing mesh: a victim's SOS hops phone-to-phone over Wi-Fi Aware/Bluetooth with no network at all, until it reaches a single phone that still has connectivity — which silently forwards it to a cloud command center. Every message is end-to-end encrypted and signed, so relay phones can't read or tamper with it. On arrival, on-device and cloud AI grade severity, cluster reports into incidents, and hand officials a live, prioritized dispatch map. Phone = communicate. Backend = understand. Web = act.
+> **Chakravyooh** is an AI-powered disaster intelligence platform and offline-first emergency mesh network. 
+
+Conventional disaster response systems are largely reactive—they wait for destruction to happen before activating emergency workflows. Chakravyooh completely re-engineers this paradigm by operating across the entire lifecycle of a disaster: 
+
+**Detect → Understand → Predict → Assess Risk → Warn → Deliver → Survive Network Failure**
 
 ---
 
-## 🏛 System Architecture
+## 🏛 Core Capabilities
 
-The Pukar ecosystem is divided into three distinct operational domains:
+The platform combines two major operational capabilities:
+
+### 1. Cyclone Intelligence Pipeline (Proactive)
+Powered by multi-source machine learning models (Satellite IR, Environmental data, Ocean tracks), Chakravyooh identifies and tracks tropical cyclones long before they make landfall.
+- **AI Tracking:** Tracks trajectory, velocity, and stages using PyTorch baselines.
+- **Geospatial Risk Engine:** Uses haversine math to intersect predicted cyclone cones with pre-defined population zones, assigning real-time dynamic threat levels (`NORMAL` -> `EMERGING` -> `HIGH` -> `CRITICAL` -> `EXTREME`).
+- **Offline Cryptographic Alerts:** Automatically generates and signs `CYCLONE_WARNING` alerts using backend authority `Ed25519` keys, versioning them as the risk escalates.
+
+### 2. Resilient Mesh Infrastructure (Reactive/Survival)
+When disasters inevitably knock out cell towers and internet, ordinary Android phones form a self-healing mesh:
+- **Offline Relay:** A victim's SOS hops phone-to-phone over Bluetooth/Wi-Fi Aware with no network at all, until it reaches a single phone with connectivity.
+- **Zero-Trust Security:** Every SOS message is signed with `Ed25519` and payload-encrypted with `X25519`. Relay nodes cannot read or tamper with packets.
+- **AI Triage:** On reaching the cloud, an LLM layer (Groq/Llama 3) extracts intent and assigns a triage priority score (1-100), routing critical emergencies to commanders instantly.
+
+---
+
+## 🏗 System Architecture
+
+The Chakravyooh ecosystem spans ML inference, Cloud services, Web Dashboards, and Android native mesh networks.
 
 ```mermaid
 graph TD
-    subgraph "Mesh Network (Untrusted P2P)"
-        Victim[Victim Device\nSigns & Encrypts] -.->|Bluetooth / Wi-Fi Aware| Relay1[Relay Node]
-        Relay1 -.-> Relay2[Relay Node]
-        Relay2 -.-> Gateway[Gateway Device\nHas Internet]
+    subgraph "Machine Learning Engine"
+        Data[Satellite / ERA5 / IBTrACS] --> Fusion[Multimodal Fusion Net]
+        Fusion --> Predict[Trajectory & Intensity Predictor]
+        Predict -.->|POST /api/v1/cyclone/intelligence| API[FastAPI Backend]
     end
 
     subgraph "Cloud Backend (Trust Boundary)"
-        Gateway -->|POST /api/v1/sos/ingest| API[FastAPI Ingestion Pipeline]
-        API --> Crypto[Crypto Verifier\nEd25519 & X25519]
-        Crypto --> DB[(Neon PostgreSQL)]
-        Crypto --> ML[AI Scoring\nGroq Llama 3]
-        ML --> ZoneEngine[Geo-Spatial\nZone Engine]
-        ZoneEngine --> WS[Realtime WebSocket]
+        API --> RiskEngine[Geospatial Risk Engine]
+        RiskEngine --> Zones[Zone State Machine]
+        Zones --> Alerter[Alert Generator\nEd25519 Signer]
+        
+        API_SOS[SOS Ingestion] --> Crypto[Crypto Verifier\nX25519 Decrypt]
+        Crypto --> Triage[LLM Triage / Groq]
+        Triage --> Correlation[Haversine Clustering]
+        
+        Alerter --> WS[Realtime WebSocket]
+        Correlation --> WS
+    end
+
+    subgraph "Mesh Network (Untrusted P2P)"
+        Victim[Victim Device\nSigns & Encrypts] -.->|Bluetooth Mesh| Relay1[Relay Node]
+        Relay1 -.-> Gateway[Gateway Device\nHas Internet]
+        Gateway -->|POST /api/v1/sos/ingest| API_SOS
+        
+        Alerter -.->|Push via FCM/SMS| Gateway
+        Gateway -.->|Relay Signed Warning| Relay1
     end
 
     subgraph "Command Center (Web UI)"
-        WS --> Dashboard[Commander Dashboard\nReact/Next.js]
-        Dashboard --> Dispatch[Dispatch Service]
+        WS --> Dashboard[Commander Dashboard]
     end
 ```
 
-### 1. The Gateway (Android/Hardware)
-- **Role:** Generates localized mesh network protocols and bridges the offline gap.
-- **Security:** Victims use `Ed25519` to sign the metadata (coordinates, timestamp, device ID) and `X25519` SealedBox (ChaCha20-Poly1305) to encrypt the payload. Relay nodes forward this blindly without the ability to read or tamper.
+---
 
-### 2. The Cloud Backend (Python / FastAPI)
-- **Role:** The authoritative security boundary and data processing engine.
-- **Core Tech:** Python 3.11+, FastAPI, SQLAlchemy (Async), PostgreSQL (Neon DB).
-- **Pipelines:**
-  - **Security Gate:** Checks for ±5 min Replay Attacks, Idempotent UUID deduplication, and byte-exact `Ed25519` Canonical Verification.
-  - **Geospatial Engine:** Uses Haversine formulas to automatically cluster nearby SOS reports (<500m, <2 hours) into unified `Incidents`.
-  - **Zone State Machine:** Upgrades geographical zones through strict severity levels (`NORMAL` $\rightarrow$ `EMERGING` $\rightarrow$ `HIGH` $\rightarrow$ `CRITICAL` $\rightarrow$ `EXTREME`).
+## 🛠 Tech Stack
 
-### 3. AI & ML Seam (Groq Llama 3)
-- **Role:** Understand unstructured payload text (e.g., "trapped under rubble, smelling gas").
-- **Seam:** An isolated interface extracts intent, assigns priority scores (1-100), and categorizes emergencies (Medical, Fire, Flood, Riot). Falls back deterministically if the upstream API fails.
+**Backend Services**
+- **Language:** Python 3.11+
+- **Framework:** FastAPI
+- **Database:** PostgreSQL (Neon DB) + SQLAlchemy AsyncIO
+- **Cryptography:** PyNaCl (`Ed25519` signing, `X25519` SealedBox encryption)
+- **AI Triage:** Groq API (Llama 3)
+- **Realtime:** WebSockets (Outbox Pattern)
 
-### 4. Command Center (Web Frontend)
-- **Role:** Operational visibility for commanders and responders.
-- **Realtime:** Listens to the `/ws/dashboard` WebSocket (secured via JWT) to instantly update live incident maps and dispatch units dynamically.
+**Machine Learning**
+- **Framework:** PyTorch, Torchvision
+- **Data Prep:** Pandas, Scikit-learn
+- **Data Sources:** ERA5, IBTrACS, Digital Typhoon IR
+
+**Client Applications**
+- **Android:** Native Kotlin, Bluetooth Low Energy (BLE) Mesh
+- **Web:** HTML/CSS/JS, React Dashboard
 
 ---
 
 ## 🔒 Cryptographic Security Model
 
-Because the P2P mesh network is inherently untrusted (any device can act as a relay), Pukar enforces a strict zero-trust model at the cloud boundary.
+Because the P2P mesh network is inherently untrusted, Chakravyooh enforces a strict zero-trust boundary at the cloud layer:
 
-1. **Serialization:** 15 immutable fields are pipe-delimited (`|`) in a strict order into canonical bytes.
-2. **Authentication:** The canonical bytes are signed using `Ed25519`. Any modification by a relay node instantly invalidates the signature, triggering a `401 BAD_SIGNATURE` at the backend.
-3. **Confidentiality:** The plaintext payload is encrypted using the Backend's `X25519` public key. Only the backend can decrypt the payload.
-4. **Idempotency:** Replay attacks are stopped by a strict ±5 minute clock-drift window and a database-backed `msg_id` unique constraint.
+1. **SOS Encryption:** The plaintext payload of a distress call is encrypted using the Backend's `X25519` public key.
+2. **SOS Authentication:** 15 immutable fields are packed into canonical bytes and signed using `Ed25519`. Modification by a relay node immediately triggers a `401 BAD_SIGNATURE`.
+3. **Alert Verification:** The backend signs generated warnings (`CYCLONE_WARNING`) with its own private authority key. Offline Android clients cache the authority public key to verify incoming mesh alerts before displaying them.
+4. **Idempotency:** Replay attacks are stopped by a strict ±5 minute clock-drift window and a database-backed unique constraint.
 
 ---
 
@@ -74,10 +109,10 @@ The backend is entirely containerized and ready for rapid local development.
 
 ### Setup Instructions
 
-1. **Clone the repository & enter the backend:**
+1. **Clone the repository:**
    ```bash
-   git clone https://github.com/RishabhRana37/Pukar.git
-   cd Pukar/services/backend
+   git clone https://github.com/RealArnav007/CHAKRAVYOOH.git
+   cd CHAKRAVYOOH/services/backend
    ```
 
 2. **Create a virtual environment:**
@@ -92,7 +127,7 @@ The backend is entirely containerized and ready for rapid local development.
    ```bash
    cp .env.example .env
    ```
-   *(Note: If `JWT_SECRET_KEY` or `BACKEND_X25519_PRIVATE_KEY` are left blank, the app will auto-generate ephemeral keys for local development).*
+   *(Note: If cryptographic keys like `JWT_SECRET_KEY` or `BACKEND_X25519_PRIVATE_KEY` are left blank, the app auto-generates ephemeral keys for local testing).*
 
 4. **Run the server:**
    ```bash
@@ -101,33 +136,32 @@ The backend is entirely containerized and ready for rapid local development.
    Visit `http://localhost:8000/docs` to view the interactive OpenAPI documentation.
 
 ### Running the Test Suite
-The backend is protected by a comprehensive 18-suite `pytest` integration test layer.
+The backend is protected by a comprehensive 67-suite `pytest` integration and unit test layer covering both the offline mesh ingestion and cyclone intelligence pathways.
 ```bash
 pytest tests/ -v
 ```
 
 ---
 
-## 🗺️ Project Structure
+## 🗺 Project Structure
 
 ```text
-Pukar/
-├── beacon/                         # Master PRD and Protocol Specs
+CHAKRAVYOOH/
+├── ml/                             # Machine Learning Engine
+│   └── cyclone/                    # Cyclone baseline models & PyTorch tracks
 ├── services/
-│   └── backend/                    # Core Python API
+│   └── backend/                    # Core FastAPI Backend
 │       ├── src/
-│       │   ├── api/                # REST Routes & WebSocket
-│       │   ├── auth/               # JWT, Brevo OTP, RBAC Roles
-│       │   ├── security/           # Crypto verifiers & rate limiters
-│       │   ├── sos/                # Ingestion Pipeline & Deduplication
-│       │   ├── incidents/          # Haversine Correlation Engine
+│       │   ├── api/                # REST Routes
+│       │   ├── auth/               # JWT, Brevo OTP, RBAC
+│       │   ├── cyclone/            # Cyclone Intelligence & Signed Alerts
+│       │   ├── sos/                # SOS Ingestion & Deduplication
+│       │   ├── incidents/          # Haversine Clustering
 │       │   ├── zones/              # Severity State Machine
-│       │   ├── dispatch/           # Unit dispatch logic
-│       │   ├── ml/                 # AI Scoring Interface (Groq)
+│       │   ├── ml/                 # AI Triage Interface (Groq)
 │       │   └── database/           # SQLAlchemy Models
-│       ├── tests/                  # Integration & Unit Tests
-│       ├── Dockerfile              # Render Production Image
-│       └── pytest.ini
+│       └── tests/                  # 67 Pytest Suites
+├── frontend/                       # Web Dashboards
 └── README.md
 ```
 
