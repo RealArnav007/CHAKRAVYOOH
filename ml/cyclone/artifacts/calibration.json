@@ -1,0 +1,22 @@
+{
+  "detection": {
+    "temperature": 1.3546174764633179
+  },
+  "stage": {
+    "temperature": 2.912426233291626
+  },
+  "intensity_cls": {
+    "temperature": 1.4513459205627441
+  },
+  "track_cone": {
+    "target_coverage": 0.95,
+    "global_multiplier": 3.4607,
+    "per_horizon_multipliers": {
+      "6h": 0.5,
+      "12h": 1.108,
+      "24h": 1.2224,
+      "48h": 2.7183,
+      "72h": 3.943
+    }
+  }
+}
