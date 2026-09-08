@@ -1,13 +1,20 @@
-# Ignore all data directory contents
+# Ignore all raw data files by default
 data/*
-
-# Allow keeping the directory structure
 !data/.gitkeep
+!data/DATA_CARD.md
+!data/*.md
 
-# Allow committing small sample fixtures and toy datasets
-!data/*_sample.*
+# Allow subdirectories to be traversed
+!data/*/
+
+# Re-ignore contents of subdirectories
+data/*/*
+
+# Allow sample datasets and small test fixtures in any subdirectory
+!data/*/*_sample.*
 !data/**/_sample.*
 !data/**/*_sample.*
+!data/*/images/*_sample.*
 
 # Python bytecode & caching
 __pycache__/
@@ -36,3 +43,7 @@ mlruns/
 *.hdf5
 *.tar.gz
 *.zip
+*.parquet
+*.csv
+!*_sample.csv
+!*_sample.parquet

@@ -43,13 +43,17 @@ ENV/
 .mypy_cache/
 .ruff_cache/
 
-# Large ML data files & checkpoints
-*.pt
-*.pth
-*.onnx
-*.safetensors
+# Large ML data files & checkpoints (keep sample files and data cards)
 ml/cyclone/data/*
 !ml/cyclone/data/.gitkeep
-!ml/cyclone/data/*_sample.*
+!ml/cyclone/data/DATA_CARD.md
+!ml/cyclone/data/*.md
+!ml/cyclone/data/*/
+ml/cyclone/data/*/*
+!ml/cyclone/data/*/*_sample.*
+!ml/cyclone/data/**/_sample.*
+!ml/cyclone/data/**/*_sample.*
+!ml/cyclone/data/*/images/*_sample.*
+
 ml/cyclone/checkpoints/
 ml/cyclone/logs/
