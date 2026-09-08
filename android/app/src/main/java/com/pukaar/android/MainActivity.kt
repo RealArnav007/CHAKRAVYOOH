@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import com.pukaar.android.service.MeshReceiverService
 import com.pukaar.android.ui.navigation.PukaarNavGraph
 import com.pukaar.android.ui.theme.PukaarTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -14,6 +15,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+
+        try {
+            MeshReceiverService.start(this)
+        } catch (e: Exception) {
+            // Handled or started upon permission flow
+        }
+
         setContent {
             PukaarTheme {
                 PukaarNavGraph()
