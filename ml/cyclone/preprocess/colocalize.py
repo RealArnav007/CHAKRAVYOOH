@@ -115,6 +115,14 @@ def build_samples(
                     "heading_deg": round(float(h_row.get("heading_deg", h_row.get("storm_dir_deg", 0.0))), 1),
                 })
 
+            # (d) Build future trajectory lookup for forecast horizons
+            future_lookup: Dict[int, Tuple[float, float]] = {}
+            for f_idx in range(idx + 1, n_pts):
+                f_row = storm_pts.iloc[f_idx]
+                delta_h = int(round((f_row["time"] - current_time).total_seconds() / 3600.0))
+                if delta_h in [6, 12, 24, 48, 72]:
+                    future_lookup[delta_h] = (round(float(f_row["lat"]), 4), round(float(f_row["lon"]), 4))
+
             sample_dict = {
                 "storm_id": str(storm_id),
                 "time": current_time.isoformat(),
@@ -128,6 +136,7 @@ def build_samples(
                 "image_available": image_available,
                 "env": env_scalars,
                 "history": history,
+                "future_lookup": future_lookup,
             }
 
             samples.append(sample_dict)

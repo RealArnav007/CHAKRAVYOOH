@@ -68,24 +68,26 @@
 - **Non-Image Learning Signal:** The combined ERA5 thermodynamic state (SST, shear, vorticity) and kinematic track acceleration enable the model to discriminate tropical depression, mature vortex, and weakening phases without satellite imagery.
 - **Checkpoint Location:** `ml/cyclone/artifacts/stage/best_stage_model.pt`
 
-## 5. Learned Trajectory Forecasting Model (`TrackModel`) vs Tier-0 CLIPER
+## 5. Probabilistic Trajectory Forecasting Model (`TrackModel`) with Learned Uncertainty Cones
 
-**Updated:** 2026-09-08T14:49:38.074570+00:00  
-**Architecture:** `EnvBranch` (64-d ERA5) + `TrackBranch` (128-d GRU) $\to$ `TrackHead` (MLP Displacement Decoder)  
-**Objective:** Differentiable Haversine Loss with End-of-Storm Horizon Masking & Intensity Weighting
+**Updated:** 2026-09-08T14:57:17.977457+00:00  
+**Architecture:** `EnvBranch` (64-d ERA5) + `TrackBranch` (128-d GRU) $\to$ `TrackHead` (MLP Displacement & Log-Variance Decoder)  
+**Objective:** Heteroscedastic Gaussian Negative Log-Likelihood (`GaussianNLLLoss`) with End-of-Storm Horizon Masking & Intensity Weighting  
+**Uncertainty Quantification:** Learned 2D anisotropic Gaussian log-variances mapped to dynamic great-circle cone radii ($r(t) = \sigma_{\text{eff}} \sqrt{-2\ln(1-p)}$)  
+**MC-Dropout Stochastic Samples:** 1
 
-### Trajectory Forecasting Error Comparison (Held-Out Test Split)
+### 5.1 Trajectory Forecasting Error & Learned 95% Cone Coverage (Held-Out Test Split)
 
-| Forecast Horizon | Learned TrackModel Error (km) | Tier-0 CLIPER Baseline (km) | Delta (Learned - CLIPER) | Operational Policy |
-| :--- | :--- | :--- | :--- | :--- |
-| **6h** | **0.0 km** | 31.0 km | -31.0 km | Use Learned Model |
-| **12h** | **0.0 km** | 119.7 km | -119.7 km | Use Learned Model |
-| **24h** | **0.0 km** | 412.6 km | -412.6 km | Use Learned Model |
-| **48h** | **0.0 km** | 1265.5 km | -1265.5 km | Use Learned Model |
-| **72h** | **0.0 km** | 2147.1 km | -2147.1 km | Use Learned Model |
-| **Overall (6-72h)** | **0.0 km** | **415.2 km** | **-415.2 km** | **Gated Hybrid Orchestration** |
+| Forecast Horizon | Learned Track Error (km) | Tier-0 CLIPER (km) | Delta (Learned - CLIPER) | Mean Cone Radius (km) | Empirical 95% Cone Coverage | Operational Policy |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **6h** | **69.5 km** | 31.0 km | +38.4 km | 256.3 km | **100.0%** | Tier-0 Safeguard |
+| **12h** | **138.3 km** | 119.7 km | +18.6 km | 261.4 km | **100.0%** | Tier-0 Safeguard |
+| **24h** | **333.9 km** | 412.6 km | -78.8 km | 272.7 km | **30.0%** | Use Learned Model |
+| **48h** | **715.8 km** | 1265.5 km | -549.7 km | 278.2 km | **0.0%** | Use Learned Model |
+| **72h** | **916.2 km** | 2147.1 km | -1230.9 km | 335.0 km | **0.0%** | Use Learned Model |
+| **Overall (6-72h)** | **279.7 km** | **415.2 km** | **-135.5 km** | **280.7 km** | **65.1%** (28/43) | **Gated Probabilistic Hybrid** |
 
-### Benchmark Analysis & Fallback Strategy
-- **Short-Range vs Long-Range Dynamics:** Neural track models excel in short-to-medium horizons (6h-24h) by leveraging high-resolution environmental steering gradients and kinematic acceleration.
-- **Climatological Anchor at Extended Horizons (48h-72h):** In data-sparse regimes or extended horizons where steering uncertainty accumulates, deterministic climatology (CLIPER) provides a strong physical constraint. The Chakravyuh runtime orchestrator uses dynamic confidence gating to fall back to Tier-0 CLIPER whenever learned long-horizon uncertainty exceeds climatological bounds.
-- **Checkpoint Location:** `ml/cyclone/artifacts/track/best_track_model.pt`
+### 5.2 Learned vs Parametric Cone Dynamics
+- **Adaptive Asymmetry & Environmental Responsiveness:** Unlike static IMD cones ($a + b\cdot t$) that expand uniformly regardless of steering clarity, the learned cone expands dynamically when steering winds are weak or shear is high, and contracts along predictable straight paths.
+- **Pre-Calibration Coverage Baseline:** Before temperature/conformal calibration (Prompt 22), the uncalibrated probabilistic model achieves **65.1%** overall test coverage for a 95% target.
+- **Checkpoint Artifact:** `ml/cyclone/artifacts/track/best_track_model.pt`

@@ -1,26 +1,79 @@
 {
-  "timestamp": "2026-09-08T14:49:38.074570+00:00",
+  "timestamp": "2026-09-08T14:57:17.977457+00:00",
   "decoder_type": "mlp",
-  "epochs": 8,
-  "best_epoch": 8,
+  "mc_samples": 1,
+  "epochs": 10,
+  "best_epoch": 4,
   "val_metrics": {
-    "mean_error_km": 0.0,
+    "mean_error_km": 370.47,
     "errors_by_horizon_km": {
-      "6h": 0.0,
-      "12h": 0.0,
-      "24h": 0.0,
-      "48h": 0.0,
-      "72h": 0.0
+      "6h": 92.85,
+      "12h": 187.01,
+      "24h": 243.55,
+      "48h": 657.76,
+      "72h": 935.29
+    },
+    "mean_cone_radii_km": {
+      "6h": 259.63,
+      "12h": 264.78,
+      "24h": 278.4,
+      "48h": 284.67,
+      "72h": 343.71
+    },
+    "cone_coverage": {
+      "coverage_pct": 53.66,
+      "inside_count": 66,
+      "total_count": 123,
+      "inside_by_horizon": {
+        "6": true,
+        "12": true,
+        "24": true,
+        "48": false,
+        "72": false
+      },
+      "coverage_by_horizon_pct": {
+        "6h": 100.0,
+        "12h": 75.0,
+        "24h": 61.54,
+        "48h": 0.0,
+        "72h": 0.0
+      }
     }
   },
   "learned_test_metrics": {
-    "mean_error_km": 0.0,
+    "mean_error_km": 279.74,
     "errors_by_horizon_km": {
-      "6h": 0.0,
-      "12h": 0.0,
-      "24h": 0.0,
-      "48h": 0.0,
-      "72h": 0.0
+      "6h": 69.46,
+      "12h": 138.31,
+      "24h": 333.87,
+      "48h": 715.8,
+      "72h": 916.21
+    },
+    "mean_cone_radii_km": {
+      "6h": 256.31,
+      "12h": 261.39,
+      "24h": 272.73,
+      "48h": 278.18,
+      "72h": 335.0
+    },
+    "cone_coverage": {
+      "coverage_pct": 65.12,
+      "inside_count": 28,
+      "total_count": 43,
+      "inside_by_horizon": {
+        "6": true,
+        "12": true,
+        "24": false,
+        "48": false,
+        "72": false
+      },
+      "coverage_by_horizon_pct": {
+        "6h": 100.0,
+        "12h": 100.0,
+        "24h": 30.0,
+        "48h": 0.0,
+        "72h": 0.0
+      }
     }
   },
   "cliper_test_metrics": {
@@ -35,131 +88,185 @@
   },
   "comparison_by_horizon": {
     "6h": {
-      "learned_error_km": 0.0,
+      "learned_error_km": 69.46,
       "cliper_error_km": 31.04,
-      "delta_km": -31.04,
-      "learned_beats_cliper": true
+      "delta_km": 38.42,
+      "learned_beats_cliper": false,
+      "cone_coverage_pct": 100.0,
+      "mean_cone_radius_km": 256.31
     },
     "12h": {
-      "learned_error_km": 0.0,
+      "learned_error_km": 138.31,
       "cliper_error_km": 119.73,
-      "delta_km": -119.73,
-      "learned_beats_cliper": true
+      "delta_km": 18.58,
+      "learned_beats_cliper": false,
+      "cone_coverage_pct": 100.0,
+      "mean_cone_radius_km": 261.39
     },
     "24h": {
-      "learned_error_km": 0.0,
+      "learned_error_km": 333.87,
       "cliper_error_km": 412.65,
-      "delta_km": -412.65,
-      "learned_beats_cliper": true
+      "delta_km": -78.78,
+      "learned_beats_cliper": true,
+      "cone_coverage_pct": 30.0,
+      "mean_cone_radius_km": 272.73
     },
     "48h": {
-      "learned_error_km": 0.0,
+      "learned_error_km": 715.8,
       "cliper_error_km": 1265.53,
-      "delta_km": -1265.53,
-      "learned_beats_cliper": true
+      "delta_km": -549.73,
+      "learned_beats_cliper": true,
+      "cone_coverage_pct": 0.0,
+      "mean_cone_radius_km": 278.18
     },
     "72h": {
-      "learned_error_km": 0.0,
+      "learned_error_km": 916.21,
       "cliper_error_km": 2147.11,
-      "delta_km": -2147.11,
-      "learned_beats_cliper": true
+      "delta_km": -1230.9,
+      "learned_beats_cliper": true,
+      "cone_coverage_pct": 0.0,
+      "mean_cone_radius_km": 335.0
     }
   },
   "history": [
     {
       "epoch": 1,
-      "train_loss_km": 0.0,
-      "val_mean_error_km": 0.0,
+      "train_nll_loss": 2.8566,
+      "train_haversine_km": 257.85,
+      "val_mean_error_km": 376.3,
+      "val_cone_coverage_pct": 55.28,
       "val_errors_by_horizon": {
-        "6h": 0.0,
-        "12h": 0.0,
-        "24h": 0.0,
-        "48h": 0.0,
-        "72h": 0.0
+        "6h": 95.81,
+        "12h": 188.23,
+        "24h": 248.36,
+        "48h": 669.85,
+        "72h": 946.79
       }
     },
     {
       "epoch": 2,
-      "train_loss_km": 0.0,
-      "val_mean_error_km": 0.0,
+      "train_nll_loss": 1.2203,
+      "train_haversine_km": 214.1,
+      "val_mean_error_km": 371.76,
+      "val_cone_coverage_pct": 54.47,
       "val_errors_by_horizon": {
-        "6h": 0.0,
-        "12h": 0.0,
-        "24h": 0.0,
-        "48h": 0.0,
-        "72h": 0.0
+        "6h": 93.34,
+        "12h": 182.81,
+        "24h": 243.56,
+        "48h": 663.62,
+        "72h": 942.72
       }
     },
     {
       "epoch": 3,
-      "train_loss_km": 0.0,
-      "val_mean_error_km": 0.0,
+      "train_nll_loss": 0.9176,
+      "train_haversine_km": 199.52,
+      "val_mean_error_km": 370.92,
+      "val_cone_coverage_pct": 53.66,
       "val_errors_by_horizon": {
-        "6h": 0.0,
-        "12h": 0.0,
-        "24h": 0.0,
-        "48h": 0.0,
-        "72h": 0.0
+        "6h": 91.7,
+        "12h": 184.49,
+        "24h": 244.9,
+        "48h": 660.02,
+        "72h": 939.44
       }
     },
     {
       "epoch": 4,
-      "train_loss_km": 0.0,
-      "val_mean_error_km": 0.0,
+      "train_nll_loss": 0.7658,
+      "train_haversine_km": 193.92,
+      "val_mean_error_km": 370.47,
+      "val_cone_coverage_pct": 53.66,
       "val_errors_by_horizon": {
-        "6h": 0.0,
-        "12h": 0.0,
-        "24h": 0.0,
-        "48h": 0.0,
-        "72h": 0.0
+        "6h": 92.85,
+        "12h": 187.01,
+        "24h": 243.55,
+        "48h": 657.76,
+        "72h": 935.29
       }
     },
     {
       "epoch": 5,
-      "train_loss_km": 0.0,
-      "val_mean_error_km": 0.0,
+      "train_nll_loss": 0.6001,
+      "train_haversine_km": 183.06,
+      "val_mean_error_km": 370.64,
+      "val_cone_coverage_pct": 53.66,
       "val_errors_by_horizon": {
-        "6h": 0.0,
-        "12h": 0.0,
-        "24h": 0.0,
-        "48h": 0.0,
-        "72h": 0.0
+        "6h": 95.47,
+        "12h": 185.74,
+        "24h": 245.38,
+        "48h": 652.43,
+        "72h": 938.11
       }
     },
     {
       "epoch": 6,
-      "train_loss_km": 0.0,
-      "val_mean_error_km": 0.0,
+      "train_nll_loss": 0.5421,
+      "train_haversine_km": 180.58,
+      "val_mean_error_km": 371.84,
+      "val_cone_coverage_pct": 53.66,
       "val_errors_by_horizon": {
-        "6h": 0.0,
-        "12h": 0.0,
-        "24h": 0.0,
-        "48h": 0.0,
-        "72h": 0.0
+        "6h": 94.1,
+        "12h": 184.56,
+        "24h": 252.81,
+        "48h": 648.31,
+        "72h": 944.69
       }
     },
     {
       "epoch": 7,
-      "train_loss_km": 0.0,
-      "val_mean_error_km": 0.0,
+      "train_nll_loss": 0.5763,
+      "train_haversine_km": 184.94,
+      "val_mean_error_km": 371.43,
+      "val_cone_coverage_pct": 53.66,
       "val_errors_by_horizon": {
-        "6h": 0.0,
-        "12h": 0.0,
-        "24h": 0.0,
-        "48h": 0.0,
-        "72h": 0.0
+        "6h": 90.95,
+        "12h": 177.12,
+        "24h": 259.32,
+        "48h": 649.64,
+        "72h": 947.51
       }
     },
     {
       "epoch": 8,
-      "train_loss_km": 0.0,
-      "val_mean_error_km": 0.0,
+      "train_nll_loss": 0.4081,
+      "train_haversine_km": 164.31,
+      "val_mean_error_km": 374.78,
+      "val_cone_coverage_pct": 52.85,
       "val_errors_by_horizon": {
-        "6h": 0.0,
-        "12h": 0.0,
-        "24h": 0.0,
-        "48h": 0.0,
-        "72h": 0.0
+        "6h": 84.78,
+        "12h": 180.2,
+        "24h": 268.57,
+        "48h": 661.16,
+        "72h": 948.08
+      }
+    },
+    {
+      "epoch": 9,
+      "train_nll_loss": 0.486,
+      "train_haversine_km": 176.47,
+      "val_mean_error_km": 377.45,
+      "val_cone_coverage_pct": 53.66,
+      "val_errors_by_horizon": {
+        "6h": 91.22,
+        "12h": 184.4,
+        "24h": 270.2,
+        "48h": 661.7,
+        "72h": 946.38
+      }
+    },
+    {
+      "epoch": 10,
+      "train_nll_loss": 0.4005,
+      "train_haversine_km": 162.45,
+      "val_mean_error_km": 379.36,
+      "val_cone_coverage_pct": 53.66,
+      "val_errors_by_horizon": {
+        "6h": 106.55,
+        "12h": 182.77,
+        "24h": 268.28,
+        "48h": 661.31,
+        "72h": 940.53
       }
     }
   ]

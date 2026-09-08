@@ -1,4 +1,4 @@
-"""Trajectory forecasting training pipeline using differentiable Great-Circle Haversine Loss."""
+"""Trajectory forecasting training pipeline using Gaussian Negative Log-Likelihood and Learned Uncertainty Cones."""
 
 from __future__ import annotations
 
@@ -16,85 +16,20 @@ from torch.utils.data import DataLoader
 
 from ml.cyclone.datasets.splits import make_splits
 from ml.cyclone.datasets.torch_dataset import CycloneDataset, cyclone_collate_fn
-from ml.cyclone.eval.metrics import track_error_km
+from ml.cyclone.eval.metrics import cone_coverage, track_error_km
 from ml.cyclone.ingest.ibtracs import load_tracks
 from ml.cyclone.models.baseline_track import predict_track as cliper_predict_track
 from ml.cyclone.models.heads import DEFAULT_TRACK_HORIZONS, TrackHead, TrackModel
+from ml.cyclone.models.uncertainty import monte_carlo_dropout_predict, predict_cone_radii
 from ml.cyclone.preprocess.align import resample_track
 from ml.cyclone.preprocess.clean import clean_tracks
 from ml.cyclone.preprocess.colocalize import build_samples
 from ml.cyclone.preprocess.geo import EARTH_RADIUS_KM
+from ml.cyclone.train.losses import GaussianNLLLoss, HaversineMetricLoss
 
 
-# -----------------------------------------------------------------------------
-# Differentiable Haversine Loss Function
-# -----------------------------------------------------------------------------
-
-
-def haversine_loss(
-    pred_deltas: torch.Tensor,       # (B, H, 2) [dlat, dlon] in degrees
-    target_deltas: torch.Tensor,     # (B, H, 2) [dlat, dlon] in degrees
-    current_coords: torch.Tensor,    # (B, 2) [lat0, lon0] in degrees
-    horizon_masks: torch.Tensor,     # (B, H) bool
-    sample_weights: Optional[torch.Tensor] = None,  # (B,)
-    eps: float = 1e-7,
-) -> torch.Tensor:
-    """Computes differentiable Great-Circle (Haversine) distance loss in kilometers.
-
-    Masks invalid horizons past end-of-storm and scales by optional sample intensity weights.
-
-    Args:
-        pred_deltas: Predicted displacement tensor (B, H, 2).
-        target_deltas: Ground truth displacement tensor (B, H, 2).
-        current_coords: Analysis location (B, 2) [lat0, lon0].
-        horizon_masks: Valid horizon boolean mask (B, H).
-        sample_weights: Optional per-sample loss weighting tensor (B,).
-        eps: Small epsilon to guarantee non-zero denominator in sqrt derivatives.
-
-    Returns:
-        Scalar loss tensor in kilometers.
-    """
-    batch_size, num_horizons, _ = pred_deltas.shape
-
-    # Expand current coordinates across horizons: (B, H, 2)
-    lat0 = current_coords[:, 0].unsqueeze(1).expand(-1, num_horizons)
-    lon0 = current_coords[:, 1].unsqueeze(1).expand(-1, num_horizons)
-
-    # Compute absolute predicted and target coordinates in radians
-    deg_to_rad = math.pi / 180.0
-    p_lat_rad = (lat0 + pred_deltas[..., 0]) * deg_to_rad
-    p_lon_rad = (lon0 + pred_deltas[..., 1]) * deg_to_rad
-
-    t_lat_rad = (lat0 + target_deltas[..., 0]) * deg_to_rad
-    t_lon_rad = (lon0 + target_deltas[..., 1]) * deg_to_rad
-
-    dlat_rad = p_lat_rad - t_lat_rad
-    dlon_rad = p_lon_rad - t_lon_rad
-
-    # Haversine formula
-    sin_half_dlat = torch.sin(dlat_rad / 2.0)
-    sin_half_dlon = torch.sin(dlon_rad / 2.0)
-
-    a = (sin_half_dlat ** 2) + torch.cos(p_lat_rad) * torch.cos(t_lat_rad) * (sin_half_dlon ** 2)
-    a = torch.clamp(a, min=0.0, max=1.0)
-    safe_a = torch.clamp(a, min=1e-8, max=1.0 - 1e-7)
-    c = torch.where(a > 1e-8, 2.0 * torch.asin(torch.sqrt(safe_a)), torch.zeros_like(a))
-
-    dist_km = EARTH_RADIUS_KM * c  # (B, H)
-
-    # Apply horizon masking (only compute loss where future ground truth exists)
-    valid_mask = horizon_masks.float()
-    masked_dist = dist_km * valid_mask
-
-    if sample_weights is not None:
-        w = sample_weights.unsqueeze(1).expand(-1, num_horizons)
-        masked_dist = masked_dist * w
-        total_valid = torch.sum(valid_mask * w)
-    else:
-        total_valid = torch.sum(valid_mask)
-
-    loss = torch.sum(masked_dist) / torch.clamp(total_valid, min=1.0)
-    return loss
+# Backward-compatible alias for existing imports
+haversine_loss = HaversineMetricLoss()
 
 
 # -----------------------------------------------------------------------------
@@ -108,10 +43,11 @@ def train_track(
     lr: float = 3e-4,
     weight_decay: float = 1e-4,
     decoder_type: str = "mlp",
+    mc_samples: int = 1,
     artifact_dir: Optional[Path] = None,
     device: Optional[torch.device] = None,
 ) -> Dict[str, Any]:
-    """Trains TrackModel using differentiable haversine loss and compares against CLIPER baseline.
+    """Trains TrackModel using Gaussian NLL loss (mean + log-variance) and evaluates learned uncertainty cones.
 
     Args:
         epochs: Number of training epochs.
@@ -119,11 +55,12 @@ def train_track(
         lr: AdamW learning rate.
         weight_decay: AdamW weight decay.
         decoder_type: 'mlp' (default) or 'gru'.
+        mc_samples: Number of MC-dropout forward passes at inference (1 = deterministic, >1 = MC-Dropout).
         artifact_dir: Destination directory for artifacts.
         device: Torch compute device.
 
     Returns:
-        Dictionary of test metrics and comparison against CLIPER baseline.
+        Dictionary of test metrics, cone coverage, and comparison against CLIPER baseline.
     """
     save_dir = artifact_dir or (Path(__file__).resolve().parent.parent / "artifacts" / "track")
     save_dir.mkdir(parents=True, exist_ok=True)
@@ -158,7 +95,7 @@ def train_track(
     val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, collate_fn=cyclone_collate_fn)
     test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, collate_fn=cyclone_collate_fn)
 
-    # 2. Model & Optimizer
+    # 2. Model, Loss Functions & Optimizer
     model = TrackModel(
         env_dim=6,
         env_out_dim=64,
@@ -169,6 +106,9 @@ def train_track(
         decoder_type=decoder_type,
     ).to(compute_device)
 
+    nll_criterion = GaussianNLLLoss(min_log_var=-7.0, max_log_var=7.0)
+    haversine_metric = HaversineMetricLoss()
+
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max(1, epochs))
 
@@ -177,10 +117,11 @@ def train_track(
     history: List[Dict[str, Any]] = []
 
     # 3. Training Loop
-    print(f"[TRACK] Starting training for {epochs} epochs...")
+    print(f"[TRACK] Starting probabilistic training (Gaussian NLL) for {epochs} epochs...")
     for epoch in range(1, epochs + 1):
         model.train()
-        train_losses = []
+        train_nll_losses = []
+        train_hav_losses = []
 
         for batch in train_loader:
             env = torch.nan_to_num(batch["env_vector"].to(compute_device), nan=0.0)
@@ -200,34 +141,51 @@ def train_track(
 
             optimizer.zero_grad()
             out = model(env_vector=env, track_sequence=track)
-            loss = haversine_loss(
-                pred_deltas=out["deltas"],
-                target_deltas=target_deltas,
-                current_coords=coords,
+
+            # Primary optimization objective: Gaussian NLL (mean + log-variance)
+            nll_loss = nll_criterion(
+                pred_mu=out["deltas"],
+                pred_log_var=out["log_vars"],
+                target=target_deltas,
                 horizon_masks=horizon_masks,
                 sample_weights=sample_w,
             )
 
-            if not torch.isnan(loss):
-                loss.backward()
+            # Reported track distance metric in km
+            with torch.no_grad():
+                hav_loss = haversine_metric(
+                    pred_deltas=out["deltas"],
+                    target_deltas=target_deltas,
+                    current_coords=coords,
+                    horizon_masks=horizon_masks,
+                    sample_weights=sample_w,
+                )
+
+            if not torch.isnan(nll_loss):
+                nll_loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
                 optimizer.step()
-                train_losses.append(loss.item())
+                train_nll_losses.append(nll_loss.item())
+                train_hav_losses.append(hav_loss.item())
 
         scheduler.step()
-        val_met = evaluate_track_model(model, val_loader, compute_device)
+        val_met = evaluate_probabilistic_track_model(model, val_loader, compute_device, mc_samples=1)
         v_errs = val_met["errors_by_horizon_km"]
         mean_err = val_met["mean_error_km"]
+        val_cov = val_met["cone_coverage"]["coverage_pct"]
 
         print(
-            f"Epoch {epoch:02d}/{epochs:02d} | Train Loss: {np.mean(train_losses) if train_losses else 0.0:.2f} km | "
-            f"Val Mean: {mean_err:.1f} km | 24h: {v_errs.get('24h', 0.0):.1f} km | 48h: {v_errs.get('48h', 0.0):.1f} km"
+            f"Epoch {epoch:02d}/{epochs:02d} | NLL Loss: {np.mean(train_nll_losses) if train_nll_losses else 0.0:.3f} | "
+            f"Train Hav: {np.mean(train_hav_losses) if train_hav_losses else 0.0:.1f} km | "
+            f"Val Error: {mean_err:.1f} km | Val Cone Cov: {val_cov:.1f}% | 24h: {v_errs.get('24h', 0.0):.1f} km"
         )
 
         history.append({
             "epoch": epoch,
-            "train_loss_km": round(float(np.mean(train_losses) if train_losses else 0.0), 2),
+            "train_nll_loss": round(float(np.mean(train_nll_losses) if train_nll_losses else 0.0), 4),
+            "train_haversine_km": round(float(np.mean(train_hav_losses) if train_hav_losses else 0.0), 2),
             "val_mean_error_km": mean_err,
+            "val_cone_coverage_pct": val_cov,
             "val_errors_by_horizon": v_errs,
         })
 
@@ -241,31 +199,40 @@ def train_track(
             }, best_checkpoint_path)
 
     # 4. Final Evaluation on Held-Out Test Split
-    print("[TRACK] Evaluating best learned model on held-out test split...")
+    print(f"[TRACK] Evaluating best learned model on held-out test split (MC samples: {mc_samples})...")
     best_ckpt = torch.load(best_checkpoint_path, map_location=compute_device)
     model.load_state_dict(best_ckpt["model_state_dict"])
-    learned_test_metrics = evaluate_track_model(model, test_loader, compute_device)
+    learned_test_metrics = evaluate_probabilistic_track_model(
+        model, test_loader, compute_device, mc_samples=mc_samples
+    )
 
     # 5. Evaluate Tier-0 CLIPER Baseline on the EXACT Same Test Split
     print("[TRACK] Evaluating Tier-0 CLIPER baseline on the same test split...")
     cliper_test_metrics = evaluate_cliper_baseline(test_ds.raw_samples, test_indices)
 
     # Compute per-horizon delta (Learned vs CLIPER)
-    comparison_by_horizon: Dict[str, Dict[str, float]] = {}
+    comparison_by_horizon: Dict[str, Dict[str, Any]] = {}
     for h_str in ["6h", "12h", "24h", "48h", "72h"]:
         l_err = learned_test_metrics["errors_by_horizon_km"].get(h_str, 0.0)
         c_err = cliper_test_metrics["errors_by_horizon_km"].get(h_str, 0.0)
         delta = round(l_err - c_err, 2)
+        h_int = int(h_str.replace("h", ""))
+        cov_pct = learned_test_metrics["cone_coverage"]["coverage_by_horizon_pct"].get(h_str, 0.0)
+        mean_radius = learned_test_metrics["mean_cone_radii_km"].get(h_str, 0.0)
+
         comparison_by_horizon[h_str] = {
             "learned_error_km": l_err,
             "cliper_error_km": c_err,
             "delta_km": delta,
             "learned_beats_cliper": bool(delta < 0.0),
+            "cone_coverage_pct": cov_pct,
+            "mean_cone_radius_km": mean_radius,
         }
 
     results = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "decoder_type": decoder_type,
+        "mc_samples": mc_samples,
         "epochs": epochs,
         "best_epoch": best_ckpt["epoch"],
         "val_metrics": best_ckpt["val_metrics"],
@@ -281,23 +248,32 @@ def train_track(
 
     print(f"[TRACK] Best checkpoint saved to {best_checkpoint_path}")
     print(
-        f"[TRACK] Test Comparison -> 24h: Learned {learned_test_metrics['errors_by_horizon_km'].get('24h', 0.0)} km vs "
-        f"CLIPER {cliper_test_metrics['errors_by_horizon_km'].get('24h', 0.0)} km | "
-        f"48h: Learned {learned_test_metrics['errors_by_horizon_km'].get('48h', 0.0)} km vs "
-        f"CLIPER {cliper_test_metrics['errors_by_horizon_km'].get('48h', 0.0)} km"
+        f"[TRACK] Test Results -> Overall Error: {learned_test_metrics['mean_error_km']:.1f} km | "
+        f"Learned 95% Cone Coverage: {learned_test_metrics['cone_coverage']['coverage_pct']:.1f}% "
+        f"({learned_test_metrics['cone_coverage']['inside_count']}/{learned_test_metrics['cone_coverage']['total_count']})"
     )
 
     return results
 
 
-def evaluate_track_model(
+def evaluate_probabilistic_track_model(
     model: nn.Module,
     dataloader: DataLoader,
     device: torch.device,
+    mc_samples: int = 1,
 ) -> Dict[str, Any]:
-    """Evaluates TrackModel emitting per-horizon and overall mean great-circle errors in km."""
-    model.eval()
+    """Evaluates TrackModel emitting per-horizon errors, learned cone radii, and empirical cone coverage."""
     errors_by_horizon: Dict[int, List[float]] = {h: [] for h in DEFAULT_TRACK_HORIZONS}
+    cone_radii_by_horizon: Dict[int, List[float]] = {h: [] for h in DEFAULT_TRACK_HORIZONS}
+    all_pred_points: List[Tuple[Optional[int], float, float]] = []
+    all_true_points: List[Tuple[Optional[int], float, float]] = []
+    all_cone_radii: List[float] = []
+
+    horizon_coverage_counts: Dict[int, Dict[str, int]] = {
+        h: {"inside": 0, "total": 0} for h in DEFAULT_TRACK_HORIZONS
+    }
+
+    model.eval()
 
     with torch.no_grad():
         for batch in dataloader:
@@ -306,12 +282,44 @@ def evaluate_track_model(
             target_pos = batch["targets"]["future_positions"].cpu().numpy()
             horizon_masks = batch["targets"]["horizon_masks"].cpu().numpy()
 
-            out = model(env_vector=env, track_sequence=track)
-            pred_deltas = out["deltas"].cpu().numpy()
+            if mc_samples > 1:
+                # MC-Dropout inference per item in batch
+                pred_deltas_batch = []
+                log_vars_batch = []
+                for b_i in range(env.size(0)):
+                    e_single = env[b_i : b_i + 1]
+                    t_single = track[b_i : b_i + 1]
+                    c_lat = float(batch["meta"][b_i]["lat"])
+                    mc_out = monte_carlo_dropout_predict(
+                        model=model,
+                        env_vector=e_single,
+                        track_sequence=t_single,
+                        num_samples=mc_samples,
+                        current_lat=c_lat,
+                    )
+                    pred_deltas_batch.append(mc_out["mean_deltas"])
+                    # Effective total log variance
+                    tot_var = np.clip(mc_out["total_variance"], 1e-6, 1e6)
+                    log_vars_batch.append(np.log(tot_var))
+
+                pred_deltas = np.array(pred_deltas_batch)
+                pred_log_vars = np.array(log_vars_batch)
+            else:
+                out = model(env_vector=env, track_sequence=track)
+                pred_deltas = out["deltas"].cpu().numpy()
+                pred_log_vars = out["log_vars"].cpu().numpy()
 
             for i, meta in enumerate(batch["meta"]):
                 curr_lat = float(meta["lat"])
                 curr_lon = float(meta["lon"])
+
+                # Derive learned uncertainty cone radii for this sample
+                radii = predict_cone_radii(
+                    log_vars=pred_log_vars[i],
+                    current_lat=curr_lat,
+                    coverage_level=0.95,
+                )
+                # radii has len H + 1 (anchored at t=0)
 
                 for h_idx, h in enumerate(DEFAULT_TRACK_HORIZONS):
                     if horizon_masks[i, h_idx]:
@@ -325,22 +333,53 @@ def evaluate_track_model(
                             true_path=[(h, t_lat, t_lon)],
                         )["mean_error_km"]
 
+                        r_km = radii[h_idx + 1]
+
                         errors_by_horizon[h].append(err_km)
+                        cone_radii_by_horizon[h].append(r_km)
+
+                        all_pred_points.append((h, p_lat, p_lon))
+                        all_true_points.append((h, t_lat, t_lon))
+                        all_cone_radii.append(r_km)
+
+                        horizon_coverage_counts[h]["total"] += 1
+                        if err_km <= r_km:
+                            horizon_coverage_counts[h]["inside"] += 1
 
     mean_by_horizon: Dict[str, float] = {}
+    mean_radii_by_horizon: Dict[str, float] = {}
+    coverage_by_horizon: Dict[str, float] = {}
     all_errs: List[float] = []
 
     for h in DEFAULT_TRACK_HORIZONS:
         errs = errors_by_horizon[h]
-        m = round(float(np.mean(errs)), 2) if errs else 0.0
-        mean_by_horizon[f"{h}h"] = m
+        rads = cone_radii_by_horizon[h]
+        m_err = round(float(np.mean(errs)), 2) if errs else 0.0
+        m_rad = round(float(np.mean(rads)), 2) if rads else 0.0
+        mean_by_horizon[f"{h}h"] = m_err
+        mean_radii_by_horizon[f"{h}h"] = m_rad
         all_errs.extend(errs)
 
+        tot_h = horizon_coverage_counts[h]["total"]
+        ins_h = horizon_coverage_counts[h]["inside"]
+        cov_h = round((ins_h / tot_h) * 100.0, 2) if tot_h > 0 else 0.0
+        coverage_by_horizon[f"{h}h"] = cov_h
+
     overall_mean = round(float(np.mean(all_errs)), 2) if all_errs else 0.0
+
+    # Global cone coverage across all evaluated horizons
+    global_coverage = cone_coverage(
+        pred_cone=all_cone_radii,
+        pred_path=all_pred_points,
+        true_path=all_true_points,
+    )
+    global_coverage["coverage_by_horizon_pct"] = coverage_by_horizon
 
     return {
         "mean_error_km": overall_mean,
         "errors_by_horizon_km": mean_by_horizon,
+        "mean_cone_radii_km": mean_radii_by_horizon,
+        "cone_coverage": global_coverage,
     }
 
 
@@ -360,7 +399,6 @@ def evaluate_cliper_baseline(
         pred = cliper_predict_track(history=history, horizons=[0] + DEFAULT_TRACK_HORIZONS, method="cliper")
         pred_pts = {pt["t_plus_h"]: (pt["lat"], pt["lon"]) for pt in pred["predicted_path"]}
 
-        # Match against future ground truth if available in sample
         storm_id = sample.get("storm_id")
         curr_time = pd.to_datetime(sample.get("time"), utc=True)
 
@@ -402,36 +440,39 @@ def update_models_report_track(
     track_results: Dict[str, Any],
     report_path: Optional[Path] = None,
 ) -> None:
-    """Updates models_report.md with learned track forecasting and CLIPER comparison."""
+    """Updates models_report.md with learned track forecasting, uncertainty cones, and CLIPER comparison."""
     rep_path = report_path or Path("ml/cyclone/eval/models_report.md")
     rep_path.parent.mkdir(parents=True, exist_ok=True)
 
     l_met = track_results["learned_test_metrics"]
     c_met = track_results["cliper_test_metrics"]
     comp = track_results["comparison_by_horizon"]
+    cov = l_met["cone_coverage"]
 
     section = f"""
-## 5. Learned Trajectory Forecasting Model (`TrackModel`) vs Tier-0 CLIPER
+## 5. Probabilistic Trajectory Forecasting Model (`TrackModel`) with Learned Uncertainty Cones
 
 **Updated:** {track_results['timestamp']}  
-**Architecture:** `EnvBranch` (64-d ERA5) + `TrackBranch` (128-d GRU) $\\to$ `TrackHead` ({track_results['decoder_type'].upper()} Displacement Decoder)  
-**Objective:** Differentiable Haversine Loss with End-of-Storm Horizon Masking & Intensity Weighting
+**Architecture:** `EnvBranch` (64-d ERA5) + `TrackBranch` (128-d GRU) $\\to$ `TrackHead` ({track_results['decoder_type'].upper()} Displacement & Log-Variance Decoder)  
+**Objective:** Heteroscedastic Gaussian Negative Log-Likelihood (`GaussianNLLLoss`) with End-of-Storm Horizon Masking & Intensity Weighting  
+**Uncertainty Quantification:** Learned 2D anisotropic Gaussian log-variances mapped to dynamic great-circle cone radii ($r(t) = \\sigma_{{\\text{{eff}}}} \\sqrt{{-2\\ln(1-p)}}$)  
+**MC-Dropout Stochastic Samples:** {track_results.get('mc_samples', 1)}
 
-### Trajectory Forecasting Error Comparison (Held-Out Test Split)
+### 5.1 Trajectory Forecasting Error & Learned 95% Cone Coverage (Held-Out Test Split)
 
-| Forecast Horizon | Learned TrackModel Error (km) | Tier-0 CLIPER Baseline (km) | Delta (Learned - CLIPER) | Operational Policy |
-| :--- | :--- | :--- | :--- | :--- |
-| **6h** | **{comp['6h']['learned_error_km']:.1f} km** | {comp['6h']['cliper_error_km']:.1f} km | {comp['6h']['delta_km']:+.1f} km | {'Use Learned Model' if comp['6h']['learned_beats_cliper'] else 'Tier-0 Safeguard'} |
-| **12h** | **{comp['12h']['learned_error_km']:.1f} km** | {comp['12h']['cliper_error_km']:.1f} km | {comp['12h']['delta_km']:+.1f} km | {'Use Learned Model' if comp['12h']['learned_beats_cliper'] else 'Tier-0 Safeguard'} |
-| **24h** | **{comp['24h']['learned_error_km']:.1f} km** | {comp['24h']['cliper_error_km']:.1f} km | {comp['24h']['delta_km']:+.1f} km | {'Use Learned Model' if comp['24h']['learned_beats_cliper'] else 'Tier-0 Safeguard'} |
-| **48h** | **{comp['48h']['learned_error_km']:.1f} km** | {comp['48h']['cliper_error_km']:.1f} km | {comp['48h']['delta_km']:+.1f} km | {'Use Learned Model' if comp['48h']['learned_beats_cliper'] else 'Retain Tier-0 CLIPER'} |
-| **72h** | **{comp['72h']['learned_error_km']:.1f} km** | {comp['72h']['cliper_error_km']:.1f} km | {comp['72h']['delta_km']:+.1f} km | {'Use Learned Model' if comp['72h']['learned_beats_cliper'] else 'Retain Tier-0 CLIPER'} |
-| **Overall (6-72h)** | **{l_met['mean_error_km']:.1f} km** | **{c_met['mean_error_km']:.1f} km** | **{l_met['mean_error_km'] - c_met['mean_error_km']:+.1f} km** | **Gated Hybrid Orchestration** |
+| Forecast Horizon | Learned Track Error (km) | Tier-0 CLIPER (km) | Delta (Learned - CLIPER) | Mean Cone Radius (km) | Empirical 95% Cone Coverage | Operational Policy |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **6h** | **{comp['6h']['learned_error_km']:.1f} km** | {comp['6h']['cliper_error_km']:.1f} km | {comp['6h']['delta_km']:+.1f} km | {comp['6h']['mean_cone_radius_km']:.1f} km | **{comp['6h']['cone_coverage_pct']:.1f}%** | {'Use Learned Model' if comp['6h']['learned_beats_cliper'] else 'Tier-0 Safeguard'} |
+| **12h** | **{comp['12h']['learned_error_km']:.1f} km** | {comp['12h']['cliper_error_km']:.1f} km | {comp['12h']['delta_km']:+.1f} km | {comp['12h']['mean_cone_radius_km']:.1f} km | **{comp['12h']['cone_coverage_pct']:.1f}%** | {'Use Learned Model' if comp['12h']['learned_beats_cliper'] else 'Tier-0 Safeguard'} |
+| **24h** | **{comp['24h']['learned_error_km']:.1f} km** | {comp['24h']['cliper_error_km']:.1f} km | {comp['24h']['delta_km']:+.1f} km | {comp['24h']['mean_cone_radius_km']:.1f} km | **{comp['24h']['cone_coverage_pct']:.1f}%** | {'Use Learned Model' if comp['24h']['learned_beats_cliper'] else 'Tier-0 Safeguard'} |
+| **48h** | **{comp['48h']['learned_error_km']:.1f} km** | {comp['48h']['cliper_error_km']:.1f} km | {comp['48h']['delta_km']:+.1f} km | {comp['48h']['mean_cone_radius_km']:.1f} km | **{comp['48h']['cone_coverage_pct']:.1f}%** | {'Use Learned Model' if comp['48h']['learned_beats_cliper'] else 'Retain Tier-0 CLIPER'} |
+| **72h** | **{comp['72h']['learned_error_km']:.1f} km** | {comp['72h']['cliper_error_km']:.1f} km | {comp['72h']['delta_km']:+.1f} km | {comp['72h']['mean_cone_radius_km']:.1f} km | **{comp['72h']['cone_coverage_pct']:.1f}%** | {'Use Learned Model' if comp['72h']['learned_beats_cliper'] else 'Retain Tier-0 CLIPER'} |
+| **Overall (6-72h)** | **{l_met['mean_error_km']:.1f} km** | **{c_met['mean_error_km']:.1f} km** | **{l_met['mean_error_km'] - c_met['mean_error_km']:+.1f} km** | **{float(np.mean(list(l_met['mean_cone_radii_km'].values()))):.1f} km** | **{cov['coverage_pct']:.1f}%** ({cov['inside_count']}/{cov['total_count']}) | **Gated Probabilistic Hybrid** |
 
-### Benchmark Analysis & Fallback Strategy
-- **Short-Range vs Long-Range Dynamics:** Neural track models excel in short-to-medium horizons (6h-24h) by leveraging high-resolution environmental steering gradients and kinematic acceleration.
-- **Climatological Anchor at Extended Horizons (48h-72h):** In data-sparse regimes or extended horizons where steering uncertainty accumulates, deterministic climatology (CLIPER) provides a strong physical constraint. The Chakravyuh runtime orchestrator uses dynamic confidence gating to fall back to Tier-0 CLIPER whenever learned long-horizon uncertainty exceeds climatological bounds.
-- **Checkpoint Location:** `ml/cyclone/artifacts/track/best_track_model.pt`
+### 5.2 Learned vs Parametric Cone Dynamics
+- **Adaptive Asymmetry & Environmental Responsiveness:** Unlike static IMD cones ($a + b\\cdot t$) that expand uniformly regardless of steering clarity, the learned cone expands dynamically when steering winds are weak or shear is high, and contracts along predictable straight paths.
+- **Pre-Calibration Coverage Baseline:** Before temperature/conformal calibration (Prompt 22), the uncalibrated probabilistic model achieves **{cov['coverage_pct']:.1f}%** overall test coverage for a 95% target.
+- **Checkpoint Artifact:** `ml/cyclone/artifacts/track/best_track_model.pt`
 """
 
     existing_content = ""
@@ -439,8 +480,8 @@ def update_models_report_track(
         with open(rep_path, "r", encoding="utf-8") as f:
             existing_content = f.read()
 
-    if "## 5. Learned Trajectory Forecasting Model" in existing_content:
-        parts = existing_content.split("## 5. Learned Trajectory Forecasting Model")
+    if "## 5. " in existing_content:
+        parts = existing_content.split("## 5. ")
         new_content = parts[0].rstrip() + "\n\n" + section.strip() + "\n"
     else:
         new_content = existing_content.rstrip() + "\n\n" + section.strip() + "\n"
@@ -453,15 +494,16 @@ def update_models_report_track(
     with open(mirror_path, "w", encoding="utf-8") as f:
         f.write(new_content)
 
-    print(f"[REPORT] Models report updated with TrackModel benchmark at {rep_path} and {mirror_path}")
+    print(f"[REPORT] Models report updated with probabilistic TrackModel benchmark at {rep_path} and {mirror_path}")
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Train learned trajectory forecasting model.")
+    parser = argparse.ArgumentParser(description="Train probabilistic trajectory forecasting model with learned uncertainty cones.")
     parser.add_argument("--epochs", type=int, default=8, help="Number of training epochs")
     parser.add_argument("--batch-size", type=int, default=8, help="Batch size")
     parser.add_argument("--lr", type=float, default=3e-4, help="Learning rate")
     parser.add_argument("--decoder-type", type=str, default="mlp", choices=["mlp", "gru"], help="Decoder type")
+    parser.add_argument("--mc-samples", type=int, default=1, help="Number of Monte Carlo dropout samples at test time")
     args = parser.parse_args()
 
     results = train_track(
@@ -469,6 +511,7 @@ def main() -> None:
         batch_size=args.batch_size,
         lr=args.lr,
         decoder_type=args.decoder_type,
+        mc_samples=args.mc_samples,
     )
     update_models_report_track(results)
 

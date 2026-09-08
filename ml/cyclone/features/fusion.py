@@ -146,12 +146,13 @@ def make_fused_sample(
     future_positions = np.zeros((num_horizons, 2), dtype=np.float32)
     horizon_masks = np.zeros(num_horizons, dtype=bool)
 
-    if storm_future_lookup:
+    lookup = storm_future_lookup or sample.get("future_lookup") or sample.get("future")
+    if lookup:
         for idx, h in enumerate(forecast_horizons):
-            if h in storm_future_lookup:
-                f_lat, f_lon = storm_future_lookup[h]
+            if h in lookup:
+                f_lat, f_lon = lookup[h]
                 d_lat = f_lat - lat
-                d_lon = f_lon - lon
+                d_lon = (f_lon - lon + 540.0) % 360.0 - 180.0
                 future_deltas[idx] = [d_lat, d_lon]
                 future_positions[idx] = [f_lat, f_lon]
                 horizon_masks[idx] = True
