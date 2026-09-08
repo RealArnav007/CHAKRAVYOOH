@@ -27,7 +27,8 @@ def classify(sample: Dict[str, Any]) -> Dict[str, Any]:
         Dict conforming to ClassificationPayload: {"stage": StageEnum, "confidence": float}
     """
     stage_val = lifecycle_stage(sample, history=sample.get("history"))
-    wind_kt = float(sample.get("wind_kt", 0.0))
+    raw_w = sample.get("wind_kt", 0.0)
+    wind_kt = 0.0 if (raw_w is None or np.isnan(float(raw_w))) else float(raw_w)
 
     # Calculate minimum distance to any critical intensity threshold boundary
     min_boundary_dist = min(abs(wind_kt - b) for b in STAGE_BOUNDARIES)

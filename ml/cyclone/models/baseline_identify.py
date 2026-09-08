@@ -27,8 +27,10 @@ def identify(sample: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Dict conforming to IdentificationPayload: {"detected": bool, "confidence": float}
     """
-    wind_kt = float(sample.get("wind_kt", 0.0))
-    pres_mb = float(sample.get("pres_mb", 1010.0))
+    raw_w = sample.get("wind_kt", 0.0)
+    wind_kt = 0.0 if (raw_w is None or np.isnan(float(raw_w))) else float(raw_w)
+    raw_p = sample.get("pres_mb", 1010.0)
+    pres_mb = 1010.0 if (raw_p is None or np.isnan(float(raw_p))) else float(raw_p)
     history: List[Dict[str, Any]] = sample.get("history", [])
 
     # 1. Wind logistic component (steepness k = 0.16 centered at 17.0 kt)

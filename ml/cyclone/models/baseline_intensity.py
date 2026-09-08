@@ -29,9 +29,11 @@ def intensity(sample: Dict[str, Any]) -> Dict[str, Any]:
     """
     raw_wind = sample.get("wind_kt", 25.0)
     raw_pres = sample.get("pres_mb", 1005.0)
+    w_val = 25.0 if (raw_wind is None or np.isnan(float(raw_wind))) else float(raw_wind)
+    p_val = 1005.0 if (raw_pres is None or np.isnan(float(raw_pres))) else float(raw_pres)
 
-    wind_kt = round(float(np.clip(float(raw_wind), 0.0, 200.0)), 1)
-    pres_mb = round(float(np.clip(float(raw_pres), 850.0, 1030.0)), 1)
+    wind_kt = round(float(np.clip(w_val, 0.0, 200.0)), 1)
+    pres_mb = round(float(np.clip(p_val, 850.0, 1030.0)), 1)
 
     level_val = wind_kt_to_imd_level(wind_kt)
 
