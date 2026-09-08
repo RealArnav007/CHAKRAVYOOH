@@ -5,18 +5,11 @@ from __future__ import annotations
 import pytest
 
 from ml.cyclone.fusion.tier_gate import (
-    ConfidenceGatesConfig,
     gate_and_assemble_cyclone_intelligence,
-    select_tier,
 )
 from ml.cyclone.schema.models import (
-    ClassificationPayload,
     CycloneIntelligence,
-    IdentificationPayload,
     IntensityLevelEnum,
-    IntensityPayload,
-    PredictionPayload,
-    StageEnum,
     TierEnum,
 )
 
@@ -57,9 +50,7 @@ def dummy_tier1_output() -> dict:
             ],
             "confidence": 0.82,
             "max_log_var": 1.2,
-            "uncertainty": {
-                "cone_radius_km": [0.0, 45.0, 75.0, 130.0, 210.0, 295.0]
-            },
+            "uncertainty": {"cone_radius_km": [0.0, 45.0, 75.0, 130.0, 210.0, 295.0]},
         },
     }
 
@@ -99,9 +90,7 @@ def dummy_tier0_output() -> dict:
                 {"t_plus_h": 72, "lat": 16.2, "lon": 86.2},
             ],
             "confidence": 0.50,
-            "uncertainty": {
-                "cone_radius_km": [0.0, 40.0, 70.0, 125.0, 200.0, 280.0]
-            },
+            "uncertainty": {"cone_radius_km": [0.0, 40.0, 70.0, 125.0, 200.0, 280.0]},
         },
     }
 
@@ -130,7 +119,9 @@ def test_tier_gate_all_tier1_confident(dummy_tier1_output: dict, dummy_tier0_out
     assert prov["prediction"] == "tier1"
 
 
-def test_tier_gate_low_confidence_fallback(dummy_tier1_output: dict, dummy_tier0_output: dict) -> None:
+def test_tier_gate_low_confidence_fallback(
+    dummy_tier1_output: dict, dummy_tier0_output: dict
+) -> None:
     """Tests per-field fallback to Tier-0 when confidence is below configured threshold."""
     inputs = {
         "image_available": True,
@@ -141,7 +132,7 @@ def test_tier_gate_low_confidence_fallback(dummy_tier1_output: dict, dummy_tier0
 
     # Artificially lower stage and intensity confidences
     dummy_tier1_output["classification"]["confidence"] = 0.40  # Below min 0.60
-    dummy_tier1_output["intensity"]["confidence"] = 0.35       # Below min 0.60
+    dummy_tier1_output["intensity"]["confidence"] = 0.35  # Below min 0.60
 
     result = gate_and_assemble_cyclone_intelligence(
         tier1_payload=dummy_tier1_output,
@@ -160,7 +151,9 @@ def test_tier_gate_low_confidence_fallback(dummy_tier1_output: dict, dummy_tier0
     assert result.intensity.level == IntensityLevelEnum.DEPRESSION
 
 
-def test_tier_gate_excessive_track_variance_fallback(dummy_tier1_output: dict, dummy_tier0_output: dict) -> None:
+def test_tier_gate_excessive_track_variance_fallback(
+    dummy_tier1_output: dict, dummy_tier0_output: dict
+) -> None:
     """Tests track fallback to Tier-0 when predicted log-variance ceiling is exceeded."""
     inputs = {
         "image_available": True,
@@ -184,7 +177,9 @@ def test_tier_gate_excessive_track_variance_fallback(dummy_tier1_output: dict, d
     assert "exceeded ceiling" in result.extra["provenance"]["reasons"]["prediction"]
 
 
-def test_tier_gate_missing_image_graceful_degradation(dummy_tier1_output: dict, dummy_tier0_output: dict) -> None:
+def test_tier_gate_missing_image_graceful_degradation(
+    dummy_tier1_output: dict, dummy_tier0_output: dict
+) -> None:
     """Tests that missing satellite image gracefully uses env+track without failing."""
     inputs = {
         "image_available": False,  # Image missing
@@ -206,7 +201,9 @@ def test_tier_gate_missing_image_graceful_degradation(dummy_tier1_output: dict, 
     assert "ibtracs_track" in result.sources
 
 
-def test_tier_gate_missing_era5_graceful_degradation(dummy_tier1_output: dict, dummy_tier0_output: dict) -> None:
+def test_tier_gate_missing_era5_graceful_degradation(
+    dummy_tier1_output: dict, dummy_tier0_output: dict
+) -> None:
     """Tests that missing ERA5 environment gracefully uses image+track."""
     inputs = {
         "image_available": True,
@@ -226,7 +223,9 @@ def test_tier_gate_missing_era5_graceful_degradation(dummy_tier1_output: dict, d
     assert "insat3d_ir" in result.sources
 
 
-def test_tier_gate_missing_everything_except_track(dummy_tier1_output: dict, dummy_tier0_output: dict) -> None:
+def test_tier_gate_missing_everything_except_track(
+    dummy_tier1_output: dict, dummy_tier0_output: dict
+) -> None:
     """Tests that missing both image and env triggers complete Tier-0 fallback."""
     inputs = {
         "image_available": False,
@@ -246,7 +245,9 @@ def test_tier_gate_missing_everything_except_track(dummy_tier1_output: dict, dum
     assert all(v == "tier0" for v in prov.values())
 
 
-def test_tier_gate_not_detected_invariant(dummy_tier1_output: dict, dummy_tier0_output: dict) -> None:
+def test_tier_gate_not_detected_invariant(
+    dummy_tier1_output: dict, dummy_tier0_output: dict
+) -> None:
     """Tests that when identification.detected is False, prediction is strictly None."""
     inputs = {
         "image_available": True,

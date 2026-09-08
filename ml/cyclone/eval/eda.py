@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from datetime import datetime
 from pathlib import Path
-import sys
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 import matplotlib
+
 matplotlib.use("Agg")  # Headless backend
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 
 from ml.cyclone.ingest.ibtracs import load_tracks
 from ml.cyclone.ingest.satellite import load_image_index, read_image
@@ -19,10 +20,7 @@ from ml.cyclone.preprocess.clean import clean_tracks
 from ml.cyclone.preprocess.scales import (
     lifecycle_stage,
     wind_kt_to_imd_level,
-    wind_kt_to_saffir_simpson,
 )
-from ml.cyclone.schema.models import IntensityLevelEnum, StageEnum
-
 
 IMD_CATEGORY_ORDER = [
     "DEPRESSION",
@@ -45,9 +43,9 @@ STAGE_CATEGORY_ORDER = [
 
 
 def generate_eda(
-    output_dir: Optional[Path] = None,
-    data_dir: Optional[Path] = None,
-) -> Dict[str, Any]:
+    output_dir: Path | None = None,
+    data_dir: Path | None = None,
+) -> dict[str, Any]:
     """Generates complete exploratory data analysis, figures, and comprehensive Markdown report."""
     base_eval_dir = output_dir or Path("ml/cyclone/eval")
     figs_dir = base_eval_dir / "figs"
@@ -61,7 +59,9 @@ def generate_eda(
     clean_df["imd_level"] = clean_df["wind_kt"].apply(lambda w: wind_kt_to_imd_level(w).value)
     clean_df["stage"] = clean_df.apply(lambda r: lifecycle_stage(r).value, axis=1)
 
-    print(f"[EDA] Analyzed {len(clean_df):,} track points across {clean_df['storm_id'].nunique():,} storms.")
+    print(
+        f"[EDA] Analyzed {len(clean_df):,} track points across {clean_df['storm_id'].nunique():,} storms."
+    )
 
     # 1. Intensity distribution figure
     print("[EDA] Generating Figure 1: Intensity distribution...")
@@ -102,24 +102,38 @@ def generate_eda(
     stage_counts = clean_df["stage"].value_counts().reindex(STAGE_CATEGORY_ORDER).fillna(0)
 
     # Plot IMD counts
-    bars1 = ax1.barh(IMD_CATEGORY_ORDER, imd_counts.values, color="#d62728", edgecolor="black", alpha=0.75)
+    bars1 = ax1.barh(
+        IMD_CATEGORY_ORDER, imd_counts.values, color="#d62728", edgecolor="black", alpha=0.75
+    )
     ax1.set_title("IMD Intensity Level Distribution")
     ax1.set_xlabel("Count")
     ax1.grid(True, axis="x", linestyle=":", alpha=0.6)
     for bar in bars1:
         w = bar.get_width()
         pct = (w / len(clean_df)) * 100
-        ax1.text(w + (max(imd_counts.values) * 0.01), bar.get_y() + bar.get_height() / 2, f"{int(w)} ({pct:.1f}%)", va="center")
+        ax1.text(
+            w + (max(imd_counts.values) * 0.01),
+            bar.get_y() + bar.get_height() / 2,
+            f"{int(w)} ({pct:.1f}%)",
+            va="center",
+        )
 
     # Plot Stage counts
-    bars2 = ax2.barh(STAGE_CATEGORY_ORDER, stage_counts.values, color="#9467bd", edgecolor="black", alpha=0.75)
+    bars2 = ax2.barh(
+        STAGE_CATEGORY_ORDER, stage_counts.values, color="#9467bd", edgecolor="black", alpha=0.75
+    )
     ax2.set_title("Lifecycle Development Stage Distribution")
     ax2.set_xlabel("Count")
     ax2.grid(True, axis="x", linestyle=":", alpha=0.6)
     for bar in bars2:
         w = bar.get_width()
         pct = (w / len(clean_df)) * 100
-        ax2.text(w + (max(stage_counts.values) * 0.01), bar.get_y() + bar.get_height() / 2, f"{int(w)} ({pct:.1f}%)", va="center")
+        ax2.text(
+            w + (max(stage_counts.values) * 0.01),
+            bar.get_y() + bar.get_height() / 2,
+            f"{int(w)} ({pct:.1f}%)",
+            va="center",
+        )
 
     plt.tight_layout()
     fig2_path = figs_dir / "fig2_class_balance.png"
@@ -129,7 +143,9 @@ def generate_eda(
     # 3. Track Lengths & Lifespans figure
     print("[EDA] Generating Figure 3: Track lengths...")
     storm_lengths = clean_df.groupby("storm_id").size()
-    storm_durations_days = clean_df.groupby("storm_id")["time"].apply(lambda t: (t.max() - t.min()).total_seconds() / 86400.0)
+    storm_durations_days = clean_df.groupby("storm_id")["time"].apply(
+        lambda t: (t.max() - t.min()).total_seconds() / 86400.0
+    )
 
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
     axes[0].hist(storm_lengths, bins=25, color="#ff7f0e", edgecolor="black", alpha=0.7)
@@ -189,7 +205,9 @@ def generate_eda(
             try:
                 img = read_image(img_path)
                 axes[i].imshow(img, cmap="inferno", vmin=0, vmax=1)
-                axes[i].set_title(f"{row.get('storm_id', 'Storm')}\n{row.get('wind_kt', 45)} kt", fontsize=9)
+                axes[i].set_title(
+                    f"{row.get('storm_id', 'Storm')}\n{row.get('wind_kt', 45)} kt", fontsize=9
+                )
             except Exception:
                 axes[i].imshow(np.zeros((224, 224)), cmap="gray")
                 axes[i].set_title("Placeholder", fontsize=9)
@@ -208,7 +226,7 @@ def generate_eda(
 
     # Calculate Class Imbalance & Recommended Loss Weights
     total_samples = len(clean_df)
-    class_weights: Dict[str, float] = {}
+    class_weights: dict[str, float] = {}
     n_classes = len(IMD_CATEGORY_ORDER)
 
     for cat in IMD_CATEGORY_ORDER:
@@ -321,7 +339,7 @@ Tropical cyclone datasets exhibit **severe class imbalance** due to the physics 
     }
 
 
-def main(argv: Optional[list] = None) -> int:
+def main(argv: list | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Generate exploratory data analysis, class balance analysis, and dataset report.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,

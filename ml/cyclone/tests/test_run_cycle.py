@@ -5,16 +5,11 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-from typing import Any, Dict
-import pytest
 
 from ml.cyclone.fusion.run_cycle import (
-    get_or_load_calibrator,
-    get_or_load_model,
-    load_sample_for_cycle,
     run_cycle,
 )
-from ml.cyclone.schema.models import CycloneIntelligence, TierEnum
+from ml.cyclone.schema.models import CycloneIntelligence
 
 
 def test_run_cycle_detected_storm() -> None:
@@ -92,7 +87,10 @@ def test_run_cycle_no_detect_frame() -> None:
     prov = result["extra"]["provenance"]
     assert prov["object_tier"] == result["tier"]
     assert "none" in prov["sources"]["prediction"]
-    assert "omitted" in prov["reasons"]["prediction"].lower() or "not detected" in prov["reasons"]["prediction"].lower()
+    assert (
+        "omitted" in prov["reasons"]["prediction"].lower()
+        or "not detected" in prov["reasons"]["prediction"].lower()
+    )
 
 
 def test_run_cycle_custom_sample_dictionary() -> None:
@@ -116,8 +114,24 @@ def test_run_cycle_custom_sample_dictionary() -> None:
             "wind10m_ms": 25.0,
         },
         "history": [
-            {"t_offset_h": -6.0, "lat": 17.9, "lon": 67.3, "wind_kt": 60.0, "pres_mb": 982.0, "speed_kt": 9.5, "heading_deg": 340.0},
-            {"t_offset_h": 0.0, "lat": 18.2, "lon": 67.5, "wind_kt": 65.0, "pres_mb": 978.0, "speed_kt": 10.0, "heading_deg": 345.0},
+            {
+                "t_offset_h": -6.0,
+                "lat": 17.9,
+                "lon": 67.3,
+                "wind_kt": 60.0,
+                "pres_mb": 982.0,
+                "speed_kt": 9.5,
+                "heading_deg": 340.0,
+            },
+            {
+                "t_offset_h": 0.0,
+                "lat": 18.2,
+                "lon": 67.5,
+                "wind_kt": 65.0,
+                "pres_mb": 978.0,
+                "speed_kt": 10.0,
+                "heading_deg": 345.0,
+            },
         ],
     }
 
@@ -146,8 +160,17 @@ def test_run_cycle_missing_modalities_graceful_degradation() -> None:
         "pres_mb": 990.0,
         "image_available": False,
         "image_path": None,
-        "env": {"sst_c": 29.0, "shear_ms": 8.0, "rh500": 65.0, "vort850": 6.0, "mslp_mb": 990.0, "wind10m_ms": 18.0},
-        "history": [{"t_offset_h": 0.0, "lat": 15.0, "lon": 85.0, "wind_kt": 50.0, "pres_mb": 990.0}],
+        "env": {
+            "sst_c": 29.0,
+            "shear_ms": 8.0,
+            "rh500": 65.0,
+            "vort850": 6.0,
+            "mslp_mb": 990.0,
+            "wind10m_ms": 18.0,
+        },
+        "history": [
+            {"t_offset_h": 0.0, "lat": 15.0, "lon": 85.0, "wind_kt": 50.0, "pres_mb": 990.0}
+        ],
     }
     res_no_img = run_cycle(sample=no_image_sample)
     assert "insat3d_ir" not in res_no_img["sources"]
@@ -165,7 +188,9 @@ def test_run_cycle_missing_modalities_graceful_degradation() -> None:
         "pres_mb": 990.0,
         "image_available": True,
         "env": None,
-        "history": [{"t_offset_h": 0.0, "lat": 15.0, "lon": 85.0, "wind_kt": 50.0, "pres_mb": 990.0}],
+        "history": [
+            {"t_offset_h": 0.0, "lat": 15.0, "lon": 85.0, "wind_kt": 50.0, "pres_mb": 990.0}
+        ],
     }
     res_no_env = run_cycle(sample=no_env_sample)
     assert "era5" not in res_no_env["sources"]
@@ -183,8 +208,24 @@ def test_run_cycle_missing_modalities_graceful_degradation() -> None:
         "image_available": False,
         "env": None,
         "history": [
-            {"t_offset_h": -6.0, "lat": 14.8, "lon": 84.9, "wind_kt": 35.0, "pres_mb": 998.0, "speed_kt": 10.0, "heading_deg": 350.0},
-            {"t_offset_h": 0.0, "lat": 15.0, "lon": 85.0, "wind_kt": 40.0, "pres_mb": 996.0, "speed_kt": 10.0, "heading_deg": 350.0},
+            {
+                "t_offset_h": -6.0,
+                "lat": 14.8,
+                "lon": 84.9,
+                "wind_kt": 35.0,
+                "pres_mb": 998.0,
+                "speed_kt": 10.0,
+                "heading_deg": 350.0,
+            },
+            {
+                "t_offset_h": 0.0,
+                "lat": 15.0,
+                "lon": 85.0,
+                "wind_kt": 40.0,
+                "pres_mb": 996.0,
+                "speed_kt": 10.0,
+                "heading_deg": 350.0,
+            },
         ],
     }
     res_track_only = run_cycle(sample=track_only_sample)

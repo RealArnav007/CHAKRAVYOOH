@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 import pytest
 import torch
 import torch.nn as nn
@@ -14,13 +15,10 @@ from ml.cyclone.train.schedule import (
     CosineWarmupScheduler,
     build_optimizer_with_llrd,
     get_cosine_schedule_with_warmup,
-    get_layerwise_decay_param_groups,
 )
 from ml.cyclone.train.sweep import (
-    SweepConfigSpace,
     compute_composite_val_score,
     lock_in_best_config,
-    run_hyperparameter_sweep,
 )
 
 
@@ -163,7 +161,7 @@ def test_lock_in_best_config(tmp_path: Path) -> None:
     lock_in_best_config(best_params, output_path=out_file)
 
     assert out_file.is_file()
-    with open(out_file, "r", encoding="utf-8") as f:
+    with open(out_file, encoding="utf-8") as f:
         loaded = yaml.safe_load(f)
 
     assert loaded["tier1"]["image_branch"]["backbone"] == "efficientnet_b0"

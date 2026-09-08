@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from typing import Optional
+
 import torch
 import torch.nn as nn
 
@@ -35,11 +35,11 @@ class GaussianNLLLoss(nn.Module):
 
     def forward(
         self,
-        pred_mu: torch.Tensor,              # (B, H, 2)
-        pred_log_var: torch.Tensor,         # (B, H, 2)
-        target: torch.Tensor,               # (B, H, 2)
-        horizon_masks: torch.Tensor,        # (B, H) bool
-        sample_weights: Optional[torch.Tensor] = None,  # (B,)
+        pred_mu: torch.Tensor,  # (B, H, 2)
+        pred_log_var: torch.Tensor,  # (B, H, 2)
+        target: torch.Tensor,  # (B, H, 2)
+        horizon_masks: torch.Tensor,  # (B, H) bool
+        sample_weights: torch.Tensor | None = None,  # (B,)
     ) -> torch.Tensor:
         """Computes masked Gaussian NLL loss."""
         batch_size, num_horizons, _ = pred_mu.shape
@@ -79,11 +79,11 @@ class HaversineMetricLoss(nn.Module):
 
     def forward(
         self,
-        pred_deltas: torch.Tensor,       # (B, H, 2) [dlat, dlon] in degrees
-        target_deltas: torch.Tensor,     # (B, H, 2) [dlat, dlon] in degrees
-        current_coords: torch.Tensor,    # (B, 2) [lat0, lon0] in degrees
-        horizon_masks: torch.Tensor,     # (B, H) bool
-        sample_weights: Optional[torch.Tensor] = None,  # (B,)
+        pred_deltas: torch.Tensor,  # (B, H, 2) [dlat, dlon] in degrees
+        target_deltas: torch.Tensor,  # (B, H, 2) [dlat, dlon] in degrees
+        current_coords: torch.Tensor,  # (B, 2) [lat0, lon0] in degrees
+        horizon_masks: torch.Tensor,  # (B, H) bool
+        sample_weights: torch.Tensor | None = None,  # (B,)
     ) -> torch.Tensor:
         """Computes Great-Circle distance in kilometers with horizon masking."""
         batch_size, num_horizons, _ = pred_deltas.shape
@@ -104,7 +104,7 @@ class HaversineMetricLoss(nn.Module):
         sin_half_dlat = torch.sin(dlat_rad / 2.0)
         sin_half_dlon = torch.sin(dlon_rad / 2.0)
 
-        a = (sin_half_dlat ** 2) + torch.cos(p_lat_rad) * torch.cos(t_lat_rad) * (sin_half_dlon ** 2)
+        a = (sin_half_dlat**2) + torch.cos(p_lat_rad) * torch.cos(t_lat_rad) * (sin_half_dlon**2)
         a = torch.clamp(a, min=0.0, max=1.0)
 
         safe_a = torch.clamp(a, min=1e-8, max=1.0 - 1e-7)
@@ -141,8 +141,8 @@ class MultiTaskLoss(nn.Module):
 
     def __init__(
         self,
-        class_weights: Optional[Dict[str, torch.Tensor]] = None,
-        init_log_vars: Optional[Dict[str, float]] = None,
+        class_weights: Dict[str, torch.Tensor] | None = None,
+        init_log_vars: Dict[str, float] | None = None,
         huber_beta: float = 5.0,
         min_log_var: float = -4.0,
         max_log_var: float = 6.0,
@@ -153,13 +153,15 @@ class MultiTaskLoss(nn.Module):
 
         # Learnable log-variance parameters s_i = log(sigma_i^2)
         inits = init_log_vars or {}
-        self.log_vars = nn.ParameterDict({
-            "detection": nn.Parameter(torch.tensor(float(inits.get("detection", 0.0)))),
-            "stage": nn.Parameter(torch.tensor(float(inits.get("stage", 0.0)))),
-            "intensity_reg": nn.Parameter(torch.tensor(float(inits.get("intensity_reg", 0.0)))),
-            "intensity_cls": nn.Parameter(torch.tensor(float(inits.get("intensity_cls", 0.0)))),
-            "track": nn.Parameter(torch.tensor(float(inits.get("track", 0.0)))),
-        })
+        self.log_vars = nn.ParameterDict(
+            {
+                "detection": nn.Parameter(torch.tensor(float(inits.get("detection", 0.0)))),
+                "stage": nn.Parameter(torch.tensor(float(inits.get("stage", 0.0)))),
+                "intensity_reg": nn.Parameter(torch.tensor(float(inits.get("intensity_reg", 0.0)))),
+                "intensity_cls": nn.Parameter(torch.tensor(float(inits.get("intensity_cls", 0.0)))),
+                "track": nn.Parameter(torch.tensor(float(inits.get("track", 0.0)))),
+            }
+        )
 
         # Task loss functions
         cw = class_weights or {}
@@ -173,7 +175,7 @@ class MultiTaskLoss(nn.Module):
         self,
         predictions: Dict[str, Any],
         targets: Dict[str, Any],
-        sample_weights: Optional[torch.Tensor] = None,
+        sample_weights: torch.Tensor | None = None,
     ) -> Dict[str, Any]:
         """Computes homoscedastic uncertainty-weighted multi-task loss.
 
@@ -284,7 +286,9 @@ class MultiTaskLoss(nn.Module):
     def get_task_weights(self) -> Dict[str, float]:
         """Returns the current scaling factor exp(-s_i) for each task."""
         return {
-            k: round(float(torch.exp(-torch.clamp(v, self.min_log_var, self.max_log_var)).item()), 4)
+            k: round(
+                float(torch.exp(-torch.clamp(v, self.min_log_var, self.max_log_var)).item()), 4
+            )
             for k, v in self.log_vars.items()
         }
 
@@ -294,4 +298,3 @@ __all__ = [
     "HaversineMetricLoss",
     "MultiTaskLoss",
 ]
-

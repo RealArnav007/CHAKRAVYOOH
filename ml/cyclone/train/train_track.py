@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
 import json
-import math
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
+
 import numpy as np
 import pandas as pd
 import torch
@@ -19,14 +19,14 @@ from ml.cyclone.datasets.torch_dataset import CycloneDataset, cyclone_collate_fn
 from ml.cyclone.eval.metrics import cone_coverage, track_error_km
 from ml.cyclone.ingest.ibtracs import load_tracks
 from ml.cyclone.models.baseline_track import predict_track as cliper_predict_track
-from ml.cyclone.models.heads import DEFAULT_TRACK_HORIZONS, TrackHead, TrackModel
+from ml.cyclone.models.heads import DEFAULT_TRACK_HORIZONS, TrackModel
 from ml.cyclone.models.uncertainty import monte_carlo_dropout_predict, predict_cone_radii
 from ml.cyclone.preprocess.align import resample_track
 from ml.cyclone.preprocess.clean import clean_tracks
 from ml.cyclone.preprocess.colocalize import build_samples
-from ml.cyclone.preprocess.geo import EARTH_RADIUS_KM
 from ml.cyclone.train.losses import GaussianNLLLoss, HaversineMetricLoss
-
+from ml.cyclone.train.track_experiment import ExperimentTracker
+from ml.cyclone.train.trainer import Trainer
 
 # Backward-compatible alias for existing imports
 haversine_loss = HaversineMetricLoss()
@@ -44,9 +44,9 @@ def train_track(
     weight_decay: float = 1e-4,
     decoder_type: str = "mlp",
     mc_samples: int = 1,
-    artifact_dir: Optional[Path] = None,
-    device: Optional[torch.device] = None,
-) -> Dict[str, Any]:
+    artifact_dir: Path | None = None,
+    device: torch.device | None = None,
+) -> dict[str, Any]:
     """Trains TrackModel using Gaussian NLL loss (mean + log-variance) and evaluates learned uncertainty cones.
 
     Args:
@@ -66,9 +66,9 @@ def train_track(
     save_dir.mkdir(parents=True, exist_ok=True)
 
     compute_device = device or (
-        torch.device("mps") if torch.backends.mps.is_available()
-        else torch.device("cuda") if torch.cuda.is_available()
-        else torch.device("cpu")
+        torch.device("mps")
+        if torch.backends.mps.is_available()
+        else torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     )
     print(f"[TRACK] Using compute device: {compute_device}")
 
@@ -85,15 +85,23 @@ def train_track(
     val_indices = splits["val"]
     test_indices = splits["test"]
 
-    print(f"[TRACK] Split counts -> Train: {len(train_indices)}, Val: {len(val_indices)}, Test: {len(test_indices)}")
+    print(
+        f"[TRACK] Split counts -> Train: {len(train_indices)}, Val: {len(val_indices)}, Test: {len(test_indices)}"
+    )
 
     train_ds = CycloneDataset(all_samples, indices=train_indices, mode="multimodal")
     val_ds = CycloneDataset(all_samples, indices=val_indices, mode="multimodal")
     test_ds = CycloneDataset(all_samples, indices=test_indices, mode="multimodal")
 
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, collate_fn=cyclone_collate_fn)
-    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, collate_fn=cyclone_collate_fn)
-    test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, collate_fn=cyclone_collate_fn)
+    train_loader = DataLoader(
+        train_ds, batch_size=batch_size, shuffle=True, collate_fn=cyclone_collate_fn
+    )
+    val_loader = DataLoader(
+        val_ds, batch_size=batch_size, shuffle=False, collate_fn=cyclone_collate_fn
+    )
+    test_loader = DataLoader(
+        test_ds, batch_size=batch_size, shuffle=False, collate_fn=cyclone_collate_fn
+    )
 
     # 2. Model, Loss Functions & Optimizer
     model = TrackModel(
@@ -110,13 +118,17 @@ def train_track(
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max(1, epochs))
 
-    def track_step_fn(m: nn.Module, batch: Dict[str, Any], crit: Any, dev: torch.device) -> Tuple[torch.Tensor, Dict[str, Any]]:
+    def track_step_fn(
+        m: nn.Module, batch: dict[str, Any], crit: Any, dev: torch.device
+    ) -> tuple[torch.Tensor, dict[str, Any]]:
         env = torch.nan_to_num(batch["env_vector"].to(dev), nan=0.0)
         track = torch.nan_to_num(batch["track_sequence"].to(dev), nan=0.0)
         target_deltas = torch.nan_to_num(batch["targets"]["future_deltas"].to(dev), nan=0.0)
         horizon_masks = batch["targets"]["horizon_masks"].to(dev)
 
-        winds = torch.tensor([meta.get("wind_kt", 25.0) for meta in batch["meta"]], dtype=torch.float32, device=dev)
+        winds = torch.tensor(
+            [meta.get("wind_kt", 25.0) for meta in batch["meta"]], dtype=torch.float32, device=dev
+        )
         sample_w = torch.clamp(1.0 + (winds - 34.0) * 0.02, min=0.8, max=2.5)
 
         out = m(env_vector=env, track_sequence=track)
@@ -136,7 +148,7 @@ def train_track(
         split_indices=splits,
     )
 
-    def track_eval_wrapper(m: nn.Module, dl: DataLoader, dev: torch.device) -> Dict[str, Any]:
+    def track_eval_wrapper(m: nn.Module, dl: DataLoader, dev: torch.device) -> dict[str, Any]:
         met = evaluate_probabilistic_track_model(m, dl, dev, mc_samples=1)
         return {
             "mean_error_km": met["mean_error_km"],
@@ -166,7 +178,9 @@ def train_track(
     trainer_summary = trainer.train(epochs=epochs)
 
     # 4. Final Evaluation on Held-Out Test Split
-    print(f"[TRACK] Evaluating best learned model on held-out test split (MC samples: {mc_samples})...")
+    print(
+        f"[TRACK] Evaluating best learned model on held-out test split (MC samples: {mc_samples})..."
+    )
     best_ckpt_path = save_dir / "best_track_model.pt"
     best_ckpt = torch.load(best_ckpt_path, map_location=compute_device)
     model.load_state_dict(best_ckpt["model_state_dict"])
@@ -179,7 +193,7 @@ def train_track(
     cliper_test_metrics = evaluate_cliper_baseline(test_ds.raw_samples, test_indices)
 
     # Compute per-horizon delta (Learned vs CLIPER)
-    comparison_by_horizon: Dict[str, Dict[str, Any]] = {}
+    comparison_by_horizon: dict[str, dict[str, Any]] = {}
     for h_str in ["6h", "12h", "24h", "48h", "72h"]:
         l_err = learned_test_metrics["errors_by_horizon_km"].get(h_str, 0.0)
         c_err = cliper_test_metrics["errors_by_horizon_km"].get(h_str, 0.0)
@@ -221,15 +235,15 @@ def evaluate_probabilistic_track_model(
     dataloader: DataLoader,
     device: torch.device,
     mc_samples: int = 1,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Evaluates TrackModel emitting per-horizon errors, learned cone radii, and empirical cone coverage."""
-    errors_by_horizon: Dict[int, List[float]] = {h: [] for h in DEFAULT_TRACK_HORIZONS}
-    cone_radii_by_horizon: Dict[int, List[float]] = {h: [] for h in DEFAULT_TRACK_HORIZONS}
-    all_pred_points: List[Tuple[Optional[int], float, float]] = []
-    all_true_points: List[Tuple[Optional[int], float, float]] = []
-    all_cone_radii: List[float] = []
+    errors_by_horizon: dict[int, list[float]] = {h: [] for h in DEFAULT_TRACK_HORIZONS}
+    cone_radii_by_horizon: dict[int, list[float]] = {h: [] for h in DEFAULT_TRACK_HORIZONS}
+    all_pred_points: list[tuple[int | None, float, float]] = []
+    all_true_points: list[tuple[int | None, float, float]] = []
+    all_cone_radii: list[float] = []
 
-    horizon_coverage_counts: Dict[int, Dict[str, int]] = {
+    horizon_coverage_counts: dict[int, dict[str, int]] = {
         h: {"inside": 0, "total": 0} for h in DEFAULT_TRACK_HORIZONS
     }
 
@@ -283,8 +297,12 @@ def evaluate_probabilistic_track_model(
 
                 for h_idx, h in enumerate(DEFAULT_TRACK_HORIZONS):
                     if horizon_masks[i, h_idx]:
-                        t_lat, t_lon = float(target_pos[i, h_idx, 0]), float(target_pos[i, h_idx, 1])
-                        dlat, dlon = float(pred_deltas[i, h_idx, 0]), float(pred_deltas[i, h_idx, 1])
+                        t_lat, t_lon = float(target_pos[i, h_idx, 0]), float(
+                            target_pos[i, h_idx, 1]
+                        )
+                        dlat, dlon = float(pred_deltas[i, h_idx, 0]), float(
+                            pred_deltas[i, h_idx, 1]
+                        )
                         p_lat = curr_lat + dlat
                         p_lon = (curr_lon + dlon + 540.0) % 360.0 - 180.0
 
@@ -306,10 +324,10 @@ def evaluate_probabilistic_track_model(
                         if err_km <= r_km:
                             horizon_coverage_counts[h]["inside"] += 1
 
-    mean_by_horizon: Dict[str, float] = {}
-    mean_radii_by_horizon: Dict[str, float] = {}
-    coverage_by_horizon: Dict[str, float] = {}
-    all_errs: List[float] = []
+    mean_by_horizon: dict[str, float] = {}
+    mean_radii_by_horizon: dict[str, float] = {}
+    coverage_by_horizon: dict[str, float] = {}
+    all_errs: list[float] = []
 
     for h in DEFAULT_TRACK_HORIZONS:
         errs = errors_by_horizon[h]
@@ -344,11 +362,11 @@ def evaluate_probabilistic_track_model(
 
 
 def evaluate_cliper_baseline(
-    all_samples: List[Dict[str, Any]],
-    test_indices: List[int],
-) -> Dict[str, Any]:
+    all_samples: list[dict[str, Any]],
+    test_indices: list[int],
+) -> dict[str, Any]:
     """Evaluates Tier-0 deterministic CLIPER baseline on the same test split for rigorous benchmarking."""
-    errors_by_horizon: Dict[int, List[float]] = {h: [] for h in DEFAULT_TRACK_HORIZONS}
+    errors_by_horizon: dict[int, list[float]] = {h: [] for h in DEFAULT_TRACK_HORIZONS}
 
     for idx in test_indices:
         sample = all_samples[idx]
@@ -356,7 +374,9 @@ def evaluate_cliper_baseline(
         if not history:
             continue
 
-        pred = cliper_predict_track(history=history, horizons=[0] + DEFAULT_TRACK_HORIZONS, method="cliper")
+        pred = cliper_predict_track(
+            history=history, horizons=[0] + DEFAULT_TRACK_HORIZONS, method="cliper"
+        )
         pred_pts = {pt["t_plus_h"]: (pt["lat"], pt["lon"]) for pt in pred["predicted_path"]}
 
         storm_id = sample.get("storm_id")
@@ -379,8 +399,8 @@ def evaluate_cliper_baseline(
 
                     errors_by_horizon[delta_h].append(err_km)
 
-    mean_by_horizon: Dict[str, float] = {}
-    all_errs: List[float] = []
+    mean_by_horizon: dict[str, float] = {}
+    all_errs: list[float] = []
 
     for h in DEFAULT_TRACK_HORIZONS:
         errs = errors_by_horizon[h]
@@ -397,8 +417,8 @@ def evaluate_cliper_baseline(
 
 
 def update_models_report_track(
-    track_results: Dict[str, Any],
-    report_path: Optional[Path] = None,
+    track_results: dict[str, Any],
+    report_path: Path | None = None,
 ) -> None:
     """Updates models_report.md with learned track forecasting, uncertainty cones, and CLIPER comparison."""
     rep_path = report_path or Path("ml/cyclone/eval/models_report.md")
@@ -437,7 +457,7 @@ def update_models_report_track(
 
     existing_content = ""
     if rep_path.is_file():
-        with open(rep_path, "r", encoding="utf-8") as f:
+        with open(rep_path, encoding="utf-8") as f:
             existing_content = f.read()
 
     if "## 5. " in existing_content:
@@ -454,16 +474,27 @@ def update_models_report_track(
     with open(mirror_path, "w", encoding="utf-8") as f:
         f.write(new_content)
 
-    print(f"[REPORT] Models report updated with probabilistic TrackModel benchmark at {rep_path} and {mirror_path}")
+    print(
+        f"[REPORT] Models report updated with probabilistic TrackModel benchmark at {rep_path} and {mirror_path}"
+    )
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Train probabilistic trajectory forecasting model with learned uncertainty cones.")
+    parser = argparse.ArgumentParser(
+        description="Train probabilistic trajectory forecasting model with learned uncertainty cones."
+    )
     parser.add_argument("--epochs", type=int, default=8, help="Number of training epochs")
     parser.add_argument("--batch-size", type=int, default=8, help="Batch size")
     parser.add_argument("--lr", type=float, default=3e-4, help="Learning rate")
-    parser.add_argument("--decoder-type", type=str, default="mlp", choices=["mlp", "gru"], help="Decoder type")
-    parser.add_argument("--mc-samples", type=int, default=1, help="Number of Monte Carlo dropout samples at test time")
+    parser.add_argument(
+        "--decoder-type", type=str, default="mlp", choices=["mlp", "gru"], help="Decoder type"
+    )
+    parser.add_argument(
+        "--mc-samples",
+        type=int,
+        default=1,
+        help="Number of Monte Carlo dropout samples at test time",
+    )
     args = parser.parse_args()
 
     results = train_track(

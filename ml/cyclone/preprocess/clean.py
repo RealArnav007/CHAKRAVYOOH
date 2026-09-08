@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Tuple
-import numpy as np
-import pandas as pd
+from typing import Any
 
+import pandas as pd
 
 PHYSICAL_BOUNDS = {
     "lat": (-90.0, 90.0),
     "lon": (-180.0, 180.0),
-    "wind_kt": (0.0, 200.0),        # Max observed tropical cyclone wind is ~185 kt (Patricia 2015)
-    "pres_mb": (850.0, 1030.0),      # Min observed MSLP ~870 mb (Tip 1979)
+    "wind_kt": (0.0, 200.0),  # Max observed tropical cyclone wind is ~185 kt (Patricia 2015)
+    "pres_mb": (850.0, 1030.0),  # Min observed MSLP ~870 mb (Tip 1979)
     "storm_speed_kt": (0.0, 70.0),
     "storm_dir_deg": (0.0, 360.0),
 }
@@ -20,7 +19,7 @@ PHYSICAL_BOUNDS = {
 def clean_tracks(
     df: pd.DataFrame,
     max_interp_gap: int = 2,
-) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+) -> tuple[pd.DataFrame, dict[str, Any]]:
     """Performs rigorous quality control, sorting, deduplication, and short-gap interpolation on cyclone tracks.
 
     Steps:
@@ -65,13 +64,15 @@ def clean_tracks(
     working_df["qc_interpolated"] = False
     working_df["qc_clipped"] = False
 
-    interpolated_counts: Dict[str, int] = {}
-    clipped_counts: Dict[str, int] = {}
+    interpolated_counts: dict[str, int] = {}
+    clipped_counts: dict[str, int] = {}
 
-    numeric_interp_cols = [c for c in ["lat", "lon", "wind_kt", "pres_mb"] if c in working_df.columns]
+    numeric_interp_cols = [
+        c for c in ["lat", "lon", "wind_kt", "pres_mb"] if c in working_df.columns
+    ]
 
     # 3. Per-storm group interpolation for short gaps
-    cleaned_groups: List[pd.DataFrame] = []
+    cleaned_groups: list[pd.DataFrame] = []
 
     for storm_id, group in working_df.groupby("storm_id", sort=False):
         grp = group.copy()
@@ -80,7 +81,9 @@ def clean_tracks(
             is_na = grp[col].isna()
             if is_na.any():
                 # Interpolate linearly with gap limit
-                interp_series = grp[col].interpolate(method="linear", limit=max_interp_gap, limit_direction="forward")
+                interp_series = grp[col].interpolate(
+                    method="linear", limit=max_interp_gap, limit_direction="forward"
+                )
                 filled_mask = is_na & interp_series.notna()
                 count_filled = int(filled_mask.sum())
                 interpolated_counts[col] = interpolated_counts.get(col, 0) + count_filled

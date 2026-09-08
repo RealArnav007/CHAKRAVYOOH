@@ -1,7 +1,7 @@
 {
   "experiment_name": "fusion_net_multitask",
-  "timestamp": "2026-09-08T17:15:48.482651+00:00",
-  "git_commit": "4d1a169b4f6dedecf9b75a1c080291d4c154af69",
+  "timestamp": "2026-09-08T17:56:14.150140+00:00",
+  "git_commit": "0613679776cb67fc5d71a8f2df8d7e12fcfa75ad",
   "split_manifest_hash": "1389ac12a36e4979",
   "config": {
     "lr": 0.0002,

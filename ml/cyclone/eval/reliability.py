@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
-import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
+
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,9 +17,9 @@ from torch.utils.data import DataLoader
 
 from ml.cyclone.datasets.splits import make_splits
 from ml.cyclone.datasets.torch_dataset import CycloneDataset, cyclone_collate_fn
-from ml.cyclone.eval.metrics import cone_coverage, expected_calibration_error, track_error_km
+from ml.cyclone.eval.metrics import expected_calibration_error, track_error_km
 from ml.cyclone.ingest.ibtracs import load_tracks
-from ml.cyclone.models.calibration import ModelCalibrator, TemperatureScaler, VarianceRecalibrator
+from ml.cyclone.models.calibration import ModelCalibrator
 from ml.cyclone.models.fusion_net import FusionNet
 from ml.cyclone.models.heads import DEFAULT_TRACK_HORIZONS
 from ml.cyclone.models.uncertainty import predict_cone_radii
@@ -31,7 +32,7 @@ def compute_reliability_curve(
     y_true: np.ndarray,
     y_prob: np.ndarray,
     n_bins: int = 10,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Computes bin confidences, bin accuracies, and bin counts."""
     yt = np.asarray(y_true)
     yp = np.asarray(y_prob)
@@ -43,7 +44,7 @@ def compute_reliability_curve(
         corrects = (preds == yt).astype(float)
     else:
         confidences = yp.squeeze()
-        if set(np.unique(yt)).issubset({0, 1, False, True}):
+        if set(np.unique(yt)).issubset({0, 1}):
             corrects = yt.astype(float)
         else:
             corrects = (yt == (confidences >= 0.5)).astype(float)
@@ -53,7 +54,11 @@ def compute_reliability_curve(
 
     for i in range(n_bins):
         b_low, b_high = bin_boundaries[i], bin_boundaries[i + 1]
-        in_bin = (confidences >= b_low) & (confidences <= b_high) if i == n_bins - 1 else (confidences >= b_low) & (confidences < b_high)
+        in_bin = (
+            (confidences >= b_low) & (confidences <= b_high)
+            if i == n_bins - 1
+            else (confidences >= b_low) & (confidences < b_high)
+        )
         cnt = np.sum(in_bin)
         bin_counts.append(cnt)
         if cnt > 0:
@@ -72,7 +77,7 @@ def plot_reliability_diagram(
     y_prob_post: np.ndarray,
     task_name: str,
     output_path: Path,
-) -> Tuple[float, float]:
+) -> tuple[float, float]:
     """Plots and saves side-by-side reliability diagrams with ECE before & after temperature scaling."""
     ece_pre = expected_calibration_error(y_true, y_prob_pre)
     ece_post = expected_calibration_error(y_true, y_prob_post)
@@ -86,8 +91,22 @@ def plot_reliability_diagram(
     ax0 = axes[0]
     ax0.plot([0, 1], [0, 1], "k--", label="Perfect Calibration", alpha=0.7)
     valid_pre = cnts_pre > 0
-    ax0.plot(confs_pre[valid_pre], accs_pre[valid_pre], "s-", color="#e63946", lw=2, label=f"Uncalibrated (ECE = {ece_pre:.4f})")
-    ax0.bar(np.linspace(0.05, 0.95, 10), cnts_pre / max(1, np.sum(cnts_pre)), width=0.08, alpha=0.2, color="#e63946", label="Confidence Histogram")
+    ax0.plot(
+        confs_pre[valid_pre],
+        accs_pre[valid_pre],
+        "s-",
+        color="#e63946",
+        lw=2,
+        label=f"Uncalibrated (ECE = {ece_pre:.4f})",
+    )
+    ax0.bar(
+        np.linspace(0.05, 0.95, 10),
+        cnts_pre / max(1, np.sum(cnts_pre)),
+        width=0.08,
+        alpha=0.2,
+        color="#e63946",
+        label="Confidence Histogram",
+    )
     ax0.set_title(f"{task_name} — Before Calibration", fontsize=12, fontweight="bold")
     ax0.set_xlabel("Mean Predicted Confidence", fontsize=10)
     ax0.set_ylabel("Empirical Accuracy", fontsize=10)
@@ -100,8 +119,22 @@ def plot_reliability_diagram(
     ax1 = axes[1]
     ax1.plot([0, 1], [0, 1], "k--", label="Perfect Calibration", alpha=0.7)
     valid_post = cnts_post > 0
-    ax1.plot(confs_post[valid_post], accs_post[valid_post], "o-", color="#2a9d8f", lw=2, label=f"Temperature Scaled (ECE = {ece_post:.4f})")
-    ax1.bar(np.linspace(0.05, 0.95, 10), cnts_post / max(1, np.sum(cnts_post)), width=0.08, alpha=0.2, color="#2a9d8f", label="Confidence Histogram")
+    ax1.plot(
+        confs_post[valid_post],
+        accs_post[valid_post],
+        "o-",
+        color="#2a9d8f",
+        lw=2,
+        label=f"Temperature Scaled (ECE = {ece_post:.4f})",
+    )
+    ax1.bar(
+        np.linspace(0.05, 0.95, 10),
+        cnts_post / max(1, np.sum(cnts_post)),
+        width=0.08,
+        alpha=0.2,
+        color="#2a9d8f",
+        label="Confidence Histogram",
+    )
     ax1.set_title(f"{task_name} — After Calibration", fontsize=12, fontweight="bold")
     ax1.set_xlabel("Mean Predicted Confidence", fontsize=10)
     ax1.set_ylabel("Empirical Accuracy", fontsize=10)
@@ -119,11 +152,11 @@ def plot_reliability_diagram(
 
 
 def plot_cone_coverage_curve(
-    track_errors: List[float],
-    raw_radii: List[float],
-    recalibrated_radii: List[float],
+    track_errors: list[float],
+    raw_radii: list[float],
+    recalibrated_radii: list[float],
     output_path: Path,
-) -> Tuple[float, float]:
+) -> tuple[float, float]:
     """Plots empirical coverage vs nominal confidence levels (0.50 to 0.99) for uncertainty cone."""
     nominal_levels = np.linspace(0.50, 0.99, 20)
     raw_coverages = []
@@ -146,15 +179,39 @@ def plot_cone_coverage_curve(
     recal_95 = float(np.mean(errs <= r_recal) * 100.0)
 
     fig, ax = plt.subplots(figsize=(8, 6), dpi=300)
-    ax.plot(nominal_levels * 100.0, nominal_levels * 100.0, "k--", label="Ideal Nominal Calibration", alpha=0.7)
-    ax.plot(nominal_levels * 100.0, raw_coverages, "s-", color="#e63946", lw=2, label=f"Uncalibrated Cone (95% Cov: {raw_95:.1f}%)")
-    ax.plot(nominal_levels * 100.0, recal_coverages, "o-", color="#2a9d8f", lw=2.5, label=f"Variance Recalibrated (95% Cov: {recal_95:.1f}%)")
+    ax.plot(
+        nominal_levels * 100.0,
+        nominal_levels * 100.0,
+        "k--",
+        label="Ideal Nominal Calibration",
+        alpha=0.7,
+    )
+    ax.plot(
+        nominal_levels * 100.0,
+        raw_coverages,
+        "s-",
+        color="#e63946",
+        lw=2,
+        label=f"Uncalibrated Cone (95% Cov: {raw_95:.1f}%)",
+    )
+    ax.plot(
+        nominal_levels * 100.0,
+        recal_coverages,
+        "o-",
+        color="#2a9d8f",
+        lw=2.5,
+        label=f"Variance Recalibrated (95% Cov: {recal_95:.1f}%)",
+    )
 
     # Highlight 95% nominal point
     ax.axvline(95.0, color="#457b9d", linestyle=":", alpha=0.6)
     ax.scatter([95.0], [recal_95], color="#2a9d8f", s=100, zorder=5)
 
-    ax.set_title("Learned Trajectory Uncertainty Cone: Coverage vs Nominal Level", fontsize=12, fontweight="bold")
+    ax.set_title(
+        "Learned Trajectory Uncertainty Cone: Coverage vs Nominal Level",
+        fontsize=12,
+        fontweight="bold",
+    )
     ax.set_xlabel("Nominal Confidence Level (%)", fontsize=10)
     ax.set_ylabel("Empirical Track Coverage (%)", fontsize=10)
     ax.set_xlim(50, 100)
@@ -171,37 +228,55 @@ def plot_cone_coverage_curve(
 
 
 def plot_calibration_dashboard(
-    det_pre: float, det_post: float,
-    stage_pre: float, stage_post: float,
-    int_pre: float, int_post: float,
-    cone_pre: float, cone_post: float,
+    det_pre: float,
+    det_post: float,
+    stage_pre: float,
+    stage_post: float,
+    int_pre: float,
+    int_post: float,
+    cone_pre: float,
+    cone_post: float,
     output_path: Path,
 ) -> None:
     """Produces unified 4-panel calibration summary dashboard."""
     fig, axes = plt.subplots(2, 2, figsize=(11, 9), dpi=300)
 
     # 1. Detection ECE
-    axes[0, 0].bar(["Pre-Cal", "Post-Cal"], [det_pre, det_post], color=["#e63946", "#2a9d8f"], width=0.5)
-    axes[0, 0].set_title(f"Cyclone Detection ECE ({det_pre:.4f} → {det_post:.4f})", fontweight="bold")
+    axes[0, 0].bar(
+        ["Pre-Cal", "Post-Cal"], [det_pre, det_post], color=["#e63946", "#2a9d8f"], width=0.5
+    )
+    axes[0, 0].set_title(
+        f"Cyclone Detection ECE ({det_pre:.4f} → {det_post:.4f})", fontweight="bold"
+    )
     axes[0, 0].set_ylabel("Expected Calibration Error")
     axes[0, 0].grid(axis="y", alpha=0.3)
 
     # 2. Lifecycle Stage ECE
-    axes[0, 1].bar(["Pre-Cal", "Post-Cal"], [stage_pre, stage_post], color=["#e63946", "#2a9d8f"], width=0.5)
-    axes[0, 1].set_title(f"Lifecycle Stage ECE ({stage_pre:.4f} → {stage_post:.4f})", fontweight="bold")
+    axes[0, 1].bar(
+        ["Pre-Cal", "Post-Cal"], [stage_pre, stage_post], color=["#e63946", "#2a9d8f"], width=0.5
+    )
+    axes[0, 1].set_title(
+        f"Lifecycle Stage ECE ({stage_pre:.4f} → {stage_post:.4f})", fontweight="bold"
+    )
     axes[0, 1].set_ylabel("Expected Calibration Error")
     axes[0, 1].grid(axis="y", alpha=0.3)
 
     # 3. Intensity Category ECE
-    axes[1, 0].bar(["Pre-Cal", "Post-Cal"], [int_pre, int_post], color=["#e63946", "#2a9d8f"], width=0.5)
+    axes[1, 0].bar(
+        ["Pre-Cal", "Post-Cal"], [int_pre, int_post], color=["#e63946", "#2a9d8f"], width=0.5
+    )
     axes[1, 0].set_title(f"IMD Intensity ECE ({int_pre:.4f} → {int_post:.4f})", fontweight="bold")
     axes[1, 0].set_ylabel("Expected Calibration Error")
     axes[1, 0].grid(axis="y", alpha=0.3)
 
     # 4. Uncertainty Cone 95% Coverage
-    axes[1, 1].bar(["Pre-Cal", "Post-Cal"], [cone_pre, cone_post], color=["#e63946", "#2a9d8f"], width=0.5)
+    axes[1, 1].bar(
+        ["Pre-Cal", "Post-Cal"], [cone_pre, cone_post], color=["#e63946", "#2a9d8f"], width=0.5
+    )
     axes[1, 1].axhline(95.0, color="#457b9d", linestyle="--", label="Target (95.0%)")
-    axes[1, 1].set_title(f"95% Cone Coverage ({cone_pre:.1f}% → {cone_post:.1f}%)", fontweight="bold")
+    axes[1, 1].set_title(
+        f"95% Cone Coverage ({cone_pre:.1f}% → {cone_post:.1f}%)", fontweight="bold"
+    )
     axes[1, 1].set_ylabel("Empirical Coverage (%)")
     axes[1, 1].set_ylim(40, 105)
     axes[1, 1].grid(axis="y", alpha=0.3)
@@ -214,10 +289,10 @@ def plot_calibration_dashboard(
 
 
 def run_calibration_pipeline(
-    figs_dir: Optional[Path] = None,
-    artifact_path: Optional[Path] = None,
-    report_path: Optional[Path] = None,
-) -> Dict[str, Any]:
+    figs_dir: Path | None = None,
+    artifact_path: Path | None = None,
+    report_path: Path | None = None,
+) -> dict[str, Any]:
     """Fits temperature scalers & cone recalibrator, exports artifacts, and generates reliability figures."""
     figures_dir = figs_dir or Path("ml/cyclone/eval/figs")
     figures_dir.mkdir(parents=True, exist_ok=True)
@@ -291,12 +366,16 @@ def run_calibration_pipeline(
 
                 for h_idx, h in enumerate(DEFAULT_TRACK_HORIZONS):
                     if h_masks[i, h_idx]:
-                        t_lat, t_lon = float(t_positions[i, h_idx, 0]), float(t_positions[i, h_idx, 1])
+                        t_lat, t_lon = float(t_positions[i, h_idx, 0]), float(
+                            t_positions[i, h_idx, 1]
+                        )
                         dlat, dlon = float(p_deltas[i, h_idx, 0]), float(p_deltas[i, h_idx, 1])
                         p_lat = curr_lat + dlat
                         p_lon = (curr_lon + dlon + 540.0) % 360.0 - 180.0
 
-                        err_km = track_error_km(pred_path=[(h, p_lat, p_lon)], true_path=[(h, t_lat, t_lon)])["mean_error_km"]
+                        err_km = track_error_km(
+                            pred_path=[(h, p_lat, p_lon)], true_path=[(h, t_lat, t_lon)]
+                        )["mean_error_km"]
                         r_km = radii[h_idx + 1]
 
                         val_track_errors.append(err_km)
@@ -306,9 +385,15 @@ def run_calibration_pipeline(
     # 1. Fit Calibrators on Validation Data
     calibrator = ModelCalibrator()
 
-    t_det = calibrator.detection_scaler.fit(np.array(val_det_logits), np.array(val_det_trues), is_binary=True)
-    t_stage = calibrator.stage_scaler.fit(np.array(val_stage_logits), np.array(val_stage_trues), is_binary=False)
-    t_int = calibrator.intensity_scaler.fit(np.array(val_int_logits), np.array(val_int_trues), is_binary=False)
+    t_det = calibrator.detection_scaler.fit(
+        np.array(val_det_logits), np.array(val_det_trues), is_binary=True
+    )
+    t_stage = calibrator.stage_scaler.fit(
+        np.array(val_stage_logits), np.array(val_stage_trues), is_binary=False
+    )
+    t_int = calibrator.intensity_scaler.fit(
+        np.array(val_int_logits), np.array(val_int_trues), is_binary=False
+    )
 
     cone_fit = calibrator.cone_recalibrator.fit(
         track_errors=val_track_errors,
@@ -317,8 +402,12 @@ def run_calibration_pipeline(
         target_coverage=0.95,
     )
 
-    print(f"[CALIBRATION] Fitted Temperatures -> Detection: {t_det:.3f}, Stage: {t_stage:.3f}, Intensity: {t_int:.3f}")
-    print(f"[CALIBRATION] Fitted Cone Multiplier (95% Target): {calibrator.cone_recalibrator.global_multiplier:.3f}")
+    print(
+        f"[CALIBRATION] Fitted Temperatures -> Detection: {t_det:.3f}, Stage: {t_stage:.3f}, Intensity: {t_int:.3f}"
+    )
+    print(
+        f"[CALIBRATION] Fitted Cone Multiplier (95% Target): {calibrator.cone_recalibrator.global_multiplier:.3f}"
+    )
 
     # Save to artifacts/calibration.json
     calibrator.save(calib_json)
@@ -370,14 +459,20 @@ def run_calibration_pipeline(
 
                 for h_idx, h in enumerate(DEFAULT_TRACK_HORIZONS):
                     if h_masks[i, h_idx]:
-                        t_lat, t_lon = float(t_positions[i, h_idx, 0]), float(t_positions[i, h_idx, 1])
+                        t_lat, t_lon = float(t_positions[i, h_idx, 0]), float(
+                            t_positions[i, h_idx, 1]
+                        )
                         dlat, dlon = float(p_deltas[i, h_idx, 0]), float(p_deltas[i, h_idx, 1])
                         p_lat = curr_lat + dlat
                         p_lon = (curr_lon + dlon + 540.0) % 360.0 - 180.0
 
-                        err_km = track_error_km(pred_path=[(h, p_lat, p_lon)], true_path=[(h, t_lat, t_lon)])["mean_error_km"]
+                        err_km = track_error_km(
+                            pred_path=[(h, p_lat, p_lon)], true_path=[(h, t_lat, t_lon)]
+                        )["mean_error_km"]
                         r_km = radii[h_idx + 1]
-                        r_recal = calibrator.cone_recalibrator.recalibrate_radii([0.0, r_km], horizon_hours=h)[1]
+                        r_recal = calibrator.cone_recalibrator.recalibrate_radii(
+                            [0.0, r_km], horizon_hours=h
+                        )[1]
 
                         test_track_errors.append(err_km)
                         test_raw_radii.append(r_km)
@@ -385,36 +480,65 @@ def run_calibration_pipeline(
 
     # Probabilities before & after
     prob_det_pre = 1.0 / (1.0 + np.exp(-np.clip(np.array(test_det_logits), -30, 30)))
-    prob_det_post = calibrator.detection_scaler.predict_proba(np.array(test_det_logits), is_binary=True)
+    prob_det_post = calibrator.detection_scaler.predict_proba(
+        np.array(test_det_logits), is_binary=True
+    )
 
-    exp_s = np.exp(np.array(test_stage_logits) - np.max(np.array(test_stage_logits), axis=-1, keepdims=True))
+    exp_s = np.exp(
+        np.array(test_stage_logits) - np.max(np.array(test_stage_logits), axis=-1, keepdims=True)
+    )
     prob_stage_pre = exp_s / np.sum(exp_s, axis=-1, keepdims=True)
-    prob_stage_post = calibrator.stage_scaler.predict_proba(np.array(test_stage_logits), is_binary=False)
+    prob_stage_post = calibrator.stage_scaler.predict_proba(
+        np.array(test_stage_logits), is_binary=False
+    )
 
-    exp_i = np.exp(np.array(test_int_logits) - np.max(np.array(test_int_logits), axis=-1, keepdims=True))
+    exp_i = np.exp(
+        np.array(test_int_logits) - np.max(np.array(test_int_logits), axis=-1, keepdims=True)
+    )
     prob_int_pre = exp_i / np.sum(exp_i, axis=-1, keepdims=True)
-    prob_int_post = calibrator.intensity_scaler.predict_proba(np.array(test_int_logits), is_binary=False)
+    prob_int_post = calibrator.intensity_scaler.predict_proba(
+        np.array(test_int_logits), is_binary=False
+    )
 
     # 3. Generate Diagnostics Plots
     det_pre_ece, det_post_ece = plot_reliability_diagram(
-        np.array(test_det_trues), prob_det_pre, prob_det_post, "Cyclone Detection", figures_dir / "reliability_detection.png"
+        np.array(test_det_trues),
+        prob_det_pre,
+        prob_det_post,
+        "Cyclone Detection",
+        figures_dir / "reliability_detection.png",
     )
     stage_pre_ece, stage_post_ece = plot_reliability_diagram(
-        np.array(test_stage_trues), prob_stage_pre, prob_stage_post, "Lifecycle Stage", figures_dir / "reliability_stage.png"
+        np.array(test_stage_trues),
+        prob_stage_pre,
+        prob_stage_post,
+        "Lifecycle Stage",
+        figures_dir / "reliability_stage.png",
     )
     int_pre_ece, int_post_ece = plot_reliability_diagram(
-        np.array(test_int_trues), prob_int_pre, prob_int_post, "IMD Intensity Scale", figures_dir / "reliability_intensity.png"
+        np.array(test_int_trues),
+        prob_int_pre,
+        prob_int_post,
+        "IMD Intensity Scale",
+        figures_dir / "reliability_intensity.png",
     )
 
     cone_pre_cov, cone_post_cov = plot_cone_coverage_curve(
-        test_track_errors, test_raw_radii, test_recal_radii, figures_dir / "cone_coverage_calibration.png"
+        test_track_errors,
+        test_raw_radii,
+        test_recal_radii,
+        figures_dir / "cone_coverage_calibration.png",
     )
 
     plot_calibration_dashboard(
-        det_pre_ece, det_post_ece,
-        stage_pre_ece, stage_post_ece,
-        int_pre_ece, int_post_ece,
-        cone_pre_cov, cone_post_cov,
+        det_pre_ece,
+        det_post_ece,
+        stage_pre_ece,
+        stage_post_ece,
+        int_pre_ece,
+        int_post_ece,
+        cone_pre_cov,
+        cone_post_cov,
         figures_dir / "calibration_dashboard.png",
     )
 
@@ -434,9 +558,21 @@ def run_calibration_pipeline(
         },
         "cone_multipliers": calibrator.cone_recalibrator.to_dict(),
         "ece_comparison": {
-            "detection": {"pre": det_pre_ece, "post": det_post_ece, "delta": round(det_post_ece - det_pre_ece, 4)},
-            "stage": {"pre": stage_pre_ece, "post": stage_post_ece, "delta": round(stage_post_ece - stage_pre_ece, 4)},
-            "intensity_cls": {"pre": int_pre_ece, "post": int_post_ece, "delta": round(int_post_ece - int_pre_ece, 4)},
+            "detection": {
+                "pre": det_pre_ece,
+                "post": det_post_ece,
+                "delta": round(det_post_ece - det_pre_ece, 4),
+            },
+            "stage": {
+                "pre": stage_pre_ece,
+                "post": stage_post_ece,
+                "delta": round(stage_post_ece - stage_pre_ece, 4),
+            },
+            "intensity_cls": {
+                "pre": int_pre_ece,
+                "post": int_post_ece,
+                "delta": round(int_post_ece - int_pre_ece, 4),
+            },
         },
         "cone_coverage_comparison": {
             "target_nominal_pct": 95.0,
@@ -458,8 +594,8 @@ def run_calibration_pipeline(
 
 
 def update_models_report_calibration(
-    calib_results: Dict[str, Any],
-    report_path: Optional[Path] = None,
+    calib_results: dict[str, Any],
+    report_path: Path | None = None,
 ) -> None:
     """Updates models_report.md with calibrated confidence scores and recalibrated cone coverages."""
     rep_path = report_path or Path("ml/cyclone/eval/models_report.md")
@@ -500,7 +636,7 @@ def update_models_report_calibration(
 
     existing_content = ""
     if rep_path.is_file():
-        with open(rep_path, "r", encoding="utf-8") as f:
+        with open(rep_path, encoding="utf-8") as f:
             existing_content = f.read()
 
     if "## 8. " in existing_content:
@@ -521,7 +657,9 @@ def update_models_report_calibration(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run confidence calibration and reliability diagnostics.")
+    parser = argparse.ArgumentParser(
+        description="Run confidence calibration and reliability diagnostics."
+    )
     args = parser.parse_args()
     run_calibration_pipeline()
 

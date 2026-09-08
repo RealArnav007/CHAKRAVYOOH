@@ -69,5 +69,6 @@ ignore = [
 known-first-party = ["ml", "ml.cyclone"]
 
 [tool.pytest.ini_options]
-testpaths = ["ml/cyclone/tests"]
+testpaths = ["tests", "ml/cyclone/tests"]
 python_files = ["test_*.py"]
+pythonpath = ["."]

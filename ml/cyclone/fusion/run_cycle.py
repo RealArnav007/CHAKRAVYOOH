@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
 import json
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
+
 import numpy as np
 import torch
 
-from ml.cyclone.config import CycloneConfig, load_config
 from ml.cyclone.features.fusion import (
     DEFAULT_HORIZONS,
     IMD_LEVEL_MAP,
@@ -35,15 +35,14 @@ from ml.cyclone.models import (
 from ml.cyclone.preprocess.geo import calculate_speed_and_heading
 from ml.cyclone.preprocess.scales import (
     wind_kt_to_imd_level,
-    wind_kt_to_saffir_simpson,
 )
-from ml.cyclone.schema.models import CycloneIntelligence, TierEnum
+from ml.cyclone.schema.models import CycloneIntelligence
 
 logger = logging.getLogger(__name__)
 
 # Global singletons for lazy model and calibration caching
-_CACHED_MODEL: Optional[FusionNet] = None
-_CACHED_CALIBRATOR: Optional[ModelCalibrator] = None
+_CACHED_MODEL: FusionNet | None = None
+_CACHED_CALIBRATOR: ModelCalibrator | None = None
 
 
 # -----------------------------------------------------------------------------
@@ -51,7 +50,7 @@ _CACHED_CALIBRATOR: Optional[ModelCalibrator] = None
 # -----------------------------------------------------------------------------
 
 
-def get_or_load_calibrator(calibration_path: Optional[Union[str, Path]] = None) -> ModelCalibrator:
+def get_or_load_calibrator(calibration_path: str | Path | None = None) -> ModelCalibrator:
     """Retrieves or loads the ModelCalibrator parameter singleton."""
     global _CACHED_CALIBRATOR
     if _CACHED_CALIBRATOR is not None and calibration_path is None:
@@ -89,8 +88,8 @@ def get_or_load_calibrator(calibration_path: Optional[Union[str, Path]] = None) 
 
 
 def get_or_load_model(
-    checkpoint_path: Optional[Union[str, Path]] = None,
-    device: Optional[Union[str, torch.device]] = None,
+    checkpoint_path: str | Path | None = None,
+    device: str | torch.device | None = None,
 ) -> FusionNet:
     """Retrieves or loads the FusionNet neural network singleton."""
     global _CACHED_MODEL
@@ -142,21 +141,23 @@ def get_or_load_model(
 
 
 def load_sample_for_cycle(
-    storm_id: Optional[str] = None,
-    frame_idx: Optional[int] = None,
-    timestamp: Optional[str] = None,
-) -> Dict[str, Any]:
+    storm_id: str | None = None,
+    frame_idx: int | None = None,
+    timestamp: str | None = None,
+) -> dict[str, Any]:
     """Retrieves or synthesizes a rich multi-modal sample dictionary for a storm/frame/timestamp."""
     s_id = str(storm_id or "Amphan").strip()
     f_idx = int(frame_idx or 0)
     norm_id = s_id.lower().replace("-", "_").replace(" ", "_")
 
     # 1. No-detect / Negative background requests
-    if norm_id in ["no_detect", "nodetect", "null", "none", "background"] or norm_id.startswith("non_cyclone"):
+    if norm_id in ["no_detect", "nodetect", "null", "none", "background"] or norm_id.startswith(
+        "non_cyclone"
+    ):
         no_detect_fixture = Path(__file__).resolve().parent.parent / "fixtures" / "no_detect.json"
         if no_detect_fixture.is_file():
             try:
-                with open(no_detect_fixture, "r", encoding="utf-8") as f:
+                with open(no_detect_fixture, encoding="utf-8") as f:
                     fix_data = json.load(f)
                     return {
                         "storm_id": fix_data.get("cyclone_id", "CYC-2026-NIO-NULL"),
@@ -205,6 +206,7 @@ def load_sample_for_cycle(
 
     # 2. Check landmark demo storms (Amphan, Fani, Biparjoy)
     from ml.cyclone.eval.error_analysis import DEMO_STORMS_DATA
+
     matched_key = None
     for k in DEMO_STORMS_DATA.keys():
         if k in norm_id or norm_id in k or norm_id.split("_")[0] in k:
@@ -223,7 +225,7 @@ def load_sample_for_cycle(
         pres = round(1010.0 - (wind * 0.65), 1)
 
         # Reconstruct realistic past track history
-        history: List[Dict[str, Any]] = []
+        history: list[dict[str, Any]] = []
         for prev_k in range(max(0, k - 4), k + 1):
             prev_ts = timesteps[prev_k]
             p_lat = float(prev_ts["true_lat"])
@@ -231,17 +233,21 @@ def load_sample_for_cycle(
             p_wind = float(prev_ts["true_wind_kt"])
             p_pres = round(1010.0 - (p_wind * 0.65), 1)
             t_off = float(prev_ts["lead_hours"] - ts_info["lead_hours"])
-            history.append({
-                "t_offset_h": t_off,
-                "lat": p_lat,
-                "lon": p_lon,
-                "wind_kt": p_wind,
-                "pres_mb": p_pres,
-                "speed_kt": 10.0,
-                "heading_deg": 350.0,
-            })
+            history.append(
+                {
+                    "t_offset_h": t_off,
+                    "lat": p_lat,
+                    "lon": p_lon,
+                    "wind_kt": p_wind,
+                    "pres_mb": p_pres,
+                    "speed_kt": 10.0,
+                    "heading_deg": 350.0,
+                }
+            )
 
-        year_str = "2020" if "amphan" in matched_key else ("2019" if "fani" in matched_key else "2023")
+        year_str = (
+            "2020" if "amphan" in matched_key else ("2019" if "fani" in matched_key else "2023")
+        )
         time_str = timestamp or f"{year_str}-05-18T{ts_info['lead_hours']:02d}:00:00Z"
 
         return {
@@ -273,19 +279,34 @@ def load_sample_for_cycle(
     if norm_id in fixture_map:
         fix_p = Path(__file__).resolve().parent.parent / "fixtures" / fixture_map[norm_id]
         if fix_p.is_file():
-            with open(fix_p, "r", encoding="utf-8") as f:
+            with open(fix_p, encoding="utf-8") as f:
                 d = json.load(f)
                 return {
                     "storm_id": d.get("cyclone_id", s_id),
                     "name": d.get("name", s_id),
                     "basin": d.get("basin", "North Indian Ocean"),
                     "time": timestamp or d.get("timestamp", "2026-09-08T06:00:00Z"),
-                    "lat": d.get("prediction", {}).get("current_position", {}).get("lat", 15.0) if d.get("prediction") else 15.0,
-                    "lon": d.get("prediction", {}).get("current_position", {}).get("lon", 85.0) if d.get("prediction") else 85.0,
+                    "lat": (
+                        d.get("prediction", {}).get("current_position", {}).get("lat", 15.0)
+                        if d.get("prediction")
+                        else 15.0
+                    ),
+                    "lon": (
+                        d.get("prediction", {}).get("current_position", {}).get("lon", 85.0)
+                        if d.get("prediction")
+                        else 85.0
+                    ),
                     "wind_kt": d.get("intensity", {}).get("max_wind_kt", 45.0),
                     "pres_mb": d.get("intensity", {}).get("min_pressure_mb", 992.0),
                     "image_available": True,
-                    "env": {"sst_c": 29.0, "shear_ms": 8.0, "rh500": 65.0, "vort850": 6.0, "mslp_mb": 992.0, "wind10m_ms": 18.0},
+                    "env": {
+                        "sst_c": 29.0,
+                        "shear_ms": 8.0,
+                        "rh500": 65.0,
+                        "vort850": 6.0,
+                        "mslp_mb": 992.0,
+                        "wind10m_ms": 18.0,
+                    },
                     "history": [],
                 }
 
@@ -309,8 +330,24 @@ def load_sample_for_cycle(
             "wind10m_ms": 22.0,
         },
         "history": [
-            {"t_offset_h": -6.0, "lat": 14.3 + 0.2 * f_idx, "lon": 86.4 + 0.1 * f_idx, "wind_kt": 50.0, "pres_mb": 992.0, "speed_kt": 10.0, "heading_deg": 350.0},
-            {"t_offset_h": 0.0, "lat": 14.5 + 0.2 * f_idx, "lon": 86.5 + 0.1 * f_idx, "wind_kt": 55.0, "pres_mb": 988.0, "speed_kt": 11.0, "heading_deg": 355.0},
+            {
+                "t_offset_h": -6.0,
+                "lat": 14.3 + 0.2 * f_idx,
+                "lon": 86.4 + 0.1 * f_idx,
+                "wind_kt": 50.0,
+                "pres_mb": 992.0,
+                "speed_kt": 10.0,
+                "heading_deg": 350.0,
+            },
+            {
+                "t_offset_h": 0.0,
+                "lat": 14.5 + 0.2 * f_idx,
+                "lon": 86.5 + 0.1 * f_idx,
+                "wind_kt": 55.0,
+                "pres_mb": 988.0,
+                "speed_kt": 11.0,
+                "heading_deg": 355.0,
+            },
         ],
     }
 
@@ -321,19 +358,19 @@ def load_sample_for_cycle(
 
 
 def run_cycle(
-    timestamp: Optional[Union[str, datetime]] = None,
-    storm_id: Optional[str] = None,
-    frame: Optional[int] = None,
-    frame_idx: Optional[int] = None,
-    storm: Optional[str] = None,
-    sample: Optional[Dict[str, Any]] = None,
-    model: Optional[FusionNet] = None,
-    calibrator: Optional[ModelCalibrator] = None,
-    gates_config: Optional[Union[ConfidenceGatesConfig, Dict[str, Any]]] = None,
+    timestamp: str | datetime | None = None,
+    storm_id: str | None = None,
+    frame: int | None = None,
+    frame_idx: int | None = None,
+    storm: str | None = None,
+    sample: dict[str, Any] | None = None,
+    model: FusionNet | None = None,
+    calibrator: ModelCalibrator | None = None,
+    gates_config: ConfidenceGatesConfig | dict[str, Any] | None = None,
     model_version: str = "chakravyuh-fusion-net-v1.0",
-    device: Optional[Union[str, torch.device]] = None,
+    device: str | torch.device | None = None,
     return_model_object: bool = False,
-) -> Union[Dict[str, Any], CycloneIntelligence]:
+) -> dict[str, Any] | CycloneIntelligence:
     """Single public entry point orchestrating a complete cycle of the Chakravyuh Cyclone Brain.
 
     Workflow:
@@ -365,7 +402,7 @@ def run_cycle(
     target_storm_id = storm or storm_id
     target_frame = frame if frame is not None else frame_idx
 
-    ts_str: Optional[str] = None
+    ts_str: str | None = None
     if isinstance(timestamp, datetime):
         ts_str = timestamp.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     elif isinstance(timestamp, str):
@@ -375,7 +412,9 @@ def run_cycle(
     if sample is not None:
         raw_sample = dict(sample)
     else:
-        raw_sample = load_sample_for_cycle(storm_id=target_storm_id, frame_idx=target_frame, timestamp=ts_str)
+        raw_sample = load_sample_for_cycle(
+            storm_id=target_storm_id, frame_idx=target_frame, timestamp=ts_str
+        )
 
     # Reconcile timestamp
     sample_time = raw_sample.get("time") or raw_sample.get("timestamp") or ts_str
@@ -397,7 +436,9 @@ def run_cycle(
     current_lat = float(fused.meta["lat"])
     current_lon = float(fused.meta["lon"])
     has_image = bool(raw_sample.get("image_available", True)) and (
-        fused.image_tensor is not None or raw_sample.get("image_available") is True or "image" in raw_sample
+        fused.image_tensor is not None
+        or raw_sample.get("image_available") is True
+        or "image" in raw_sample
     )
     has_env = bool(raw_sample.get("env_available", False)) or (
         raw_sample.get("env") is not None and bool(raw_sample.get("env"))
@@ -424,20 +465,38 @@ def run_cycle(
         int_t0 = intensity(raw_sample)
 
         hist_for_track = raw_sample.get("history") or [
-            {"lat": current_lat, "lon": current_lon, "wind_kt": raw_sample.get("wind_kt", 25.0), "pres_mb": raw_sample.get("pres_mb", 1005.0)}
+            {
+                "lat": current_lat,
+                "lon": current_lon,
+                "wind_kt": raw_sample.get("wind_kt", 25.0),
+                "pres_mb": raw_sample.get("pres_mb", 1005.0),
+            }
         ]
         pred_t0 = predict_track(history=hist_for_track, horizons=[0, 6, 12, 24, 48, 72])
     except Exception as e:
         logger.error(f"[RUN_CYCLE] Error computing Tier-0 baselines: {e}")
         ident_t0 = {"detected": True, "confidence": 0.50}
         class_t0 = {"stage": "TROPICAL_DEPRESSION", "confidence": 0.50}
-        int_t0 = {"level": "DEPRESSION", "scale": "IMD", "max_wind_kt": 25.0, "min_pressure_mb": 1000.0, "confidence": 0.50}
+        int_t0 = {
+            "level": "DEPRESSION",
+            "scale": "IMD",
+            "max_wind_kt": 25.0,
+            "min_pressure_mb": 1000.0,
+            "confidence": 0.50,
+        }
         pred_t0 = {
             "current_position": {"lat": current_lat, "lon": current_lon},
             "heading_deg": 0.0,
             "speed_kt": 10.0,
             "forecast_hours": 72,
-            "predicted_path": [{"t_plus_h": h, "lat": current_lat + 0.1 * (h / 6), "lon": current_lon + 0.1 * (h / 6)} for h in [0, 6, 12, 24, 48, 72]],
+            "predicted_path": [
+                {
+                    "t_plus_h": h,
+                    "lat": current_lat + 0.1 * (h / 6),
+                    "lon": current_lon + 0.1 * (h / 6),
+                }
+                for h in [0, 6, 12, 24, 48, 72]
+            ],
             "confidence": 0.50,
             "uncertainty": {"cone_radius_km": [0.0, 40.0, 65.0, 120.0, 200.0, 290.0]},
         }
@@ -457,21 +516,33 @@ def run_cycle(
     calibrator_inst = calibrator or get_or_load_calibrator()
     target_dev = next(net.parameters()).device
 
-    tier1_payload: Optional[Dict[str, Any]] = None
-    cal_imd_probs_arr: Optional[np.ndarray] = None
-    cal_stage_probs_arr: Optional[np.ndarray] = None
+    tier1_payload: dict[str, Any] | None = None
+    cal_imd_probs_arr: np.ndarray | None = None
+    cal_stage_probs_arr: np.ndarray | None = None
 
     try:
         # Prepare batch tensors
         if fused.image_tensor is not None:
-            img_t = torch.from_numpy(fused.image_tensor).unsqueeze(0).to(dtype=torch.float32, device=target_dev)
+            img_t = (
+                torch.from_numpy(fused.image_tensor)
+                .unsqueeze(0)
+                .to(dtype=torch.float32, device=target_dev)
+            )
             img_avail_t = torch.tensor([1.0], dtype=torch.float32, device=target_dev)
         else:
             img_t = torch.zeros((1, 1, 224, 224), dtype=torch.float32, device=target_dev)
             img_avail_t = torch.tensor([0.0], dtype=torch.float32, device=target_dev)
 
-        env_t = torch.from_numpy(fused.env_vector).unsqueeze(0).to(dtype=torch.float32, device=target_dev)
-        track_t = torch.from_numpy(fused.track_sequence).unsqueeze(0).to(dtype=torch.float32, device=target_dev)
+        env_t = (
+            torch.from_numpy(fused.env_vector)
+            .unsqueeze(0)
+            .to(dtype=torch.float32, device=target_dev)
+        )
+        track_t = (
+            torch.from_numpy(fused.track_sequence)
+            .unsqueeze(0)
+            .to(dtype=torch.float32, device=target_dev)
+        )
 
         net.eval()
         with torch.no_grad():
@@ -484,23 +555,33 @@ def run_cycle(
 
         # 5.1 Calibrated Detection Head
         raw_det_logits = t1_out["detection_logits"].detach().cpu().numpy()
-        cal_det_prob = float(calibrator_inst.detection_scaler.predict_proba(raw_det_logits, is_binary=True)[0, 0])
+        cal_det_prob = float(
+            calibrator_inst.detection_scaler.predict_proba(raw_det_logits, is_binary=True)[0, 0]
+        )
         t1_detected = bool(cal_det_prob >= 0.50)
         t1_det_conf = round(cal_det_prob, 2)
 
         # 5.2 Calibrated Stage Classification Head
         raw_stage_logits = t1_out["stage_logits"].detach().cpu().numpy()
-        cal_stage_probs_arr = calibrator_inst.stage_scaler.predict_proba(raw_stage_logits, is_binary=False)[0]
+        cal_stage_probs_arr = calibrator_inst.stage_scaler.predict_proba(
+            raw_stage_logits, is_binary=False
+        )[0]
         pred_stage_idx = int(np.argmax(cal_stage_probs_arr))
         stage_keys = list(STAGE_MAP.keys())
-        pred_stage_enum = stage_keys[pred_stage_idx] if pred_stage_idx < len(stage_keys) else stage_keys[0]
+        pred_stage_enum = (
+            stage_keys[pred_stage_idx] if pred_stage_idx < len(stage_keys) else stage_keys[0]
+        )
         stage_conf = round(float(np.clip(cal_stage_probs_arr[pred_stage_idx], 0.05, 0.99)), 2)
 
         # 5.3 Calibrated Intensity Estimation Head
         pred_wind_kt = round(max(0.0, float(t1_out["intensity"]["wind_kt"].squeeze().item())), 1)
-        pred_pres_mb = round(float(np.clip(t1_out["intensity"]["pres_mb"].squeeze().item(), 800.0, 1050.0)), 1)
+        pred_pres_mb = round(
+            float(np.clip(t1_out["intensity"]["pres_mb"].squeeze().item(), 800.0, 1050.0)), 1
+        )
         raw_imd_logits = t1_out["intensity"]["imd_logits"].detach().cpu().numpy()
-        cal_imd_probs_arr = calibrator_inst.intensity_scaler.predict_proba(raw_imd_logits, is_binary=False)[0]
+        cal_imd_probs_arr = calibrator_inst.intensity_scaler.predict_proba(
+            raw_imd_logits, is_binary=False
+        )[0]
         pred_imd_level = wind_kt_to_imd_level(pred_wind_kt)
         int_conf = round(float(np.clip(np.max(cal_imd_probs_arr), 0.05, 0.99)), 2)
 
@@ -508,7 +589,7 @@ def run_cycle(
         deltas = t1_out["track"]["deltas"].squeeze(0).detach().cpu().numpy()  # (5, 2)
         log_vars = t1_out["track"]["log_vars"].squeeze(0).detach().cpu().numpy()  # (5, 2)
 
-        predicted_path: List[Dict[str, Any]] = [
+        predicted_path: list[dict[str, Any]] = [
             {"t_plus_h": 0, "lat": round(current_lat, 4), "lon": round(current_lon, 4)}
         ]
         for h_idx, h in enumerate(DEFAULT_HORIZONS):
@@ -524,7 +605,11 @@ def run_cycle(
         # Kinematics
         if len(predicted_path) >= 2:
             calc_speed, calc_heading = calculate_speed_and_heading(
-                lat1=current_lat, lon1=current_lon, lat2=predicted_path[1]["lat"], lon2=predicted_path[1]["lon"], delta_hours=6.0
+                lat1=current_lat,
+                lon1=current_lon,
+                lat2=predicted_path[1]["lat"],
+                lon2=predicted_path[1]["lon"],
+                delta_hours=6.0,
             )
         else:
             calc_speed, calc_heading = 10.0, 0.0
@@ -563,26 +648,32 @@ def run_cycle(
         }
 
     except Exception as e:
-        logger.error(f"[RUN_CYCLE] Tier-1 FusionNet inference exception: {e} -> Degrading to Tier-0.")
+        logger.error(
+            f"[RUN_CYCLE] Tier-1 FusionNet inference exception: {e} -> Degrading to Tier-0."
+        )
         tier1_payload = None
 
     # 6. Format Supplemental Metadata (extra)
     # Class probability distributions
-    imd_class_probs: Dict[str, float] = {}
+    imd_class_probs: dict[str, float] = {}
     if cal_imd_probs_arr is not None and len(cal_imd_probs_arr) == len(IMD_LEVEL_MAP):
         for idx, lvl in enumerate(IMD_LEVEL_MAP.keys()):
             imd_class_probs[lvl.value] = round(float(cal_imd_probs_arr[idx]), 4)
     else:
         for lvl in IMD_LEVEL_MAP.keys():
-            imd_class_probs[lvl.value] = 0.90 if lvl == tier0_payload["intensity"]["level"] else 0.016
+            imd_class_probs[lvl.value] = (
+                0.90 if lvl == tier0_payload["intensity"]["level"] else 0.016
+            )
 
-    stage_class_probs: Dict[str, float] = {}
+    stage_class_probs: dict[str, float] = {}
     if cal_stage_probs_arr is not None and len(cal_stage_probs_arr) == len(STAGE_MAP):
         for idx, stg in enumerate(STAGE_MAP.keys()):
             stage_class_probs[stg.value] = round(float(cal_stage_probs_arr[idx]), 4)
     else:
         for stg in STAGE_MAP.keys():
-            stage_class_probs[stg.value] = 0.90 if stg == tier0_payload["classification"]["stage"] else 0.02
+            stage_class_probs[stg.value] = (
+                0.90 if stg == tier0_payload["classification"]["stage"] else 0.02
+            )
 
     extra_metadata = {
         "intensity_class_probs": imd_class_probs,

@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -17,10 +18,10 @@ KM_PER_DEG_LAT = 111.195
 
 
 def predict_cone_radii(
-    log_vars: Union[torch.Tensor, np.ndarray],
+    log_vars: torch.Tensor | np.ndarray,
     current_lat: float = 15.0,
     coverage_level: float = 0.95,
-) -> List[float]:
+) -> list[float]:
     """Converts predicted log-variances [log_var_lat, log_var_lon] into IMD-compatible cone radii in km.
 
     Mathematical Formulation:
@@ -41,7 +42,11 @@ def predict_cone_radii(
     Returns:
         List of float cone radii in km starting strictly with 0.0 km at analysis time t=0.
     """
-    lv_arr = log_vars.detach().cpu().numpy() if isinstance(log_vars, torch.Tensor) else np.asarray(log_vars)
+    lv_arr = (
+        log_vars.detach().cpu().numpy()
+        if isinstance(log_vars, torch.Tensor)
+        else np.asarray(log_vars)
+    )
     if lv_arr.ndim == 3:
         lv_arr = lv_arr.squeeze(0)
 
@@ -51,7 +56,7 @@ def predict_cone_radii(
 
     cos_lat = max(0.2, math.cos(math.radians(current_lat)))
 
-    radii: List[float] = [0.0]  # Anchor r(0) = 0.0 km
+    radii: list[float] = [0.0]  # Anchor r(0) = 0.0 km
     prev_r = 0.0
 
     for h_idx in range(len(lv_arr)):
@@ -61,7 +66,7 @@ def predict_cone_radii(
         std_lat_km = math.sqrt(math.exp(log_v_lat)) * KM_PER_DEG_LAT
         std_lon_km = math.sqrt(math.exp(log_v_lon)) * KM_PER_DEG_LAT * cos_lat
 
-        sigma_eff = math.sqrt((std_lat_km ** 2 + std_lon_km ** 2) / 2.0)
+        sigma_eff = math.sqrt((std_lat_km**2 + std_lon_km**2) / 2.0)
         raw_radius_km = sigma_eff * quantile_multiplier
 
         # Enforce physical minimum threshold and monotonicity over forecast horizon
@@ -82,11 +87,11 @@ def monte_carlo_dropout_predict(
     model: nn.Module,
     env_vector: torch.Tensor,
     track_sequence: torch.Tensor,
-    seq_lengths: Optional[torch.Tensor] = None,
+    seq_lengths: torch.Tensor | None = None,
     num_samples: int = 20,
     coverage_level: float = 0.95,
     current_lat: float = 15.0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Draws K stochastic forward passes with dropout enabled to quantify epistemic and aleatoric uncertainty.
 
     Total Uncertainty Decomposition:
@@ -107,13 +112,15 @@ def monte_carlo_dropout_predict(
     # Enable dropout during inference
     model.train()
 
-    mc_deltas: List[torch.Tensor] = []
-    mc_log_vars: List[torch.Tensor] = []
+    mc_deltas: list[torch.Tensor] = []
+    mc_log_vars: list[torch.Tensor] = []
 
     with torch.no_grad():
         for _ in range(num_samples):
-            out = model(env_vector=env_vector, track_sequence=track_sequence, seq_lengths=seq_lengths)
-            mc_deltas.append(out["deltas"])      # (1, H, 2)
+            out = model(
+                env_vector=env_vector, track_sequence=track_sequence, seq_lengths=seq_lengths
+            )
+            mc_deltas.append(out["deltas"])  # (1, H, 2)
             mc_log_vars.append(out["log_vars"])  # (1, H, 2)
 
     # Stack draws: (K, 1, H, 2)

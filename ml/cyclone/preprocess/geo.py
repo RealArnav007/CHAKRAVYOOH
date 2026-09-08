@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from typing import Tuple, Union
+
 import numpy as np
 
 EARTH_RADIUS_KM = 6371.0
@@ -11,11 +11,11 @@ KM_PER_NAUTICAL_MILE = 1.852
 
 
 def haversine_distance_km(
-    lat1: Union[float, np.ndarray],
-    lon1: Union[float, np.ndarray],
-    lat2: Union[float, np.ndarray],
-    lon2: Union[float, np.ndarray],
-) -> Union[float, np.ndarray]:
+    lat1: float | np.ndarray,
+    lon1: float | np.ndarray,
+    lat2: float | np.ndarray,
+    lon2: float | np.ndarray,
+) -> float | np.ndarray:
     """Calculates great-circle distance between two coordinate pairs on Earth in kilometers.
 
     Args:
@@ -29,10 +29,7 @@ def haversine_distance_km(
     delta_phi = np.radians(lat2 - lat1)
     delta_lambda = np.radians(lon2 - lon1)
 
-    a = (
-        np.sin(delta_phi / 2.0) ** 2
-        + np.cos(phi1) * np.cos(phi2) * np.sin(delta_lambda / 2.0) ** 2
-    )
+    a = np.sin(delta_phi / 2.0) ** 2 + np.cos(phi1) * np.cos(phi2) * np.sin(delta_lambda / 2.0) ** 2
     # Clip for floating-point inaccuracies
     a = np.clip(a, 0.0, 1.0)
     c = 2.0 * np.arctan2(np.sqrt(a), np.sqrt(1.0 - a))
@@ -86,7 +83,7 @@ def calculate_speed_and_heading(
     lat2: float,
     lon2: float,
     delta_hours: float,
-) -> Tuple[float, float]:
+) -> tuple[float, float]:
     """Computes translation speed in knots and heading in degrees over a elapsed time delta.
 
     Args:

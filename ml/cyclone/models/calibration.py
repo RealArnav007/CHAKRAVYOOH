@@ -2,17 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import json
-import math
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
+
 import numpy as np
 import torch
 import torch.nn as nn
-from scipy.optimize import minimize_scalar
-
-from ml.cyclone.eval.metrics import cone_coverage, expected_calibration_error
 
 
 class TemperatureScaler(nn.Module):
@@ -22,7 +19,9 @@ class TemperatureScaler(nn.Module):
     Temperature scaling softens or sharpens logits without changing the argmax prediction (preserving accuracy).
     """
 
-    def __init__(self, initial_temp: float = 1.5, min_temp: float = 0.05, max_temp: float = 10.0) -> None:
+    def __init__(
+        self, initial_temp: float = 1.5, min_temp: float = 0.05, max_temp: float = 10.0
+    ) -> None:
         super().__init__()
         self.min_temp = min_temp
         self.max_temp = max_temp
@@ -35,8 +34,8 @@ class TemperatureScaler(nn.Module):
 
     def fit(
         self,
-        logits: Union[torch.Tensor, np.ndarray],
-        targets: Union[torch.Tensor, np.ndarray],
+        logits: torch.Tensor | np.ndarray,
+        targets: torch.Tensor | np.ndarray,
         is_binary: bool = False,
         lr: float = 0.01,
         max_iter: int = 150,
@@ -98,10 +97,16 @@ class TemperatureScaler(nn.Module):
         self.temperature.data.fill_(fitted_t)
         return round(fitted_t, 4)
 
-    def predict_proba(self, logits: Union[torch.Tensor, np.ndarray], is_binary: bool = False) -> np.ndarray:
+    def predict_proba(
+        self, logits: torch.Tensor | np.ndarray, is_binary: bool = False
+    ) -> np.ndarray:
         """Returns calibrated probabilities after temperature scaling."""
         t_val = float(torch.clamp(self.temperature, min=self.min_temp, max=self.max_temp).item())
-        logits_arr = logits.detach().cpu().numpy() if isinstance(logits, torch.Tensor) else np.asarray(logits)
+        logits_arr = (
+            logits.detach().cpu().numpy()
+            if isinstance(logits, torch.Tensor)
+            else np.asarray(logits)
+        )
 
         scaled = logits_arr / t_val
         if is_binary:
@@ -113,10 +118,10 @@ class TemperatureScaler(nn.Module):
             exp_s = np.exp(scaled - np.max(scaled, axis=-1, keepdims=True))
             return exp_s / np.sum(exp_s, axis=-1, keepdims=True)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {"temperature": float(self.temperature.item())}
 
-    def from_dict(self, data: Dict[str, Any]) -> None:
+    def from_dict(self, data: dict[str, Any]) -> None:
         self.temperature.data.fill_(float(data.get("temperature", 1.0)))
 
 
@@ -131,7 +136,7 @@ class VarianceRecalibrator:
         self,
         target_coverage: float = 0.95,
         global_multiplier: float = 1.0,
-        per_horizon_multipliers: Optional[Dict[str, float]] = None,
+        per_horizon_multipliers: dict[str, float] | None = None,
     ) -> None:
         self.target_coverage = target_coverage
         self.global_multiplier = global_multiplier
@@ -147,9 +152,9 @@ class VarianceRecalibrator:
         self,
         track_errors: Sequence[float],
         raw_cone_radii: Sequence[float],
-        horizons: Optional[Sequence[int]] = None,
-        target_coverage: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        horizons: Sequence[int] | None = None,
+        target_coverage: float | None = None,
+    ) -> dict[str, Any]:
         """Fits calibration scaling factors gamma on validation pairs (error, raw_radius).
 
         Mathematical Principle:
@@ -164,7 +169,10 @@ class VarianceRecalibrator:
         valid = (rads > 1e-3) & (~np.isnan(errs)) & (~np.isnan(rads))
 
         if not np.any(valid) or len(errs[valid]) < 2:
-            return {"global_multiplier": 1.0, "per_horizon_multipliers": self.per_horizon_multipliers}
+            return {
+                "global_multiplier": 1.0,
+                "per_horizon_multipliers": self.per_horizon_multipliers,
+            }
 
         ratios = errs[valid] / rads[valid]
 
@@ -192,9 +200,9 @@ class VarianceRecalibrator:
     def recalibrate_radii(
         self,
         raw_cone_radii: Sequence[float],
-        horizon_hours: Optional[int] = None,
+        horizon_hours: int | None = None,
         use_per_horizon: bool = True,
-    ) -> List[float]:
+    ) -> list[float]:
         """Applies calibrated variance multiplier to raw cone radii."""
         mult = self.global_multiplier
         if use_per_horizon and horizon_hours is not None:
@@ -208,17 +216,19 @@ class VarianceRecalibrator:
                 recalibrated.append(round(float(r * mult), 2))
         return recalibrated
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "target_coverage": self.target_coverage,
             "global_multiplier": self.global_multiplier,
             "per_horizon_multipliers": self.per_horizon_multipliers,
         }
 
-    def from_dict(self, data: Dict[str, Any]) -> None:
+    def from_dict(self, data: dict[str, Any]) -> None:
         self.target_coverage = float(data.get("target_coverage", 0.95))
         self.global_multiplier = float(data.get("global_multiplier", 1.0))
-        self.per_horizon_multipliers = data.get("per_horizon_multipliers", self.per_horizon_multipliers)
+        self.per_horizon_multipliers = data.get(
+            "per_horizon_multipliers", self.per_horizon_multipliers
+        )
 
 
 class ModelCalibrator:
@@ -230,17 +240,19 @@ class ModelCalibrator:
         self.intensity_scaler = TemperatureScaler(initial_temp=1.0)
         self.cone_recalibrator = VarianceRecalibrator(target_coverage=0.95)
 
-    def save(self, filepath: Union[str, Path]) -> Path:
+    def save(self, filepath: str | Path) -> Path:
         """Persists all calibration parameters to JSON with git commit and config hash provenance."""
         path = Path(filepath)
         path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         from ml.cyclone.train.track_experiment import get_git_commit_hash
+
         git_hash = get_git_commit_hash()
         config_p = Path("ml/cyclone/config/model.best.yaml")
         config_hash = "none"
         if config_p.is_file():
             import hashlib
+
             config_hash = hashlib.sha256(config_p.read_bytes()).hexdigest()[:16]
 
         data = {
@@ -258,12 +270,12 @@ class ModelCalibrator:
             json.dump(data, f, indent=2)
         return path
 
-    def load(self, filepath: Union[str, Path]) -> None:
+    def load(self, filepath: str | Path) -> None:
         """Loads calibration parameters from JSON."""
         path = Path(filepath)
         if not path.is_file():
             return
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
         if "detection" in data:
             self.detection_scaler.from_dict(data["detection"])

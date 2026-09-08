@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 import json
-from pathlib import Path
-from typing import Any, Dict, List
+from datetime import datetime
+from typing import Any
+
 import pytest
 
 from ml.cyclone.replay.replay import (
     ROOT_REPLAY_CACHE_DIR,
-    STORM_PRESET_METADATA,
-    normalize_storm_key,
     precompute_replay,
     replay,
     resolve_preset_frame_index,
@@ -36,7 +34,9 @@ def test_precompute_replay_validation_time_ordering_and_constant_id() -> None:
         assert model_inst.basin == "Bay of Bengal"
 
         # 2. Assert constant cyclone_id across entire lifecycle
-        assert frame["cyclone_id"] == canonical_id, f"Frame {idx} cyclone_id {frame['cyclone_id']} != {canonical_id}"
+        assert (
+            frame["cyclone_id"] == canonical_id
+        ), f"Frame {idx} cyclone_id {frame['cyclone_id']} != {canonical_id}"
 
         # 3. Assert strictly increasing chronological timestamps
         cur_dt = datetime.fromisoformat(frame["timestamp"].replace("Z", "+00:00"))
@@ -59,10 +59,14 @@ def test_replay_landfall_minus_24h_preset_resolution() -> None:
     idx_amphan = resolve_preset_frame_index("amphan_2020", preset="landfall-24h", total_frames=8)
     assert idx_amphan == 4
 
-    idx_amphan_alias = resolve_preset_frame_index("amphan_2020", preset="landfall_minus_24h", total_frames=8)
+    idx_amphan_alias = resolve_preset_frame_index(
+        "amphan_2020", preset="landfall_minus_24h", total_frames=8
+    )
     assert idx_amphan_alias == 4
 
-    idx_biparjoy = resolve_preset_frame_index("biparjoy_2023", preset="landfall-24h", total_frames=8)
+    idx_biparjoy = resolve_preset_frame_index(
+        "biparjoy_2023", preset="landfall-24h", total_frames=8
+    )
     assert idx_biparjoy == 4
 
     idx_genesis = resolve_preset_frame_index("amphan_2020", preset="genesis", total_frames=8)
@@ -74,7 +78,7 @@ def test_replay_landfall_minus_24h_preset_resolution() -> None:
 
 def test_replay_generator_cadence_and_visible_evolution() -> None:
     """Verifies that the replay generator yields frames sequentially starting from the landfall-24h preset."""
-    frames_yielded: List[Dict[str, Any]] = []
+    frames_yielded: list[dict[str, Any]] = []
 
     # Run generator with speed=0 (instant execution for test speed)
     for frame in replay(storm_id="Amphan", jump="landfall-24h", speed=0.0):
@@ -83,7 +87,9 @@ def test_replay_generator_cadence_and_visible_evolution() -> None:
     assert len(frames_yielded) == 4  # Frames 4, 5, 6, 7
 
     # Check evolution across consecutive frames
-    latitudes = [f["prediction"]["current_position"]["lat"] for f in frames_yielded if f["prediction"]]
+    latitudes = [
+        f["prediction"]["current_position"]["lat"] for f in frames_yielded if f["prediction"]
+    ]
     assert len(latitudes) >= 3
     # Cyclone moves northwards from ~17.8°N towards ~25.1°N
     assert latitudes[-1] > latitudes[0]
@@ -119,6 +125,7 @@ def test_fastapi_serving_endpoints() -> None:
         pytest.skip("FastAPI not installed")
 
     from fastapi.testclient import TestClient
+
     client = TestClient(app)
 
     # 1. Health check

@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
-import numpy as np
+from typing import Any
+
 import pandas as pd
 
 from ml.cyclone.ingest.era5 import sample_env
@@ -12,11 +11,11 @@ from ml.cyclone.ingest.era5 import sample_env
 
 def build_samples(
     track_df: pd.DataFrame,
-    image_index: Optional[pd.DataFrame] = None,
-    era5_ds: Optional[Any] = None,
+    image_index: pd.DataFrame | None = None,
+    era5_ds: Any | None = None,
     history_steps: int = 8,
     image_time_tolerance_minutes: int = 90,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Colocalizes track coordinates with nearest satellite images, ERA5 environment, and historical motion.
 
     For every observation point on the track grid:
@@ -51,7 +50,7 @@ def build_samples(
     else:
         img_df = pd.DataFrame()
 
-    samples: List[Dict[str, Any]] = []
+    samples: list[dict[str, Any]] = []
 
     for storm_id, storm_group in working_track.groupby("storm_id", sort=False):
         storm_pts = storm_group.reset_index(drop=True)
@@ -77,7 +76,7 @@ def build_samples(
             heading_deg = float(row.get("heading_deg", row.get("storm_dir_deg", 0.0)))
 
             # (a) Associate nearest satellite image within tolerance
-            matched_image_path: Optional[str] = None
+            matched_image_path: str | None = None
             image_available = False
 
             if not storm_images.empty:
@@ -102,26 +101,33 @@ def build_samples(
             start_hist_idx = max(0, idx - history_steps + 1)
             hist_rows = storm_pts.iloc[start_hist_idx : idx + 1]
 
-            history: List[Dict[str, Any]] = []
+            history: list[dict[str, Any]] = []
             for _, h_row in hist_rows.iterrows():
                 t_offset_h = (h_row["time"] - current_time).total_seconds() / 3600.0
-                history.append({
-                    "t_offset_h": round(t_offset_h, 1),
-                    "lat": round(float(h_row["lat"]), 4),
-                    "lon": round(float(h_row["lon"]), 4),
-                    "wind_kt": round(float(h_row.get("wind_kt", 0.0)), 1),
-                    "pres_mb": round(float(h_row.get("pres_mb", 1010.0)), 1),
-                    "speed_kt": round(float(h_row.get("storm_speed_kt", 0.0)), 2),
-                    "heading_deg": round(float(h_row.get("heading_deg", h_row.get("storm_dir_deg", 0.0))), 1),
-                })
+                history.append(
+                    {
+                        "t_offset_h": round(t_offset_h, 1),
+                        "lat": round(float(h_row["lat"]), 4),
+                        "lon": round(float(h_row["lon"]), 4),
+                        "wind_kt": round(float(h_row.get("wind_kt", 0.0)), 1),
+                        "pres_mb": round(float(h_row.get("pres_mb", 1010.0)), 1),
+                        "speed_kt": round(float(h_row.get("storm_speed_kt", 0.0)), 2),
+                        "heading_deg": round(
+                            float(h_row.get("heading_deg", h_row.get("storm_dir_deg", 0.0))), 1
+                        ),
+                    }
+                )
 
             # (d) Build future trajectory lookup for forecast horizons
-            future_lookup: Dict[int, Tuple[float, float]] = {}
+            future_lookup: dict[int, Tuple[float, float]] = {}
             for f_idx in range(idx + 1, n_pts):
                 f_row = storm_pts.iloc[f_idx]
                 delta_h = int(round((f_row["time"] - current_time).total_seconds() / 3600.0))
                 if delta_h in [6, 12, 24, 48, 72]:
-                    future_lookup[delta_h] = (round(float(f_row["lat"]), 4), round(float(f_row["lon"]), 4))
+                    future_lookup[delta_h] = (
+                        round(float(f_row["lat"]), 4),
+                        round(float(f_row["lon"]), 4),
+                    )
 
             sample_dict = {
                 "storm_id": str(storm_id),

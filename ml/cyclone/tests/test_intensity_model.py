@@ -1,10 +1,9 @@
 """Unit tests for Automated-Dvorak IntensityModel and multi-task loss computation."""
 
 import numpy as np
-import pytest
 import torch
 
-from ml.cyclone.models.heads import IntensityHead, IntensityModel
+from ml.cyclone.models.heads import IntensityModel
 from ml.cyclone.preprocess.scales import wind_kt_to_imd_level
 from ml.cyclone.schema.models import IntensityLevelEnum
 

@@ -5,17 +5,14 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
+
 import numpy as np
 
 from ml.cyclone.preprocess.geo import (
     EARTH_RADIUS_KM,
     KM_PER_NAUTICAL_MILE,
-    calculate_speed_and_heading,
-    haversine_distance_km,
-    initial_bearing_deg,
 )
-
 
 DEFAULT_HORIZONS = [0, 6, 12, 24, 48, 72]
 
@@ -29,12 +26,12 @@ DEFAULT_HORIZONS = [0, 6, 12, 24, 48, 72]
 PARAMETRIC_CONE_RATE_KM_PER_HOUR = 2.85
 
 
-def load_climatology(spec_path: Optional[Path] = None) -> Dict[str, Any]:
+def load_climatology(spec_path: Path | None = None) -> dict[str, Any]:
     """Loads North Indian Ocean climatological drift vectors from cliper_climatology.json."""
     p = spec_path or (Path(__file__).resolve().parent / "cliper_climatology.json")
     if p.is_file():
         try:
-            with open(p, "r", encoding="utf-8") as f:
+            with open(p, encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
             pass
@@ -55,7 +52,7 @@ def step_great_circle(
     lon: float,
     distance_km: float,
     bearing_deg: float,
-) -> Tuple[float, float]:
+) -> tuple[float, float]:
     """Projects a coordinate forward along a great-circle arc for a given distance and initial bearing.
 
     Args:
@@ -90,9 +87,9 @@ def step_great_circle(
 
 
 def persistence_forecast(
-    history: List[Dict[str, Any]],
-    horizons: List[int] = DEFAULT_HORIZONS,
-) -> List[Tuple[int, float, float]]:
+    history: list[dict[str, Any]],
+    horizons: list[int] = DEFAULT_HORIZONS,
+) -> list[tuple[int, float, float]]:
     """Generates trajectory forecast by linear great-circle extrapolation of latest velocity vector.
 
     Args:
@@ -114,7 +111,7 @@ def persistence_forecast(
     # Ensure realistic non-zero translation speed for persistence
     speed_kt = max(3.0, speed_kt)
 
-    forecast_pts: List[Tuple[int, float, float]] = []
+    forecast_pts: list[tuple[int, float, float]] = []
 
     for h in horizons:
         if h == 0:
@@ -127,7 +124,7 @@ def persistence_forecast(
     return forecast_pts
 
 
-def _get_climatological_drift(lat: float, climatology: Dict[str, Any]) -> Tuple[float, float]:
+def _get_climatological_drift(lat: float, climatology: dict[str, Any]) -> tuple[float, float]:
     """Retrieves mean translation speed and heading for a given latitude from climatology table."""
     bands = climatology.get("lat_bands", [])
     for b in bands:
@@ -139,10 +136,10 @@ def _get_climatological_drift(lat: float, climatology: Dict[str, Any]) -> Tuple[
 
 
 def cliper_forecast(
-    history: List[Dict[str, Any]],
-    horizons: List[int] = DEFAULT_HORIZONS,
-    climatology: Optional[Dict[str, Any]] = None,
-) -> List[Tuple[int, float, float]]:
+    history: list[dict[str, Any]],
+    horizons: list[int] = DEFAULT_HORIZONS,
+    climatology: dict[str, Any] | None = None,
+) -> list[tuple[int, float, float]]:
     """Generates a Climatology-and-Persistence (CLIPER) blended trajectory forecast.
 
     Damping Scheme:
@@ -180,7 +177,7 @@ def cliper_forecast(
     u_clim = clim_speed * math.sin(rad_clim)
     v_clim = clim_speed * math.cos(rad_clim)
 
-    forecast_pts: List[Tuple[int, float, float]] = []
+    forecast_pts: list[tuple[int, float, float]] = []
 
     for h in horizons:
         if h == 0:
@@ -205,9 +202,9 @@ def cliper_forecast(
 
 
 def parametric_cone(
-    horizons: List[int] = DEFAULT_HORIZONS,
+    horizons: list[int] = DEFAULT_HORIZONS,
     growth_rate_km_per_hour: float = PARAMETRIC_CONE_RATE_KM_PER_HOUR,
-) -> List[float]:
+) -> list[float]:
     """Computes IMD-calibrated parametric uncertainty cone radii in km for given forecast horizons.
 
     Formula:
@@ -228,22 +225,22 @@ def parametric_cone(
         else:
             # Calibrated piecewise empirical curve matching IMD 5-year averages
             if h <= 12:
-                r = 3.83 * h        # ~46 km at 12h
+                r = 3.83 * h  # ~46 km at 12h
             elif h <= 24:
                 r = 46.0 + 2.67 * (h - 12)  # ~78 km at 24h
             elif h <= 48:
                 r = 78.0 + 2.25 * (h - 24)  # ~132 km at 48h
             else:
-                r = 132.0 + 3.04 * (h - 48) # ~205 km at 72h
+                r = 132.0 + 3.04 * (h - 48)  # ~205 km at 72h
             radii.append(round(r, 2))
     return radii
 
 
 def predict_track(
-    history: List[Dict[str, Any]],
-    horizons: List[int] = DEFAULT_HORIZONS,
+    history: list[dict[str, Any]],
+    horizons: list[int] = DEFAULT_HORIZONS,
     method: str = "cliper",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Generates complete Tier-0 deterministic trajectory prediction payload adhering to the frozen contract.
 
     Args:
@@ -271,10 +268,7 @@ def predict_track(
     speed_kt = round(float(current.get("speed_kt", current.get("storm_speed_kt", 10.0))), 2)
     heading_deg = round(float(current.get("heading_deg", current.get("storm_dir_deg", 0.0))), 1)
 
-    predicted_path = [
-        {"t_plus_h": h, "lat": lat, "lon": lon}
-        for h, lat, lon in pts
-    ]
+    predicted_path = [{"t_plus_h": h, "lat": lat, "lon": lon} for h, lat, lon in pts]
 
     # Calculate confidence decaying with horizon and recent track erraticness
     max_h = max(horizons)

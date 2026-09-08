@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-import pytest
 
 from ml.cyclone.eval.report import (
     build_html_report,
     build_markdown_report,
     generate_evaluation_figures,
-    generate_full_evaluation_report,
 )
 
 

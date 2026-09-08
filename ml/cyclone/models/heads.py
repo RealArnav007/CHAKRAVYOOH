@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any
+
 import numpy as np
 import torch
 import torch.nn as nn
 
 from ml.cyclone.models.image_branch import ImageBranch
-
 
 # -----------------------------------------------------------------------------
 # 1. Detection Head
@@ -33,7 +33,7 @@ class DetectionHead(nn.Module):
             nn.Linear(hidden_dim, 1),
         )
 
-    def forward(self, embedding: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, embedding: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Forward pass emitting raw logit and sigmoid probability.
 
         Args:
@@ -78,9 +78,9 @@ class DetectionModel(nn.Module):
 
     def forward(
         self,
-        img: Optional[torch.Tensor] = None,
-        image_available: Optional[torch.Tensor] = None,
-    ) -> Dict[str, torch.Tensor]:
+        img: torch.Tensor | None = None,
+        image_available: torch.Tensor | None = None,
+    ) -> dict[str, torch.Tensor]:
         """Runs image embedding and detection head.
 
         Args:
@@ -101,16 +101,25 @@ class DetectionModel(nn.Module):
         }
 
     @classmethod
-    def from_config(cls, cfg: Optional[Any] = None) -> DetectionModel:
+    def from_config(cls, cfg: Any | None = None) -> DetectionModel:
         """Factory constructor instantiating DetectionModel from config."""
         from ml.cyclone.config import load_config
+
         if cfg is None:
             cfg = load_config()
 
         model_cfg = cfg.model if hasattr(cfg, "model") else {}
-        img_cfg = getattr(model_cfg, "image_branch", {}) if hasattr(model_cfg, "image_branch") else {}
-        backbone = getattr(img_cfg, "backbone", "efficientnet_b0") if hasattr(img_cfg, "backbone") else "efficientnet_b0"
-        embedding_dim = getattr(img_cfg, "embedding_dim", 512) if hasattr(img_cfg, "embedding_dim") else 512
+        img_cfg = (
+            getattr(model_cfg, "image_branch", {}) if hasattr(model_cfg, "image_branch") else {}
+        )
+        backbone = (
+            getattr(img_cfg, "backbone", "efficientnet_b0")
+            if hasattr(img_cfg, "backbone")
+            else "efficientnet_b0"
+        )
+        embedding_dim = (
+            getattr(img_cfg, "embedding_dim", 512) if hasattr(img_cfg, "embedding_dim") else 512
+        )
 
         return cls(
             backbone_name=backbone,
@@ -143,7 +152,7 @@ class StageClassificationHead(nn.Module):
             nn.Linear(hidden_dim, num_stages),
         )
 
-    def forward(self, embedding: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, embedding: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Emits raw stage logits (B, 6) and softmax probabilities (B, 6)."""
         logits = self.net(embedding)
         probs = torch.softmax(logits, dim=-1)
@@ -171,7 +180,9 @@ class StageModel(nn.Module):
         from ml.cyclone.models.env_branch import EnvBranch
         from ml.cyclone.models.track_branch import TrackBranch
 
-        self.env_branch = EnvBranch(in_dim=env_dim, hidden_dim=64, out_dim=env_out_dim, dropout=dropout)
+        self.env_branch = EnvBranch(
+            in_dim=env_dim, hidden_dim=64, out_dim=env_out_dim, dropout=dropout
+        )
         self.track_branch = TrackBranch(
             input_dim=track_dim,
             hidden_dim=track_hidden_dim,
@@ -191,8 +202,8 @@ class StageModel(nn.Module):
         self,
         env_vector: torch.Tensor,
         track_sequence: torch.Tensor,
-        seq_lengths: Optional[torch.Tensor] = None,
-    ) -> Dict[str, torch.Tensor]:
+        seq_lengths: torch.Tensor | None = None,
+    ) -> dict[str, torch.Tensor]:
         """Forward pass emitting stage logits and probabilities from environmental and track dynamics."""
         env_emb = self.env_branch(env_vector)
         track_emb = self.track_branch(track_sequence, seq_lengths=seq_lengths)
@@ -231,13 +242,13 @@ class IntensityHead(nn.Module):
             nn.GELU(),
             nn.Dropout(p=dropout),
         )
-        self.wind_out = nn.Linear(hidden_dim, 1)      # Wind speed (kt)
-        self.pres_out = nn.Linear(hidden_dim, 1)      # Central pressure (mb)
+        self.wind_out = nn.Linear(hidden_dim, 1)  # Wind speed (kt)
+        self.pres_out = nn.Linear(hidden_dim, 1)  # Central pressure (mb)
 
         # Discrete IMD scale classifier
         self.imd_cls = nn.Linear(hidden_dim, num_imd_levels)
 
-    def forward(self, embedding: torch.Tensor) -> Dict[str, torch.Tensor]:
+    def forward(self, embedding: torch.Tensor) -> dict[str, torch.Tensor]:
         """Emits predicted wind_kt, pres_mb, and IMD level logits."""
         h = self.reg_mlp(embedding)
         wind_pred = self.wind_out(h)
@@ -279,9 +290,9 @@ class IntensityModel(nn.Module):
 
     def forward(
         self,
-        img: Optional[torch.Tensor] = None,
-        image_available: Optional[torch.Tensor] = None,
-    ) -> Dict[str, torch.Tensor]:
+        img: torch.Tensor | None = None,
+        image_available: torch.Tensor | None = None,
+    ) -> dict[str, torch.Tensor]:
         """Forward pass predicting continuous wind/pressure and discrete IMD scale logits."""
         embedding = self.image_branch(img, image_available=image_available)
         head_out = self.intensity_head(embedding)
@@ -295,16 +306,25 @@ class IntensityModel(nn.Module):
         }
 
     @classmethod
-    def from_config(cls, cfg: Optional[Any] = None) -> IntensityModel:
+    def from_config(cls, cfg: Any | None = None) -> IntensityModel:
         """Factory constructor instantiating IntensityModel from config."""
         from ml.cyclone.config import load_config
+
         if cfg is None:
             cfg = load_config()
 
         model_cfg = cfg.model if hasattr(cfg, "model") else {}
-        img_cfg = getattr(model_cfg, "image_branch", {}) if hasattr(model_cfg, "image_branch") else {}
-        backbone = getattr(img_cfg, "backbone", "efficientnet_b0") if hasattr(img_cfg, "backbone") else "efficientnet_b0"
-        embedding_dim = getattr(img_cfg, "embedding_dim", 512) if hasattr(img_cfg, "embedding_dim") else 512
+        img_cfg = (
+            getattr(model_cfg, "image_branch", {}) if hasattr(model_cfg, "image_branch") else {}
+        )
+        backbone = (
+            getattr(img_cfg, "backbone", "efficientnet_b0")
+            if hasattr(img_cfg, "backbone")
+            else "efficientnet_b0"
+        )
+        embedding_dim = (
+            getattr(img_cfg, "embedding_dim", 512) if hasattr(img_cfg, "embedding_dim") else 512
+        )
 
         return cls(
             backbone_name=backbone,
@@ -354,11 +374,13 @@ class TrackHead(nn.Module):
                 nn.LayerNorm(hidden_dim),
                 nn.GELU(),
                 nn.Dropout(p=dropout),
-                nn.Linear(hidden_dim, num_horizons * 4),  # [mu_dlat, mu_dlon, log_var_lat, log_var_lon]
+                nn.Linear(
+                    hidden_dim, num_horizons * 4
+                ),  # [mu_dlat, mu_dlon, log_var_lat, log_var_lon]
             )
             self.rnn_cell = None
 
-    def forward(self, embedding: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, embedding: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Emits predicted displacements (B, H, 2) and heteroscedastic log-variances (B, H, 2).
 
         Args:
@@ -397,9 +419,9 @@ class TrackHead(nn.Module):
     def deltas_to_path(
         current_lat: float,
         current_lon: float,
-        deltas: Union[torch.Tensor, np.ndarray],
-        horizons: Optional[List[int]] = None,
-    ) -> List[Dict[str, Any]]:
+        deltas: torch.Tensor | np.ndarray,
+        horizons: List[int] | None = None,
+    ) -> List[dict[str, Any]]:
         """Converts relative (dlat, dlon) displacement predictions to absolute predicted_path list.
 
         Args:
@@ -412,9 +434,19 @@ class TrackHead(nn.Module):
             List of dicts starting with t=0 at current position, followed by each horizon.
         """
         eval_horizons = horizons or DEFAULT_TRACK_HORIZONS
-        d_arr = deltas.detach().cpu().numpy() if isinstance(deltas, torch.Tensor) else np.asarray(deltas)
+        d_arr = (
+            deltas.detach().cpu().numpy()
+            if isinstance(deltas, torch.Tensor)
+            else np.asarray(deltas)
+        )
 
-        path = [{"t_plus_h": 0, "lat": round(float(current_lat), 4), "lon": round(float(current_lon), 4)}]
+        path = [
+            {
+                "t_plus_h": 0,
+                "lat": round(float(current_lat), 4),
+                "lon": round(float(current_lon), 4),
+            }
+        ]
 
         for idx, h in enumerate(eval_horizons):
             if idx < len(d_arr):
@@ -444,7 +476,9 @@ class TrackModel(nn.Module):
         from ml.cyclone.models.env_branch import EnvBranch
         from ml.cyclone.models.track_branch import TrackBranch
 
-        self.env_branch = EnvBranch(in_dim=env_dim, hidden_dim=64, out_dim=env_out_dim, dropout=dropout)
+        self.env_branch = EnvBranch(
+            in_dim=env_dim, hidden_dim=64, out_dim=env_out_dim, dropout=dropout
+        )
         self.track_branch = TrackBranch(
             input_dim=track_dim,
             hidden_dim=track_hidden_dim,
@@ -465,8 +499,8 @@ class TrackModel(nn.Module):
         self,
         env_vector: torch.Tensor,
         track_sequence: torch.Tensor,
-        seq_lengths: Optional[torch.Tensor] = None,
-    ) -> Dict[str, torch.Tensor]:
+        seq_lengths: torch.Tensor | None = None,
+    ) -> dict[str, torch.Tensor]:
         """Forward pass predicting future trajectory displacements and uncertainty log-variances."""
         env_emb = self.env_branch(env_vector)
         track_emb = self.track_branch(track_sequence, seq_lengths=seq_lengths)

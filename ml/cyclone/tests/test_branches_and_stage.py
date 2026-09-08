@@ -1,10 +1,9 @@
 """Unit tests for EnvBranch (MLP), TrackBranch (GRU), StageHead, and non-image StageModel."""
 
 import torch
-import pytest
 
 from ml.cyclone.models.env_branch import EnvBranch
-from ml.cyclone.models.heads import StageHead, StageModel
+from ml.cyclone.models.heads import StageModel
 from ml.cyclone.models.track_branch import TrackBranch
 
 

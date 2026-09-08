@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import csv
-from datetime import datetime, timezone
 import hashlib
 import json
 import os
-from pathlib import Path
 import subprocess
-from typing import Any, Dict, List, Optional, Sequence, Union
+from collections.abc import Sequence
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
 import numpy as np
 
 
@@ -30,7 +32,7 @@ def get_git_commit_hash() -> str:
     return "unknown"
 
 
-def compute_split_manifest_hash(split_dict: Optional[Dict[str, Sequence[int]]] = None) -> str:
+def compute_split_manifest_hash(split_dict: dict[str, Sequence[int]] | None = None) -> str:
     """Computes SHA-256 hash of dataset split indices to guarantee data provenance and reproducibility."""
     if not split_dict:
         return "none"
@@ -51,11 +53,11 @@ class ExperimentTracker:
     def __init__(
         self,
         experiment_name: str,
-        run_dir: Union[str, Path],
-        config: Optional[Dict[str, Any]] = None,
-        split_indices: Optional[Dict[str, Sequence[int]]] = None,
+        run_dir: str | Path,
+        config: dict[str, Any] | None = None,
+        split_indices: dict[str, Sequence[int]] | None = None,
         project_name: str = "chakravyuh-cyclone-ml",
-        tags: Optional[List[str]] = None,
+        tags: list[str] | None = None,
     ) -> None:
         self.experiment_name = experiment_name
         self.run_dir = Path(run_dir)
@@ -73,12 +75,13 @@ class ExperimentTracker:
         self.csv_path = self.run_dir / "metrics.csv"
         self._csv_writer = None
         self._csv_file = None
-        self._csv_headers: List[str] = []
+        self._csv_headers: list[str] = []
 
         # 2. Setup TensorBoard logging
         self.tb_writer = None
         try:
             from torch.utils.tensorboard import SummaryWriter
+
             tb_log_dir = self.run_dir / "tensorboard"
             tb_log_dir.mkdir(parents=True, exist_ok=True)
             self.tb_writer = SummaryWriter(log_dir=str(tb_log_dir))
@@ -91,6 +94,7 @@ class ExperimentTracker:
         if wandb_key and wandb_key.strip():
             try:
                 import wandb
+
                 self.wandb_run = wandb.init(
                     project=self.project_name,
                     name=f"{self.experiment_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
@@ -118,7 +122,7 @@ class ExperimentTracker:
         with open(self.run_dir / "run_metadata.json", "w", encoding="utf-8") as f:
             json.dump(meta, f, indent=2)
 
-    def log_epoch(self, epoch: int, metrics: Dict[str, Any], step: Optional[int] = None) -> None:
+    def log_epoch(self, epoch: int, metrics: dict[str, Any], step: int | None = None) -> None:
         """Logs per-epoch metrics to CSV, TensorBoard, and Weights & Biases.
 
         Args:
@@ -136,7 +140,9 @@ class ExperimentTracker:
             elif isinstance(v, dict):
                 # Flatten single-level subdictionaries (e.g. task_losses)
                 for sub_k, sub_v in v.items():
-                    if isinstance(sub_v, (int, float, np.floating, np.integer)) and not np.isnan(sub_v):
+                    if isinstance(sub_v, (int, float, np.floating, np.integer)) and not np.isnan(
+                        sub_v
+                    ):
                         numeric_metrics[f"{k}/{sub_k}"] = float(sub_v)
 
         # 1. CSV Logging
@@ -170,11 +176,12 @@ class ExperimentTracker:
         if self.wandb_run is not None:
             try:
                 import wandb
+
                 wandb.log(numeric_metrics, step=curr_step)
             except Exception:
                 pass
 
-    def log_summary(self, summary_metrics: Dict[str, Any]) -> None:
+    def log_summary(self, summary_metrics: dict[str, Any]) -> None:
         """Logs final summary metrics and saves summary JSON."""
         summary_path = self.run_dir / "summary_metrics.json"
         with open(summary_path, "w", encoding="utf-8") as f:
@@ -202,6 +209,7 @@ class ExperimentTracker:
         if self.wandb_run is not None:
             try:
                 import wandb
+
                 wandb.finish()
             except Exception:
                 pass

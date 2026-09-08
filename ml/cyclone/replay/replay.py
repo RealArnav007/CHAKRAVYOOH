@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timedelta, timezone
 import json
 import logging
-from pathlib import Path
 import time
-from typing import Any, Dict, Iterator, List, Optional, Union
+from collections.abc import Iterator
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any
 
-from ml.cyclone.config import load_config
 from ml.cyclone.eval.error_analysis import DEMO_STORMS_DATA
 from ml.cyclone.fusion.run_cycle import (
     get_or_load_calibrator,
@@ -31,7 +31,7 @@ ROOT_REPLAY_CACHE_DIR = Path("replay/cache")
 # 1. Storm Metadata & Preset Resolution
 # -----------------------------------------------------------------------------
 
-STORM_PRESET_METADATA: Dict[str, Dict[str, Any]] = {
+STORM_PRESET_METADATA: dict[str, dict[str, Any]] = {
     "amphan_2020": {
         "canonical_id": "CYC-2020-BAY-001",
         "name": "Super Cyclone Amphan",
@@ -45,12 +45,12 @@ STORM_PRESET_METADATA: Dict[str, Dict[str, Any]] = {
         "presets": {
             "genesis": 0,
             "rapid_intensification": 2,  # 24h
-            "landfall_minus_24h": 4,     # 48h (72h - 24h)
+            "landfall_minus_24h": 4,  # 48h (72h - 24h)
             "landfall_24h": 4,
             "landfall-24h": 4,
             "landfall-24": 4,
-            "landfall": 6,              # 72h
-            "decay": 7,                 # 84h
+            "landfall": 6,  # 72h
+            "decay": 7,  # 84h
         },
     },
     "biparjoy_2023": {
@@ -65,12 +65,12 @@ STORM_PRESET_METADATA: Dict[str, Dict[str, Any]] = {
         "landfall_lead_hours": 72,
         "presets": {
             "genesis": 0,
-            "stall_loop": 2,             # 24h
-            "landfall_minus_24h": 4,     # 48h
+            "stall_loop": 2,  # 24h
+            "landfall_minus_24h": 4,  # 48h
             "landfall_24h": 4,
             "landfall-24h": 4,
             "landfall-24": 4,
-            "landfall": 6,              # 72h
+            "landfall": 6,  # 72h
             "decay": 7,
         },
     },
@@ -86,12 +86,12 @@ STORM_PRESET_METADATA: Dict[str, Dict[str, Any]] = {
         "landfall_lead_hours": 72,
         "presets": {
             "genesis": 0,
-            "recurvature": 4,           # 48h
-            "landfall_minus_24h": 4,    # 48h
+            "recurvature": 4,  # 48h
+            "landfall_minus_24h": 4,  # 48h
             "landfall_24h": 4,
             "landfall-24h": 4,
             "landfall-24": 4,
-            "landfall": 6,             # 72h
+            "landfall": 6,  # 72h
             "decay": 7,
         },
     },
@@ -109,7 +109,7 @@ def normalize_storm_key(storm_id: str) -> str:
 
 def resolve_preset_frame_index(
     storm_key: str,
-    preset: Union[str, int],
+    preset: str | int,
     total_frames: int,
 ) -> int:
     """Resolves jump preset string or numeric offset to an integer frame index in [0, total_frames - 1]."""
@@ -119,7 +119,14 @@ def resolve_preset_frame_index(
     p_norm = str(preset).lower().strip().replace(" ", "_").replace("-", "_")
 
     # Check known aliases
-    if p_norm in ["landfall_24h", "landfall_minus_24h", "landfall_minus24", "landfall_24", "minus_24h", "landfall_24hr"]:
+    if p_norm in [
+        "landfall_24h",
+        "landfall_minus_24h",
+        "landfall_minus24",
+        "landfall_24",
+        "minus_24h",
+        "landfall_24hr",
+    ]:
         p_norm = "landfall-24h"
 
     meta = STORM_PRESET_METADATA.get(storm_key)
@@ -158,9 +165,9 @@ def resolve_preset_frame_index(
 def precompute_replay(
     storm_id: str = "Amphan",
     step_hours: int = 6,
-    output_path: Optional[Union[str, Path]] = None,
+    output_path: str | Path | None = None,
     force_recompute: bool = False,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Runs run_cycle for every frame genesis -> landfall/decay and caches an ordered list of JSONL objects.
 
     Guarantees:
@@ -186,25 +193,27 @@ def precompute_replay(
 
     # Determine cache file path
     target_cache_file = (
-        Path(output_path)
-        if output_path is not None
-        else REPLAY_CACHE_DIR / f"{storm_key}.jsonl"
+        Path(output_path) if output_path is not None else REPLAY_CACHE_DIR / f"{storm_key}.jsonl"
     )
 
     # Check cache hit
     if target_cache_file.is_file() and not force_recompute:
         try:
-            cached_frames: List[Dict[str, Any]] = []
-            with open(target_cache_file, "r", encoding="utf-8") as f:
+            cached_frames: list[dict[str, Any]] = []
+            with open(target_cache_file, encoding="utf-8") as f:
                 for line in f:
                     line_str = line.strip()
                     if line_str:
                         cached_frames.append(json.loads(line_str))
             if cached_frames:
-                logger.info(f"[REPLAY] Loaded {len(cached_frames)} precomputed frames from {target_cache_file}")
+                logger.info(
+                    f"[REPLAY] Loaded {len(cached_frames)} precomputed frames from {target_cache_file}"
+                )
                 return cached_frames
         except Exception as e:
-            logger.warning(f"[REPLAY] Failed reading cache {target_cache_file}: {e} -> recomputing.")
+            logger.warning(
+                f"[REPLAY] Failed reading cache {target_cache_file}: {e} -> recomputing."
+            )
 
     # Shared model and calibrator singletons for fast generation
     model = get_or_load_model()
@@ -226,7 +235,7 @@ def precompute_replay(
     start_iso = canonical_meta.get("start_time", "2020-05-16T00:00:00Z")
     start_dt = datetime.fromisoformat(start_iso.replace("Z", "+00:00"))
 
-    ordered_objects: List[Dict[str, Any]] = []
+    ordered_objects: list[dict[str, Any]] = []
 
     for frame_idx, ts in enumerate(frames_raw_timesteps):
         lead_h = int(ts.get("lead_hours", frame_idx * step_hours))
@@ -277,7 +286,9 @@ def precompute_replay(
         for frame in ordered_objects:
             f.write(json.dumps(frame) + "\n")
 
-    logger.info(f"[REPLAY] Precomputed and cached {len(ordered_objects)} frames to {target_cache_file} and {root_cache_file}")
+    logger.info(
+        f"[REPLAY] Precomputed and cached {len(ordered_objects)} frames to {target_cache_file} and {root_cache_file}"
+    )
     return ordered_objects
 
 
@@ -288,13 +299,13 @@ def precompute_replay(
 
 def replay(
     storm_id: str = "Amphan",
-    start: Optional[Union[int, str]] = None,
+    start: int | str | None = None,
     speed: float = 1.0,
-    jump: Optional[str] = None,
+    jump: str | None = None,
     step_hours: int = 6,
-    precomputed_frames: Optional[List[Dict[str, Any]]] = None,
+    precomputed_frames: list[dict[str, Any]] | None = None,
     base_cadence_seconds: float = 0.5,
-) -> Iterator[Dict[str, Any]]:
+) -> Iterator[dict[str, Any]]:
     """Generator that yields certified CycloneIntelligence frames on a wall-clock cadence scaled by speed.
 
     Each frame visibly evolves:
@@ -418,7 +429,9 @@ def main() -> None:
         return
 
     # 3. Stream frames according to jump/speed
-    print(f"[REPLAY] Starting replay stream for {args.storm} (jump={args.jump}, speed={args.speed})...")
+    print(
+        f"[REPLAY] Starting replay stream for {args.storm} (jump={args.jump}, speed={args.speed})..."
+    )
     for frame in replay(
         storm_id=args.storm,
         start=args.start,

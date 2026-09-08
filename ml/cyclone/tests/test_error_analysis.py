@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-import pytest
 
 from ml.cyclone.eval.error_analysis import (
     DEMO_STORMS_DATA,
     analyze_demo_storm,
     generate_demo_storm_notes,
     plot_storm_error_analysis,
-    run_demo_error_analysis,
 )
 
 
@@ -41,9 +39,7 @@ def test_plot_storm_error_analysis(tmp_path: Path) -> None:
 
 def test_generate_demo_storm_notes(tmp_path: Path) -> None:
     """Tests generation of pitch narration notes."""
-    all_analyses = {
-        k: analyze_demo_storm(k, v) for k, v in DEMO_STORMS_DATA.items()
-    }
+    all_analyses = {k: analyze_demo_storm(k, v) for k, v in DEMO_STORMS_DATA.items()}
     notes_file = tmp_path / "DEMO_STORM_NOTES.md"
     generate_demo_storm_notes(all_analyses, output_path=notes_file)
 

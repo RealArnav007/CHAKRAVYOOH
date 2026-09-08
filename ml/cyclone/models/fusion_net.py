@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any
+
 import torch
 import torch.nn as nn
 
@@ -128,12 +129,12 @@ class FusionNet(nn.Module):
 
     def forward(
         self,
-        img: Optional[torch.Tensor] = None,
-        env_vector: Optional[torch.Tensor] = None,
-        track_sequence: Optional[torch.Tensor] = None,
-        image_available: Optional[torch.Tensor] = None,
-        seq_lengths: Optional[torch.Tensor] = None,
-    ) -> Dict[str, Any]:
+        img: torch.Tensor | None = None,
+        env_vector: torch.Tensor | None = None,
+        track_sequence: torch.Tensor | None = None,
+        image_available: torch.Tensor | None = None,
+        seq_lengths: torch.Tensor | None = None,
+    ) -> dict[str, Any]:
         """Runs the multi-modal forward pass, gracefully handling missing images.
 
         Args:
@@ -152,14 +153,22 @@ class FusionNet(nn.Module):
                 - 'shared_embedding' (B, shared_dim)
         """
         batch_size = (
-            env_vector.shape[0] if env_vector is not None
-            else (track_sequence.shape[0] if track_sequence is not None
-            else (img.shape[0] if img is not None else 1))
+            env_vector.shape[0]
+            if env_vector is not None
+            else (
+                track_sequence.shape[0]
+                if track_sequence is not None
+                else (img.shape[0] if img is not None else 1)
+            )
         )
         device = (
-            env_vector.device if env_vector is not None
-            else (track_sequence.device if track_sequence is not None
-            else (img.device if img is not None else torch.device("cpu")))
+            env_vector.device
+            if env_vector is not None
+            else (
+                track_sequence.device
+                if track_sequence is not None
+                else (img.device if img is not None else torch.device("cpu"))
+            )
         )
 
         # 1. Image embedding (graceful fallback if image missing or image_available=0)
@@ -169,7 +178,9 @@ class FusionNet(nn.Module):
             img_emb = self.image_branch.missing_image_embedding.expand(batch_size, -1).to(device)
 
         if image_available is not None:
-            mask = image_available.view(batch_size, 1).to(dtype=img_emb.dtype, device=img_emb.device)
+            mask = image_available.view(batch_size, 1).to(
+                dtype=img_emb.dtype, device=img_emb.device
+            )
             img_emb = img_emb * mask
 
         # 2. Environmental embedding
@@ -219,7 +230,7 @@ class FusionNet(nn.Module):
 
     def load_pretrained_image_weights(
         self,
-        checkpoint_path: Union[str, Path],
+        checkpoint_path: str | Path,
         freeze_early_blocks: int = 0,
     ) -> bool:
         """Loads pretrained vision weights into image_branch and optionally freezes early layers."""
@@ -232,11 +243,15 @@ class FusionNet(nn.Module):
             state_dict = ckpt.get("model_state_dict", ckpt)
 
             # Filter state dict for image_branch keys
-            img_state: Dict[str, torch.Tensor] = {}
+            img_state: dict[str, torch.Tensor] = {}
             for k, v in state_dict.items():
                 if k.startswith("image_branch."):
-                    img_state[k[len("image_branch."):]] = v
-                elif not k.startswith("detection_head.") and not k.startswith("intensity_head.") and not k.startswith("stage_head."):
+                    img_state[k[len("image_branch.") :]] = v
+                elif (
+                    not k.startswith("detection_head.")
+                    and not k.startswith("intensity_head.")
+                    and not k.startswith("stage_head.")
+                ):
                     img_state[k] = v
 
             missing, unexpected = self.image_branch.load_state_dict(img_state, strict=False)
@@ -253,32 +268,74 @@ class FusionNet(nn.Module):
             return False
 
     @classmethod
-    def from_config(cls, cfg: Optional[Union[CycloneConfig, Dict[str, Any]]] = None) -> FusionNet:
+    def from_config(cls, cfg: CycloneConfig | dict[str, Any] | None = None) -> FusionNet:
         """Factory constructor instantiating FusionNet from project configuration."""
         if cfg is None:
             cfg = load_config()
 
-        model_cfg = cfg.model if hasattr(cfg, "model") else (cfg.get("model", {}) if isinstance(cfg, dict) else {})
-        img_cfg = getattr(model_cfg, "image_branch", {}) if hasattr(model_cfg, "image_branch") else (
-            model_cfg.get("image_branch", {}) if isinstance(model_cfg, dict) else {}
+        model_cfg = (
+            cfg.model
+            if hasattr(cfg, "model")
+            else (cfg.get("model", {}) if isinstance(cfg, dict) else {})
         )
-        env_cfg = getattr(model_cfg, "env_branch", {}) if hasattr(model_cfg, "env_branch") else (
-            model_cfg.get("env_branch", {}) if isinstance(model_cfg, dict) else {}
+        img_cfg = (
+            getattr(model_cfg, "image_branch", {})
+            if hasattr(model_cfg, "image_branch")
+            else (model_cfg.get("image_branch", {}) if isinstance(model_cfg, dict) else {})
         )
-        track_cfg = getattr(model_cfg, "track_branch", {}) if hasattr(model_cfg, "track_branch") else (
-            model_cfg.get("track_branch", {}) if isinstance(model_cfg, dict) else {}
+        env_cfg = (
+            getattr(model_cfg, "env_branch", {})
+            if hasattr(model_cfg, "env_branch")
+            else (model_cfg.get("env_branch", {}) if isinstance(model_cfg, dict) else {})
+        )
+        track_cfg = (
+            getattr(model_cfg, "track_branch", {})
+            if hasattr(model_cfg, "track_branch")
+            else (model_cfg.get("track_branch", {}) if isinstance(model_cfg, dict) else {})
         )
 
-        backbone = getattr(img_cfg, "backbone", "efficientnet_b0") if hasattr(img_cfg, "backbone") else img_cfg.get("backbone", "efficientnet_b0")
-        pretrained = getattr(img_cfg, "pretrained", True) if hasattr(img_cfg, "pretrained") else img_cfg.get("pretrained", True)
-        image_dim = getattr(img_cfg, "embedding_dim", 512) if hasattr(img_cfg, "embedding_dim") else img_cfg.get("embedding_dim", 512)
+        backbone = (
+            getattr(img_cfg, "backbone", "efficientnet_b0")
+            if hasattr(img_cfg, "backbone")
+            else img_cfg.get("backbone", "efficientnet_b0")
+        )
+        pretrained = (
+            getattr(img_cfg, "pretrained", True)
+            if hasattr(img_cfg, "pretrained")
+            else img_cfg.get("pretrained", True)
+        )
+        image_dim = (
+            getattr(img_cfg, "embedding_dim", 512)
+            if hasattr(img_cfg, "embedding_dim")
+            else img_cfg.get("embedding_dim", 512)
+        )
 
-        env_in = getattr(env_cfg, "in_dim", 6) if hasattr(env_cfg, "in_dim") else env_cfg.get("in_dim", 6)
-        env_out = getattr(env_cfg, "out_dim", 64) if hasattr(env_cfg, "out_dim") else env_cfg.get("out_dim", 64)
+        env_in = (
+            getattr(env_cfg, "in_dim", 6)
+            if hasattr(env_cfg, "in_dim")
+            else env_cfg.get("in_dim", 6)
+        )
+        env_out = (
+            getattr(env_cfg, "out_dim", 64)
+            if hasattr(env_cfg, "out_dim")
+            else env_cfg.get("out_dim", 64)
+        )
 
-        track_in = getattr(track_cfg, "input_dim", 7) if hasattr(track_cfg, "input_dim") else track_cfg.get("input_dim", 7)
-        track_hidden = getattr(track_cfg, "hidden_dim", 128) if hasattr(track_cfg, "hidden_dim") else track_cfg.get("hidden_dim", 128)
-        track_layers = getattr(track_cfg, "num_layers", 2) if hasattr(track_cfg, "num_layers") else track_cfg.get("num_layers", 2)
+        track_in = (
+            getattr(track_cfg, "input_dim", 7)
+            if hasattr(track_cfg, "input_dim")
+            else track_cfg.get("input_dim", 7)
+        )
+        track_hidden = (
+            getattr(track_cfg, "hidden_dim", 128)
+            if hasattr(track_cfg, "hidden_dim")
+            else track_cfg.get("hidden_dim", 128)
+        )
+        track_layers = (
+            getattr(track_cfg, "num_layers", 2)
+            if hasattr(track_cfg, "num_layers")
+            else track_cfg.get("num_layers", 2)
+        )
 
         return cls(
             image_backbone=backbone,

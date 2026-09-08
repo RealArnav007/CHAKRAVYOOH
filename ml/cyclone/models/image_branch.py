@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Union
+from typing import Any
+
 import timm
 import torch
 import torch.nn as nn
@@ -79,8 +80,8 @@ class ImageBranch(nn.Module):
 
     def forward(
         self,
-        img: Optional[torch.Tensor] = None,
-        image_available: Optional[torch.Tensor] = None,
+        img: torch.Tensor | None = None,
+        image_available: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Extracts 512-d visual embeddings from input IR patches.
 
@@ -109,26 +110,46 @@ class ImageBranch(nn.Module):
 
         # Mask missing images with learned fallback embedding
         if image_available is not None:
-            mask = image_available.view(batch_size, 1).to(dtype=embedding.dtype, device=embedding.device)
+            mask = image_available.view(batch_size, 1).to(
+                dtype=embedding.dtype, device=embedding.device
+            )
             fallback = self.missing_image_embedding.expand(batch_size, -1)
             embedding = mask * embedding + (1.0 - mask) * fallback
 
         return embedding
 
     @classmethod
-    def from_config(cls, cfg: Optional[Union[CycloneConfig, Dict[str, Any]]] = None) -> ImageBranch:
+    def from_config(cls, cfg: CycloneConfig | dict[str, Any] | None = None) -> ImageBranch:
         """Factory constructor instantiating ImageBranch from project configuration."""
         if cfg is None:
             cfg = load_config()
 
-        model_cfg = cfg.model if hasattr(cfg, "model") else (cfg.get("model", {}) if isinstance(cfg, dict) else {})
-        img_cfg = getattr(model_cfg, "image_branch", {}) if hasattr(model_cfg, "image_branch") else (
-            model_cfg.get("image_branch", {}) if isinstance(model_cfg, dict) else {}
+        model_cfg = (
+            cfg.model
+            if hasattr(cfg, "model")
+            else (cfg.get("model", {}) if isinstance(cfg, dict) else {})
+        )
+        img_cfg = (
+            getattr(model_cfg, "image_branch", {})
+            if hasattr(model_cfg, "image_branch")
+            else (model_cfg.get("image_branch", {}) if isinstance(model_cfg, dict) else {})
         )
 
-        backbone = getattr(img_cfg, "backbone", "efficientnet_b0") if hasattr(img_cfg, "backbone") else img_cfg.get("backbone", "efficientnet_b0")
-        pretrained = getattr(img_cfg, "pretrained", True) if hasattr(img_cfg, "pretrained") else img_cfg.get("pretrained", True)
-        embedding_dim = getattr(img_cfg, "embedding_dim", 512) if hasattr(img_cfg, "embedding_dim") else img_cfg.get("embedding_dim", 512)
+        backbone = (
+            getattr(img_cfg, "backbone", "efficientnet_b0")
+            if hasattr(img_cfg, "backbone")
+            else img_cfg.get("backbone", "efficientnet_b0")
+        )
+        pretrained = (
+            getattr(img_cfg, "pretrained", True)
+            if hasattr(img_cfg, "pretrained")
+            else img_cfg.get("pretrained", True)
+        )
+        embedding_dim = (
+            getattr(img_cfg, "embedding_dim", 512)
+            if hasattr(img_cfg, "embedding_dim")
+            else img_cfg.get("embedding_dim", 512)
+        )
 
         return cls(
             backbone_name=backbone,

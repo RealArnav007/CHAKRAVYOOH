@@ -2,17 +2,15 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-import pytest
+
 import numpy as np
+import pytest
 import torch
 
-from ml.cyclone.eval.metrics import cone_coverage, expected_calibration_error
+from ml.cyclone.eval.metrics import expected_calibration_error
 from ml.cyclone.eval.reliability import (
     compute_reliability_curve,
-    plot_calibration_dashboard,
-    plot_cone_coverage_curve,
     plot_reliability_diagram,
 )
 from ml.cyclone.models.calibration import (
@@ -124,7 +122,9 @@ def test_reliability_diagram_generation(tmp_path: Path) -> None:
     assert np.sum(counts) == 100
 
     out_fig = tmp_path / "test_reliability.png"
-    ece_pre, ece_post = plot_reliability_diagram(y_true, y_prob_pre, y_prob_post, "Test Task", out_fig)
+    ece_pre, ece_post = plot_reliability_diagram(
+        y_true, y_prob_pre, y_prob_post, "Test Task", out_fig
+    )
     assert out_fig.is_file()
     assert ece_pre >= 0.0
     assert ece_post >= 0.0

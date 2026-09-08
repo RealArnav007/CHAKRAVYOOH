@@ -1,8 +1,5 @@
 """Unit tests for Tier-0 Persistence + CLIPER track baseline and parametric uncertainty cone."""
 
-import numpy as np
-import pytest
-
 from ml.cyclone.models.baseline_track import (
     cliper_forecast,
     parametric_cone,
@@ -10,7 +7,6 @@ from ml.cyclone.models.baseline_track import (
     predict_track,
 )
 from ml.cyclone.schema.models import PredictionPayload
-
 
 # -----------------------------------------------------------------------------
 # Persistence Forecast Tests
@@ -58,8 +54,8 @@ def test_parametric_cone_monotonicity_and_anchor():
         assert radii[i] > radii[i - 1]
 
     # IMD benchmark range checks
-    assert 40.0 <= radii[2] <= 52.0    # 12h: ~46 km
-    assert 70.0 <= radii[3] <= 85.0    # 24h: ~78 km
+    assert 40.0 <= radii[2] <= 52.0  # 12h: ~46 km
+    assert 70.0 <= radii[3] <= 85.0  # 24h: ~78 km
     assert 120.0 <= radii[4] <= 145.0  # 48h: ~132 km
     assert 190.0 <= radii[5] <= 220.0  # 72h: ~205 km
 

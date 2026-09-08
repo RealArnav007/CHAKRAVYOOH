@@ -5,29 +5,22 @@ from __future__ import annotations
 import argparse
 import base64
 from datetime import datetime, timezone
-import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
+
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ml.cyclone.eval.metrics import (
-    classification_metrics,
-    cone_coverage,
-    expected_calibration_error,
-    intensity_metrics,
-    track_error_km,
-)
 from ml.cyclone.eval.reliability import run_calibration_pipeline
-from ml.cyclone.models.baseline_track import cliper_forecast, persistence_forecast
 
 
-def generate_evaluation_figures(output_dir: Path) -> Dict[str, Path]:
+def generate_evaluation_figures(output_dir: Path) -> dict[str, Path]:
     """Generates all standalone diagnostic charts and qualitative demo storm panels."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    fig_paths: Dict[str, Path] = {}
+    fig_paths: dict[str, Path] = {}
 
     horizons = [6, 12, 24, 48, 72]
 
@@ -37,13 +30,33 @@ def generate_evaluation_figures(output_dir: Path) -> Dict[str, Path]:
     track_persist_errs = [45.2, 178.4, 580.1, 1620.0, 2890.0]
 
     fig, ax = plt.subplots(figsize=(8, 5), dpi=300)
-    ax.plot(horizons, track_persist_errs, "s--", color="#6c757d", label="Tier-0 Persistence", lw=1.8)
-    ax.plot(horizons, track_cliper_errs, "^-.", color="#e76f51", label="Tier-0 CLIPER Baseline", lw=2.0)
-    ax.plot(horizons, track_fn_errs, "o-", color="#2a9d8f", label="Chakravyuh FusionNet (Learned)", lw=2.5)
+    ax.plot(
+        horizons, track_persist_errs, "s--", color="#6c757d", label="Tier-0 Persistence", lw=1.8
+    )
+    ax.plot(
+        horizons, track_cliper_errs, "^-.", color="#e76f51", label="Tier-0 CLIPER Baseline", lw=2.0
+    )
+    ax.plot(
+        horizons,
+        track_fn_errs,
+        "o-",
+        color="#2a9d8f",
+        label="Chakravyuh FusionNet (Learned)",
+        lw=2.5,
+    )
 
-    ax.fill_between(horizons[2:], [track_fn_errs[i] for i in range(2, 5)], [track_cliper_errs[i] for i in range(2, 5)], color="#2a9d8f", alpha=0.15, label="FusionNet Accuracy Advantage (24–72h)")
+    ax.fill_between(
+        horizons[2:],
+        [track_fn_errs[i] for i in range(2, 5)],
+        [track_cliper_errs[i] for i in range(2, 5)],
+        color="#2a9d8f",
+        alpha=0.15,
+        label="FusionNet Accuracy Advantage (24–72h)",
+    )
 
-    ax.set_title("Cyclone Trajectory Forecasting Error by Lead Horizon (km)", fontsize=12, fontweight="bold")
+    ax.set_title(
+        "Cyclone Trajectory Forecasting Error by Lead Horizon (km)", fontsize=12, fontweight="bold"
+    )
     ax.set_xlabel("Forecast Horizon (Hours)", fontsize=10)
     ax.set_ylabel("Mean Great-Circle Track Error (km)", fontsize=10)
     ax.set_xticks(horizons)
@@ -64,10 +77,12 @@ def generate_evaluation_figures(output_dir: Path) -> Dict[str, Path]:
 
     x = np.arange(len(models))
     width = 0.35
-    ax.bar(x - width/2, rmse_vals, width, label="Wind RMSE (kt)", color="#e63946", alpha=0.85)
-    ax.bar(x + width/2, mae_vals, width, label="Wind MAE (kt)", color="#457b9d", alpha=0.85)
+    ax.bar(x - width / 2, rmse_vals, width, label="Wind RMSE (kt)", color="#e63946", alpha=0.85)
+    ax.bar(x + width / 2, mae_vals, width, label="Wind MAE (kt)", color="#457b9d", alpha=0.85)
 
-    ax.set_title("Automated-Dvorak Intensity Estimation Error (Knots)", fontsize=12, fontweight="bold")
+    ax.set_title(
+        "Automated-Dvorak Intensity Estimation Error (Knots)", fontsize=12, fontweight="bold"
+    )
     ax.set_ylabel("Wind Error (Knots)", fontsize=10)
     ax.set_xticks(x)
     ax.set_xticklabels(models, fontsize=9)
@@ -75,8 +90,22 @@ def generate_evaluation_figures(output_dir: Path) -> Dict[str, Path]:
     ax.legend()
 
     for i in range(len(models)):
-        ax.text(x[i] - width/2, rmse_vals[i] + 0.5, f"{rmse_vals[i]}", ha="center", fontsize=9, fontweight="bold")
-        ax.text(x[i] + width/2, mae_vals[i] + 0.5, f"{mae_vals[i]}", ha="center", fontsize=9, fontweight="bold")
+        ax.text(
+            x[i] - width / 2,
+            rmse_vals[i] + 0.5,
+            f"{rmse_vals[i]}",
+            ha="center",
+            fontsize=9,
+            fontweight="bold",
+        )
+        ax.text(
+            x[i] + width / 2,
+            mae_vals[i] + 0.5,
+            f"{mae_vals[i]}",
+            ha="center",
+            fontsize=9,
+            fontweight="bold",
+        )
 
     p_int = output_dir / "intensity_error_comparison.png"
     plt.tight_layout()
@@ -97,18 +126,28 @@ def generate_evaluation_figures(output_dir: Path) -> Dict[str, Path]:
     axes[0].set_ylabel("True Label")
     for i in range(2):
         for j in range(2):
-            axes[0].text(j, i, str(det_cm[i, j]), ha="center", va="center", color="white" if det_cm[i, j] > 7 else "black", fontweight="bold")
+            axes[0].text(
+                j,
+                i,
+                str(det_cm[i, j]),
+                ha="center",
+                va="center",
+                color="white" if det_cm[i, j] > 7 else "black",
+                fontweight="bold",
+            )
 
     # Stage 6-class matrix
     stage_names = ["Disturbance", "Depression", "Deep Dep", "Mature", "Weakening", "Remnant"]
-    stage_cm = np.array([
-        [5, 1, 0, 0, 0, 0],
-        [0, 6, 1, 0, 0, 0],
-        [0, 0, 4, 1, 0, 0],
-        [0, 0, 0, 8, 1, 0],
-        [0, 0, 0, 1, 5, 1],
-        [0, 0, 0, 0, 0, 4],
-    ])
+    stage_cm = np.array(
+        [
+            [5, 1, 0, 0, 0, 0],
+            [0, 6, 1, 0, 0, 0],
+            [0, 0, 4, 1, 0, 0],
+            [0, 0, 0, 8, 1, 0],
+            [0, 0, 0, 1, 5, 1],
+            [0, 0, 0, 0, 0, 4],
+        ]
+    )
     im1 = axes[1].imshow(stage_cm, cmap="Greens", interpolation="nearest")
     axes[1].set_title("Lifecycle Stage (6-Class) Confusion Matrix", fontweight="bold", fontsize=11)
     axes[1].set_xticks(range(6))
@@ -120,7 +159,16 @@ def generate_evaluation_figures(output_dir: Path) -> Dict[str, Path]:
     for i in range(6):
         for j in range(6):
             if stage_cm[i, j] > 0:
-                axes[1].text(j, i, str(stage_cm[i, j]), ha="center", va="center", color="white" if stage_cm[i, j] > 4 else "black", fontsize=8, fontweight="bold")
+                axes[1].text(
+                    j,
+                    i,
+                    str(stage_cm[i, j]),
+                    ha="center",
+                    va="center",
+                    color="white" if stage_cm[i, j] > 4 else "black",
+                    fontsize=8,
+                    fontweight="bold",
+                )
 
     p_cm = output_dir / "confusion_matrices_panel.png"
     plt.tight_layout()
@@ -173,13 +221,33 @@ def generate_evaluation_figures(output_dir: Path) -> Dict[str, Path]:
 
         # Panel A: Track Overlay with Uncertainty Cone
         ax_map = axes[0]
-        ax_map.plot(storm["true_lons"], storm["true_lats"], "ko-", label="Observed Best-Track", lw=2, zorder=4)
-        ax_map.plot(storm["pred_lons"], storm["pred_lats"], "ro--", label="FusionNet Forecast", lw=2, zorder=4)
+        ax_map.plot(
+            storm["true_lons"],
+            storm["true_lats"],
+            "ko-",
+            label="Observed Best-Track",
+            lw=2,
+            zorder=4,
+        )
+        ax_map.plot(
+            storm["pred_lons"],
+            storm["pred_lats"],
+            "ro--",
+            label="FusionNet Forecast",
+            lw=2,
+            zorder=4,
+        )
 
         # Plot uncertainty cone around forecast points
         for i in range(len(storm["pred_lats"])):
             r_deg = storm["radii"][i] / 111.195
-            circle = plt.Circle((storm["pred_lons"][i], storm["pred_lats"][i]), r_deg, color="#457b9d", alpha=0.15, zorder=2)
+            circle = plt.Circle(
+                (storm["pred_lons"][i], storm["pred_lats"][i]),
+                r_deg,
+                color="#457b9d",
+                alpha=0.15,
+                zorder=2,
+            )
             ax_map.add_patch(circle)
 
         ax_map.set_title(f"{storm['name']} — Trajectory & 95% Cone", fontweight="bold", fontsize=10)
@@ -191,10 +259,23 @@ def generate_evaluation_figures(output_dir: Path) -> Dict[str, Path]:
         # Panel B: Intensity vs Time
         ax_int = axes[1]
         ax_int.plot(storm["times"], storm["true_winds"], "k-o", label="True Wind (kt)", lw=2)
-        ax_int.plot(storm["times"], storm["pred_winds"], "r--s", label="FusionNet Predicted Wind (kt)", lw=2)
-        ax_int.fill_between(storm["times"], [w - 8 for w in storm["pred_winds"]], [w + 8 for w in storm["pred_winds"]], color="red", alpha=0.12, label="±8 kt Confidence Band")
+        ax_int.plot(
+            storm["times"], storm["pred_winds"], "r--s", label="FusionNet Predicted Wind (kt)", lw=2
+        )
+        ax_int.fill_between(
+            storm["times"],
+            [w - 8 for w in storm["pred_winds"]],
+            [w + 8 for w in storm["pred_winds"]],
+            color="red",
+            alpha=0.12,
+            label="±8 kt Confidence Band",
+        )
 
-        ax_int.set_title(f"{storm['name']} — Automated-Dvorak Intensity Evolution", fontweight="bold", fontsize=10)
+        ax_int.set_title(
+            f"{storm['name']} — Automated-Dvorak Intensity Evolution",
+            fontweight="bold",
+            fontsize=10,
+        )
         ax_int.set_xlabel("Forecast Horizon Elapsed (Hours)", fontsize=9)
         ax_int.set_ylabel("Maximum Sustained Wind (Knots)", fontsize=9)
         ax_int.grid(True, alpha=0.3)
@@ -210,8 +291,8 @@ def generate_evaluation_figures(output_dir: Path) -> Dict[str, Path]:
 
 
 def build_markdown_report(
-    eval_results: Dict[str, Any],
-    fig_paths: Dict[str, Path],
+    eval_results: dict[str, Any],
+    fig_paths: dict[str, Path],
     output_path: Path,
 ) -> str:
     """Generates CHAKRAVYUH_EVAL.md report with embedded figures and comprehensive analytics."""
@@ -245,10 +326,10 @@ def build_markdown_report(
 ### 1.2 Honest Architectural Summary: What Beats Baseline and What Doesn't
 
 > **Architectural Assessment & Operational Reality:**  
-> Chakravyuh's multi-modal `FusionNet` achieves clear superiority over traditional empirical baselines across medium-to-long range forecast horizons ($24$h, $48$h, and $72$h), cutting 72-hour track error by **over 1,200 km (57.3% reduction)** relative to CLIPER climatology and eliminating unrealistic linear extrapolation. The Automated-Dvorak satellite IR branch paired with multi-task Huber regression achieves an intensity error of **8.9 kt RMSE**, matching expert consensus benchmarks without manual subjective curve fitting. Post-hoc temperature scaling reduces Expected Calibration Error (ECE) to under $0.20$, and empirical 95% cone coverage reaches $81.4\%$.
+> Chakravyuh's multi-modal `FusionNet` achieves clear superiority over traditional empirical baselines across medium-to-long range forecast horizons ($24$h, $48$h, and $72$h), cutting 72-hour track error by **over 1,200 km (57.3% reduction)** relative to CLIPER climatology and eliminating unrealistic linear extrapolation. The Automated-Dvorak satellite IR branch paired with multi-task Huber regression achieves an intensity error of **8.9 kt RMSE**, matching expert consensus benchmarks without manual subjective curve fitting. Post-hoc temperature scaling reduces Expected Calibration Error (ECE) to under $0.20$, and empirical 95% cone coverage reaches $81.4\\%$.
 > 
 > **Where the Baseline Still Holds Precedence:**  
-> For ultra-short lead times ($t \le 6$h), kinematic inertia dominates over synoptic environmental forcing; Tier-0 CLIPER / Persistence achieves **31.0 km** error versus FusionNet's **69.5 km**. Chakravyuh explicitly implements an **operational gating policy** that defers to Tier-0 kinematics for the initial 6 hours before blending into the deep multi-modal trajectory predictor, ensuring zero regression across all operational regimes.
+> For ultra-short lead times ($t \\le 6$h), kinematic inertia dominates over synoptic environmental forcing; Tier-0 CLIPER / Persistence achieves **31.0 km** error versus FusionNet's **69.5 km**. Chakravyuh explicitly implements an **operational gating policy** that defers to Tier-0 kinematics for the initial 6 hours before blending into the deep multi-modal trajectory predictor, ensuring zero regression across all operational regimes.
 
 ---
 
@@ -372,7 +453,9 @@ def build_html_report(
     html_content = re.sub(r"^### (.*?)$", r"<h3>\1</h3>", html_content, flags=re.MULTILINE)
 
     # Replace blockquotes
-    html_content = re.sub(r"^> (.*?)$", r"<blockquote>\1</blockquote>", html_content, flags=re.MULTILINE)
+    html_content = re.sub(
+        r"^> (.*?)$", r"<blockquote>\1</blockquote>", html_content, flags=re.MULTILINE
+    )
 
     # Replace bold and italics
     html_content = re.sub(r"\*\*(.*?)\*\*", r"<strong>\1</strong>", html_content)
@@ -402,7 +485,16 @@ def build_html_report(
             if "---" in line:
                 continue  # Header divider
             cols = [c.strip() for c in line.strip().split("|")[1:-1]]
-            row_tag = "th" if "Domain" in line or "Lead" in line or "Storm" in line or "Split" in line or "Forecast Horizon" in line or "Head" in line else "td"
+            row_tag = (
+                "th"
+                if "Domain" in line
+                or "Lead" in line
+                or "Storm" in line
+                or "Split" in line
+                or "Forecast Horizon" in line
+                or "Head" in line
+                else "td"
+            )
             row_html = "<tr>" + "".join([f"<{row_tag}>{c}</{row_tag}>" for c in cols]) + "</tr>"
             new_lines.append(row_html)
         else:
@@ -545,13 +637,15 @@ def build_html_report(
     with open(mirror_html, "w", encoding="utf-8") as f:
         f.write(template)
 
-    print(f"[REPORT] Self-contained HTML evaluation report written to {output_html_path} and {mirror_html}")
+    print(
+        f"[REPORT] Self-contained HTML evaluation report written to {output_html_path} and {mirror_html}"
+    )
     return output_html_path
 
 
 def generate_full_evaluation_report(
-    eval_dir: Optional[Path] = None,
-) -> Dict[str, Any]:
+    eval_dir: Path | None = None,
+) -> dict[str, Any]:
     """Top-level pipeline generating figures, Markdown evaluation report, and self-contained HTML."""
     base_dir = eval_dir or Path("ml/cyclone/eval")
     figs_dir = base_dir / "figs"
@@ -587,7 +681,9 @@ def generate_full_evaluation_report(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate comprehensive Chakravyuh evaluation report.")
+    parser = argparse.ArgumentParser(
+        description="Generate comprehensive Chakravyuh evaluation report."
+    )
     args = parser.parse_args()
     generate_full_evaluation_report()
 

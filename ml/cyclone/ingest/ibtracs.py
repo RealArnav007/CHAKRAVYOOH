@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional, Union
+
 import pandas as pd
 
 from ml.cyclone.config import load_config
-
 
 STANDARD_TRACK_COLUMNS = [
     "storm_id",
@@ -23,7 +22,7 @@ STANDARD_TRACK_COLUMNS = [
 ]
 
 
-def resolve_ibtracs_path(override_path: Optional[Union[str, Path]] = None) -> Path:
+def resolve_ibtracs_path(override_path: str | Path | None = None) -> Path:
     """Resolves IBTrACS file location from explicit path, config, or fallback sample files."""
     if override_path:
         p = Path(override_path)
@@ -56,7 +55,7 @@ def resolve_ibtracs_path(override_path: Optional[Union[str, Path]] = None) -> Pa
     )
 
 
-def load_tracks(file_path: Optional[Union[str, Path]] = None) -> pd.DataFrame:
+def load_tracks(file_path: str | Path | None = None) -> pd.DataFrame:
     """Loads and standardizes IBTrACS cyclone track dataset into a clean DataFrame.
 
     Coalescing Strategy:
@@ -76,7 +75,9 @@ def load_tracks(file_path: Optional[Union[str, Path]] = None) -> pd.DataFrame:
     else:
         # Check if row 1 contains unit headers
         first_rows = pd.read_csv(path, nrows=2)
-        if len(first_rows) > 0 and any("kts" in str(v).lower() or "mb" in str(v).lower() for v in first_rows.iloc[0]):
+        if len(first_rows) > 0 and any(
+            "kts" in str(v).lower() or "mb" in str(v).lower() for v in first_rows.iloc[0]
+        ):
             raw_df = pd.read_csv(path, skiprows=[1], low_memory=False)
         else:
             raw_df = pd.read_csv(path, low_memory=False)
@@ -84,7 +85,11 @@ def load_tracks(file_path: Optional[Union[str, Path]] = None) -> pd.DataFrame:
     df = pd.DataFrame()
 
     # Storm ID & Name
-    df["storm_id"] = raw_df["SID"].astype(str).str.strip() if "SID" in raw_df.columns else raw_df.get("storm_id", "UNKNOWN").astype(str)
+    df["storm_id"] = (
+        raw_df["SID"].astype(str).str.strip()
+        if "SID" in raw_df.columns
+        else raw_df.get("storm_id", "UNKNOWN").astype(str)
+    )
 
     # Time parsing with strict UTC conversion
     time_col = "ISO_TIME" if "ISO_TIME" in raw_df.columns else "time"
@@ -146,7 +151,7 @@ def load_tracks(file_path: Optional[Union[str, Path]] = None) -> pd.DataFrame:
     return df[STANDARD_TRACK_COLUMNS]
 
 
-def get_storm(storm_id: str, df: Optional[pd.DataFrame] = None) -> pd.DataFrame:
+def get_storm(storm_id: str, df: pd.DataFrame | None = None) -> pd.DataFrame:
     """Retrieves the chronological track for a specific storm ID.
 
     Args:

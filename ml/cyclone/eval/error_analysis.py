@@ -4,22 +4,22 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
-import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
+
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ml.cyclone.eval.metrics import intensity_metrics, track_error_km
-
+from ml.cyclone.eval.metrics import track_error_km
 
 # =============================================================================
 # Curated Meteorological Datasets for Landmark Demo Storms
 # =============================================================================
 
-DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
+DEMO_STORMS_DATA: dict[str, dict[str, Any]] = {
     "amphan_2020": {
         "name": "Super Cyclone Amphan (May 2020)",
         "basin": "Bay of Bengal",
@@ -29,9 +29,12 @@ DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
             {
                 "time_step": 0,
                 "lead_hours": 0,
-                "true_lat": 10.8, "true_lon": 86.3,
-                "pred_lat": 10.8, "pred_lon": 86.3,
-                "true_wind_kt": 35.0, "pred_wind_kt": 37.5,
+                "true_lat": 10.8,
+                "true_lon": 86.3,
+                "pred_lat": 10.8,
+                "pred_lon": 86.3,
+                "true_wind_kt": 35.0,
+                "pred_wind_kt": 37.5,
                 "imd_class": "CYCLONIC_STORM",
                 "phase": "Genesis & Organization",
                 "image_available": True,
@@ -41,9 +44,12 @@ DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
             {
                 "time_step": 1,
                 "lead_hours": 12,
-                "true_lat": 12.5, "true_lon": 86.4,
-                "pred_lat": 12.7, "pred_lon": 86.5,
-                "true_wind_kt": 60.0, "pred_wind_kt": 58.0,
+                "true_lat": 12.5,
+                "true_lon": 86.4,
+                "pred_lat": 12.7,
+                "pred_lon": 86.5,
+                "true_wind_kt": 60.0,
+                "pred_wind_kt": 58.0,
                 "imd_class": "SEVERE_CYCLONIC_STORM",
                 "phase": "Rapid Intensification (RI) Initiation",
                 "image_available": True,
@@ -53,9 +59,12 @@ DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
             {
                 "time_step": 2,
                 "lead_hours": 24,
-                "true_lat": 13.8, "true_lon": 86.6,
-                "pred_lat": 14.1, "pred_lon": 86.7,
-                "true_wind_kt": 115.0, "pred_wind_kt": 108.0,
+                "true_lat": 13.8,
+                "true_lon": 86.6,
+                "pred_lat": 14.1,
+                "pred_lon": 86.7,
+                "true_wind_kt": 115.0,
+                "pred_wind_kt": 108.0,
                 "imd_class": "EXTREMELY_SEVERE_CYCLONIC_STORM",
                 "phase": "Explosive RI (+55 kt / 12h)",
                 "image_available": True,
@@ -65,9 +74,12 @@ DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
             {
                 "time_step": 3,
                 "lead_hours": 36,
-                "true_lat": 15.6, "true_lon": 86.7,
-                "pred_lat": 16.0, "pred_lon": 86.9,
-                "true_wind_kt": 140.0, "pred_wind_kt": 133.0,
+                "true_lat": 15.6,
+                "true_lon": 86.7,
+                "pred_lat": 16.0,
+                "pred_lon": 86.9,
+                "true_wind_kt": 140.0,
+                "pred_wind_kt": 133.0,
                 "imd_class": "SUPER_CYCLONIC_STORM",
                 "phase": "Peak Intensity (CDO / Eye Defined)",
                 "image_available": True,
@@ -77,9 +89,12 @@ DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
             {
                 "time_step": 4,
                 "lead_hours": 48,
-                "true_lat": 17.8, "true_lon": 86.9,
-                "pred_lat": 18.3, "pred_lon": 87.2,
-                "true_wind_kt": 125.0, "pred_wind_kt": 120.0,
+                "true_lat": 17.8,
+                "true_lon": 86.9,
+                "pred_lat": 18.3,
+                "pred_lon": 87.2,
+                "true_wind_kt": 125.0,
+                "pred_wind_kt": 120.0,
                 "imd_class": "EXTREMELY_SEVERE_CYCLONIC_STORM",
                 "phase": "North-Northeast Recurvature",
                 "image_available": False,  # Simulated satellite feed dropout
@@ -89,9 +104,12 @@ DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
             {
                 "time_step": 5,
                 "lead_hours": 60,
-                "true_lat": 20.4, "true_lon": 88.1,
-                "pred_lat": 20.9, "pred_lon": 88.4,
-                "true_wind_kt": 95.0, "pred_wind_kt": 91.0,
+                "true_lat": 20.4,
+                "true_lon": 88.1,
+                "pred_lat": 20.9,
+                "pred_lon": 88.4,
+                "true_wind_kt": 95.0,
+                "pred_wind_kt": 91.0,
                 "imd_class": "VERY_SEVERE_CYCLONIC_STORM",
                 "phase": "Coast Approach & Eyewall Replacement",
                 "image_available": True,
@@ -101,9 +119,12 @@ DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
             {
                 "time_step": 6,
                 "lead_hours": 72,
-                "true_lat": 22.8, "true_lon": 88.9,
-                "pred_lat": 23.3, "pred_lon": 89.2,
-                "true_wind_kt": 75.0, "pred_wind_kt": 68.0,
+                "true_lat": 22.8,
+                "true_lon": 88.9,
+                "pred_lat": 23.3,
+                "pred_lon": 89.2,
+                "true_wind_kt": 75.0,
+                "pred_wind_kt": 68.0,
                 "imd_class": "VERY_SEVERE_CYCLONIC_STORM",
                 "phase": "Landfall (Sundarbans / Digha)",
                 "image_available": True,
@@ -113,9 +134,12 @@ DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
             {
                 "time_step": 7,
                 "lead_hours": 84,
-                "true_lat": 25.1, "true_lon": 89.8,
-                "pred_lat": 25.8, "pred_lon": 90.3,
-                "true_wind_kt": 35.0, "pred_wind_kt": 46.0,
+                "true_lat": 25.1,
+                "true_lon": 89.8,
+                "pred_lat": 25.8,
+                "pred_lon": 90.3,
+                "true_wind_kt": 35.0,
+                "pred_wind_kt": 46.0,
                 "imd_class": "CYCLONIC_STORM",
                 "phase": "Inland Decay & Remnant",
                 "image_available": True,
@@ -133,9 +157,12 @@ DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
             {
                 "time_step": 0,
                 "lead_hours": 0,
-                "true_lat": 5.2, "true_lon": 88.5,
-                "pred_lat": 5.2, "pred_lon": 88.5,
-                "true_wind_kt": 25.0, "pred_wind_kt": 27.0,
+                "true_lat": 5.2,
+                "true_lon": 88.5,
+                "pred_lat": 5.2,
+                "pred_lon": 88.5,
+                "true_wind_kt": 25.0,
+                "pred_wind_kt": 27.0,
                 "imd_class": "DEPRESSION",
                 "phase": "Equatorial Genesis (Weak Coriolis)",
                 "image_available": True,
@@ -145,9 +172,12 @@ DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
             {
                 "time_step": 1,
                 "lead_hours": 12,
-                "true_lat": 7.1, "true_lon": 87.6,
-                "pred_lat": 7.3, "pred_lon": 87.8,
-                "true_wind_kt": 40.0, "pred_wind_kt": 38.0,
+                "true_lat": 7.1,
+                "true_lon": 87.6,
+                "pred_lat": 7.3,
+                "pred_lon": 87.8,
+                "true_wind_kt": 40.0,
+                "pred_wind_kt": 38.0,
                 "imd_class": "CYCLONIC_STORM",
                 "phase": "Northwestward Track Initiation",
                 "image_available": True,
@@ -157,9 +187,12 @@ DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
             {
                 "time_step": 2,
                 "lead_hours": 24,
-                "true_lat": 9.8, "true_lon": 86.4,
-                "pred_lat": 10.1, "pred_lon": 86.6,
-                "true_wind_kt": 65.0, "pred_wind_kt": 62.0,
+                "true_lat": 9.8,
+                "true_lon": 86.4,
+                "pred_lat": 10.1,
+                "pred_lon": 86.6,
+                "true_wind_kt": 65.0,
+                "pred_wind_kt": 62.0,
                 "imd_class": "VERY_SEVERE_CYCLONIC_STORM",
                 "phase": "Steady Intensification",
                 "image_available": True,
@@ -169,9 +202,12 @@ DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
             {
                 "time_step": 3,
                 "lead_hours": 36,
-                "true_lat": 12.8, "true_lon": 85.8,
-                "pred_lat": 13.1, "pred_lon": 85.9,
-                "true_wind_kt": 95.0, "pred_wind_kt": 91.0,
+                "true_lat": 12.8,
+                "true_lon": 85.8,
+                "pred_lat": 13.1,
+                "pred_lon": 85.9,
+                "true_wind_kt": 95.0,
+                "pred_wind_kt": 91.0,
                 "imd_class": "VERY_SEVERE_CYCLONIC_STORM",
                 "phase": "Curving along East Coast",
                 "image_available": True,
@@ -181,9 +217,12 @@ DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
             {
                 "time_step": 4,
                 "lead_hours": 48,
-                "true_lat": 15.9, "true_lon": 84.8,
-                "pred_lat": 16.3, "pred_lon": 85.0,
-                "true_wind_kt": 115.0, "pred_wind_kt": 110.0,
+                "true_lat": 15.9,
+                "true_lon": 84.8,
+                "pred_lat": 16.3,
+                "pred_lon": 85.0,
+                "true_wind_kt": 115.0,
+                "pred_wind_kt": 110.0,
                 "imd_class": "EXTREMELY_SEVERE_CYCLONIC_STORM",
                 "phase": "Sharp Northeast Recurvature Pivot",
                 "image_available": True,
@@ -193,9 +232,12 @@ DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
             {
                 "time_step": 5,
                 "lead_hours": 60,
-                "true_lat": 18.2, "true_lon": 85.3,
-                "pred_lat": 18.6, "pred_lon": 85.5,
-                "true_wind_kt": 110.0, "pred_wind_kt": 106.0,
+                "true_lat": 18.2,
+                "true_lon": 85.3,
+                "pred_lat": 18.6,
+                "pred_lon": 85.5,
+                "true_wind_kt": 110.0,
+                "pred_wind_kt": 106.0,
                 "imd_class": "EXTREMELY_SEVERE_CYCLONIC_STORM",
                 "phase": "Odisha Coastal Approach",
                 "image_available": True,
@@ -205,9 +247,12 @@ DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
             {
                 "time_step": 6,
                 "lead_hours": 72,
-                "true_lat": 19.8, "true_lon": 85.8,
-                "pred_lat": 20.2, "pred_lon": 86.1,
-                "true_wind_kt": 100.0, "pred_wind_kt": 96.0,
+                "true_lat": 19.8,
+                "true_lon": 85.8,
+                "pred_lat": 20.2,
+                "pred_lon": 86.1,
+                "true_wind_kt": 100.0,
+                "pred_wind_kt": 96.0,
                 "imd_class": "VERY_SEVERE_CYCLONIC_STORM",
                 "phase": "Landfall near Puri",
                 "image_available": True,
@@ -217,9 +262,12 @@ DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
             {
                 "time_step": 7,
                 "lead_hours": 84,
-                "true_lat": 21.6, "true_lon": 87.5,
-                "pred_lat": 22.0, "pred_lon": 87.8,
-                "true_wind_kt": 50.0, "pred_wind_kt": 53.0,
+                "true_lat": 21.6,
+                "true_lon": 87.5,
+                "pred_lat": 22.0,
+                "pred_lon": 87.8,
+                "true_wind_kt": 50.0,
+                "pred_wind_kt": 53.0,
                 "imd_class": "SEVERE_CYCLONIC_STORM",
                 "phase": "Overland Movement through West Bengal",
                 "image_available": True,
@@ -237,9 +285,12 @@ DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
             {
                 "time_step": 0,
                 "lead_hours": 0,
-                "true_lat": 11.5, "true_lon": 66.0,
-                "pred_lat": 11.5, "pred_lon": 66.0,
-                "true_wind_kt": 30.0, "pred_wind_kt": 32.0,
+                "true_lat": 11.5,
+                "true_lon": 66.0,
+                "pred_lat": 11.5,
+                "pred_lon": 66.0,
+                "true_wind_kt": 30.0,
+                "pred_wind_kt": 32.0,
                 "imd_class": "DEEP_DEPRESSION",
                 "phase": "Arabian Sea Inception",
                 "image_available": True,
@@ -249,9 +300,12 @@ DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
             {
                 "time_step": 1,
                 "lead_hours": 12,
-                "true_lat": 12.8, "true_lon": 66.2,
-                "pred_lat": 13.0, "pred_lon": 66.3,
-                "true_wind_kt": 50.0, "pred_wind_kt": 47.0,
+                "true_lat": 12.8,
+                "true_lon": 66.2,
+                "pred_lat": 13.0,
+                "pred_lon": 66.3,
+                "true_wind_kt": 50.0,
+                "pred_wind_kt": 47.0,
                 "imd_class": "SEVERE_CYCLONIC_STORM",
                 "phase": "Slow Northward Drift",
                 "image_available": True,
@@ -261,9 +315,12 @@ DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
             {
                 "time_step": 2,
                 "lead_hours": 24,
-                "true_lat": 14.5, "true_lon": 66.0,
-                "pred_lat": 14.7, "pred_lon": 66.1,
-                "true_wind_kt": 75.0, "pred_wind_kt": 70.0,
+                "true_lat": 14.5,
+                "true_lon": 66.0,
+                "pred_lat": 14.7,
+                "pred_lon": 66.1,
+                "true_wind_kt": 75.0,
+                "pred_wind_kt": 70.0,
                 "imd_class": "VERY_SEVERE_CYCLONIC_STORM",
                 "phase": "Extended Stall & Loop in Central Basin",
                 "image_available": True,
@@ -273,9 +330,12 @@ DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
             {
                 "time_step": 3,
                 "lead_hours": 36,
-                "true_lat": 17.2, "true_lon": 67.4,
-                "pred_lat": 17.5, "pred_lon": 67.5,
-                "true_wind_kt": 90.0, "pred_wind_kt": 86.0,
+                "true_lat": 17.2,
+                "true_lon": 67.4,
+                "pred_lat": 17.5,
+                "pred_lon": 67.5,
+                "true_wind_kt": 90.0,
+                "pred_wind_kt": 86.0,
                 "imd_class": "EXTREMELY_SEVERE_CYCLONIC_STORM",
                 "phase": "Peak Intensity & Northeast Recurvature Pivot",
                 "image_available": True,
@@ -285,9 +345,12 @@ DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
             {
                 "time_step": 4,
                 "lead_hours": 48,
-                "true_lat": 20.1, "true_lon": 67.8,
-                "pred_lat": 20.4, "pred_lon": 68.0,
-                "true_wind_kt": 85.0, "pred_wind_kt": 82.0,
+                "true_lat": 20.1,
+                "true_lon": 67.8,
+                "pred_lat": 20.4,
+                "pred_lon": 68.0,
+                "true_wind_kt": 85.0,
+                "pred_wind_kt": 82.0,
                 "imd_class": "VERY_SEVERE_CYCLONIC_STORM",
                 "phase": "Steering towards Saurashtra Coast",
                 "image_available": True,
@@ -297,9 +360,12 @@ DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
             {
                 "time_step": 5,
                 "lead_hours": 60,
-                "true_lat": 22.8, "true_lon": 68.9,
-                "pred_lat": 23.1, "pred_lon": 69.2,
-                "true_wind_kt": 75.0, "pred_wind_kt": 71.0,
+                "true_lat": 22.8,
+                "true_lon": 68.9,
+                "pred_lat": 23.1,
+                "pred_lon": 69.2,
+                "true_wind_kt": 75.0,
+                "pred_wind_kt": 71.0,
                 "imd_class": "VERY_SEVERE_CYCLONIC_STORM",
                 "phase": "Gujarat Coast Approach",
                 "image_available": True,
@@ -309,9 +375,12 @@ DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
             {
                 "time_step": 6,
                 "lead_hours": 72,
-                "true_lat": 24.5, "true_lon": 70.4,
-                "pred_lat": 24.8, "pred_lon": 70.8,
-                "true_wind_kt": 60.0, "pred_wind_kt": 56.0,
+                "true_lat": 24.5,
+                "true_lon": 70.4,
+                "pred_lat": 24.8,
+                "pred_lon": 70.8,
+                "true_wind_kt": 60.0,
+                "pred_wind_kt": 56.0,
                 "imd_class": "SEVERE_CYCLONIC_STORM",
                 "phase": "Landfall near Jakhau Port / Naliya",
                 "image_available": True,
@@ -321,9 +390,12 @@ DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
             {
                 "time_step": 7,
                 "lead_hours": 84,
-                "true_lat": 25.8, "true_lon": 72.1,
-                "pred_lat": 26.2, "pred_lon": 72.6,
-                "true_wind_kt": 30.0, "pred_wind_kt": 36.0,
+                "true_lat": 25.8,
+                "true_lon": 72.1,
+                "pred_lat": 26.2,
+                "pred_lon": 72.6,
+                "true_wind_kt": 30.0,
+                "pred_wind_kt": 36.0,
                 "imd_class": "DEPRESSION",
                 "phase": "Overland Remnant in Rajasthan",
                 "image_available": True,
@@ -340,7 +412,7 @@ DEMO_STORMS_DATA: Dict[str, Dict[str, Any]] = {
 # =============================================================================
 
 
-def analyze_demo_storm(storm_key: str, data: Dict[str, Any]) -> Dict[str, Any]:
+def analyze_demo_storm(storm_key: str, data: dict[str, Any]) -> dict[str, Any]:
     """Conducts detailed error analysis across life-cycle timesteps for a specific demo storm."""
     ts_list = data["timesteps"]
 
@@ -348,7 +420,7 @@ def analyze_demo_storm(storm_key: str, data: Dict[str, Any]) -> Dict[str, Any]:
     track_errors = []
     wind_errors = []
     abs_wind_errors = []
-    imd_class_errors: Dict[str, List[float]] = {}
+    imd_class_errors: dict[str, list[float]] = {}
     fallback_events = []
 
     for ts in ts_list:
@@ -377,12 +449,14 @@ def analyze_demo_storm(storm_key: str, data: Dict[str, Any]) -> Dict[str, Any]:
         imd_class_errors[cls_name].append(abs_w_diff)
 
         if ts["fallback_triggered"]:
-            fallback_events.append({
-                "time_step": ts["time_step"],
-                "lead_hours": h,
-                "phase": ts["phase"],
-                "reason": ts["fallback_reason"],
-            })
+            fallback_events.append(
+                {
+                    "time_step": ts["time_step"],
+                    "lead_hours": h,
+                    "phase": ts["phase"],
+                    "reason": ts["fallback_reason"],
+                }
+            )
 
     # Group intensity error by IMD class
     imd_summary = {}
@@ -437,7 +511,7 @@ def analyze_demo_storm(storm_key: str, data: Dict[str, Any]) -> Dict[str, Any]:
 # =============================================================================
 
 
-def plot_storm_error_analysis(analysis: Dict[str, Any], output_dir: Path) -> Path:
+def plot_storm_error_analysis(analysis: dict[str, Any], output_dir: Path) -> Path:
     """Generates a 3-panel annotated error analysis figure for a specific demo storm."""
     output_dir.mkdir(parents=True, exist_ok=True)
     sk = analysis["storm_key"]
@@ -485,7 +559,11 @@ def plot_storm_error_analysis(analysis: Dict[str, Any], output_dir: Path) -> Pat
     ax1.axhline(0.0, color="black", linestyle="-", lw=1)
     ax1.axhline(8.0, color="gray", linestyle=":", label="±8 kt Operational Target")
     ax1.axhline(-8.0, color="gray", linestyle=":")
-    ax1.set_title(f"{name} — Automated-Dvorak Intensity Error (Pred - True Wind in Knots)", fontsize=11, fontweight="bold")
+    ax1.set_title(
+        f"{name} — Automated-Dvorak Intensity Error (Pred - True Wind in Knots)",
+        fontsize=11,
+        fontweight="bold",
+    )
     ax1.set_ylabel("Error (Knots)", fontsize=9)
     ax1.set_xlabel("Lead Horizon", fontsize=9)
     ax1.grid(axis="y", alpha=0.3)
@@ -493,19 +571,32 @@ def plot_storm_error_analysis(analysis: Dict[str, Any], output_dir: Path) -> Pat
 
     for bar, val in zip(bars, w_errs):
         y_pos = val + (0.8 if val >= 0 else -1.8)
-        ax1.text(bar.get_x() + bar.get_width() / 2, y_pos, f"{val:+.1f}", ha="center", fontsize=8, fontweight="bold")
+        ax1.text(
+            bar.get_x() + bar.get_width() / 2,
+            y_pos,
+            f"{val:+.1f}",
+            ha="center",
+            fontsize=8,
+            fontweight="bold",
+        )
 
     # Panel 3: Fallback & Governance Timeline
     ax2 = axes[2]
     fallback_flags = [1 if t["fallback_triggered"] else 0 for t in ts]
     f_colors = ["#e63946" if f else "#2a9d8f" for f in fallback_flags]
 
-    ax2.scatter(leads, [1] * len(leads), s=[220 if f else 120 for f in fallback_flags], c=f_colors, zorder=3)
+    ax2.scatter(
+        leads, [1] * len(leads), s=[220 if f else 120 for f in fallback_flags], c=f_colors, zorder=3
+    )
     ax2.plot(leads, [1] * len(leads), "-", color="#6c757d", alpha=0.4, lw=2, zorder=2)
     ax2.set_yticks([])
     ax2.set_xticks(leads)
     ax2.set_xticklabels([f"{l}h\n{ts[i]['phase'][:14]}" for i, l in enumerate(leads)], fontsize=7.5)
-    ax2.set_title(f"{name} — Operational Governance & Tier-0 Fallback Timeline", fontsize=11, fontweight="bold")
+    ax2.set_title(
+        f"{name} — Operational Governance & Tier-0 Fallback Timeline",
+        fontsize=11,
+        fontweight="bold",
+    )
     ax2.set_xlabel("Forecast Progression", fontsize=9)
     ax2.grid(axis="x", alpha=0.3)
 
@@ -537,12 +628,11 @@ def plot_storm_error_analysis(analysis: Dict[str, Any], output_dir: Path) -> Pat
 # =============================================================================
 
 
-def generate_demo_storm_notes(all_analyses: Dict[str, Dict[str, Any]], output_path: Path) -> Path:
+def generate_demo_storm_notes(all_analyses: dict[str, dict[str, Any]], output_path: Path) -> Path:
     """Generates eval/DEMO_STORM_NOTES.md with structured speaking notes for live judge pitches."""
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
-    md_sections = [
-        f"""# 🎙️ CHAKRAVYUH PITCH NARRATION & DEMO STORM ERROR ANALYSIS
+    md_sections = [f"""# 🎙️ CHAKRAVYUH PITCH NARRATION & DEMO STORM ERROR ANALYSIS
 ## Tactical Judge-Facing Talking Points, Strength Highlights & Governance Notes
 
 **Generated:** {timestamp}  
@@ -564,8 +654,7 @@ def generate_demo_storm_notes(all_analyses: Dict[str, Dict[str, Any]], output_pa
    - We do not blindly trust neural outputs when conditions violate physical bounds or sensors drop out. Automatic deterministic fallback to Tier-0 (CLIPER/Persistence/Empirical) guarantees zero catastrophic failures.
 
 ---
-"""
-    ]
+"""]
 
     for storm_key, a in all_analyses.items():
         name = a["name"]
@@ -604,14 +693,20 @@ def generate_demo_storm_notes(all_analyses: Dict[str, Dict[str, Any]], output_pa
         # Table of IMD class errors
         imd_rows = []
         for cls_name, stats in a["imd_class_summary"].items():
-            imd_rows.append(f"| `{cls_name}` | {stats['count']} | **{stats['mae_kt']:.1f} kt** | **{stats['rmse_kt']:.1f} kt** |")
+            imd_rows.append(
+                f"| `{cls_name}` | {stats['count']} | **{stats['mae_kt']:.1f} kt** | **{stats['rmse_kt']:.1f} kt** |"
+            )
         imd_table_str = "\n".join(imd_rows)
 
         # Fallback events
         fb_items = []
         for fb in a["fallback_events"]:
             fb_items.append(f"- **Lead Hour {fb['lead_hours']}h ({fb['phase']})**: {fb['reason']}")
-        fb_str = "\n".join(fb_items) if fb_items else "- *Zero fallback triggers required; Tier-1 operated with nominal confidence throughout.*"
+        fb_str = (
+            "\n".join(fb_items)
+            if fb_items
+            else "- *Zero fallback triggers required; Tier-1 operated with nominal confidence throughout.*"
+        )
 
         storm_md = f"""
 ## 🌀 Case Study: {name}
@@ -676,17 +771,17 @@ def generate_demo_storm_notes(all_analyses: Dict[str, Dict[str, Any]], output_pa
 
 
 def run_demo_error_analysis(
-    figs_dir: Optional[Path] = None,
-    notes_path: Optional[Path] = None,
-) -> Dict[str, Any]:
+    figs_dir: Path | None = None,
+    notes_path: Path | None = None,
+) -> dict[str, Any]:
     """Runs complete error analysis on demo storms, renders annotated figures, and exports pitch notes."""
     figures_dir = figs_dir or Path("ml/cyclone/eval/figs/demo")
     figures_dir.mkdir(parents=True, exist_ok=True)
 
     out_notes = notes_path or Path("ml/cyclone/eval/DEMO_STORM_NOTES.md")
 
-    all_analyses: Dict[str, Dict[str, Any]] = {}
-    generated_figs: Dict[str, Path] = {}
+    all_analyses: dict[str, dict[str, Any]] = {}
+    generated_figs: dict[str, Path] = {}
 
     for storm_key, raw_data in DEMO_STORMS_DATA.items():
         analysis = analyze_demo_storm(storm_key, raw_data)

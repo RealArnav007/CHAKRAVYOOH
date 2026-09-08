@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
 import itertools
 import json
-from pathlib import Path
 import random
-from typing import Any, Dict, List, Optional, Tuple, Union
-import numpy as np
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
 import torch
 import yaml
 
@@ -33,20 +33,34 @@ from ml.cyclone.train.trainer import Trainer
 class SweepConfigSpace:
     """Configurable parameter search space for FusionNet optimization."""
 
-    learning_rates: List[float] = field(default_factory=lambda: [1e-4, 2e-4, 3e-4])
-    weight_decays: List[float] = field(default_factory=lambda: [1e-4, 5e-4])
-    dropouts: List[float] = field(default_factory=lambda: [0.1, 0.2, 0.3])
-    backbones: List[str] = field(default_factory=lambda: ["efficientnet_b0", "resnet18"])
-    track_hidden_dims: List[int] = field(default_factory=lambda: [64, 128])
-    fusion_hidden_dims: List[int] = field(default_factory=lambda: [256, 512])
-    task_loss_inits: List[Dict[str, float]] = field(default_factory=lambda: [
-        {"detection": 0.0, "stage": 0.0, "intensity_reg": 0.0, "intensity_cls": 0.0, "track": 0.0},
-        {"detection": 0.0, "stage": 0.0, "intensity_reg": -0.2, "intensity_cls": 0.0, "track": -0.2},
-    ])
+    learning_rates: list[float] = field(default_factory=lambda: [1e-4, 2e-4, 3e-4])
+    weight_decays: list[float] = field(default_factory=lambda: [1e-4, 5e-4])
+    dropouts: list[float] = field(default_factory=lambda: [0.1, 0.2, 0.3])
+    backbones: list[str] = field(default_factory=lambda: ["efficientnet_b0", "resnet18"])
+    track_hidden_dims: list[int] = field(default_factory=lambda: [64, 128])
+    fusion_hidden_dims: list[int] = field(default_factory=lambda: [256, 512])
+    task_loss_inits: list[dict[str, float]] = field(
+        default_factory=lambda: [
+            {
+                "detection": 0.0,
+                "stage": 0.0,
+                "intensity_reg": 0.0,
+                "intensity_cls": 0.0,
+                "track": 0.0,
+            },
+            {
+                "detection": 0.0,
+                "stage": 0.0,
+                "intensity_reg": -0.2,
+                "intensity_cls": 0.0,
+                "track": -0.2,
+            },
+        ]
+    )
 
 
 def compute_composite_val_score(
-    val_metrics: Dict[str, Any],
+    val_metrics: dict[str, Any],
     w_track: float = 0.01,
     w_intensity: float = 0.1,
     w_stage: float = 1.0,
@@ -64,7 +78,12 @@ def compute_composite_val_score(
     stage_f1 = float(val_metrics.get("stage_macro_f1", 0.0))
     val_loss = float(val_metrics.get("val_loss", 50.0))
 
-    score = (w_track * track_err) + (w_intensity * int_rmse) - (w_stage * stage_f1) + (w_loss * val_loss)
+    score = (
+        (w_track * track_err)
+        + (w_intensity * int_rmse)
+        - (w_stage * stage_f1)
+        + (w_loss * val_loss)
+    )
     return round(score, 4)
 
 
@@ -73,10 +92,10 @@ def run_hyperparameter_sweep(
     epochs_per_trial: int = 3,
     batch_size: int = 8,
     search_strategy: str = "random",
-    config_space: Optional[SweepConfigSpace] = None,
-    output_dir: Optional[Path] = None,
-    device: Optional[torch.device] = None,
-) -> Dict[str, Any]:
+    config_space: SweepConfigSpace | None = None,
+    output_dir: Path | None = None,
+    device: torch.device | None = None,
+) -> dict[str, Any]:
     """Executes a multi-task hyperparameter optimization sweep over FusionNet architecture & regularizers.
 
     Args:
@@ -96,11 +115,13 @@ def run_hyperparameter_sweep(
 
     space = config_space or SweepConfigSpace()
     compute_device = device or (
-        torch.device("mps") if torch.backends.mps.is_available()
-        else torch.device("cuda") if torch.cuda.is_available()
-        else torch.device("cpu")
+        torch.device("mps")
+        if torch.backends.mps.is_available()
+        else torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     )
-    print(f"[SWEEP] Initializing HPO Sweep ({num_trials} trials, strategy={search_strategy}) on {compute_device}")
+    print(
+        f"[SWEEP] Initializing HPO Sweep ({num_trials} trials, strategy={search_strategy}) on {compute_device}"
+    )
 
     # 1. Load Multi-Modal Dataset
     raw_tracks = load_tracks()
@@ -114,20 +135,29 @@ def run_hyperparameter_sweep(
     test_ds = CycloneDataset(all_samples, indices=splits["test"], mode="multimodal")
 
     from torch.utils.data import DataLoader
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, collate_fn=cyclone_collate_fn)
-    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, collate_fn=cyclone_collate_fn)
-    test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, collate_fn=cyclone_collate_fn)
+
+    train_loader = DataLoader(
+        train_ds, batch_size=batch_size, shuffle=True, collate_fn=cyclone_collate_fn
+    )
+    val_loader = DataLoader(
+        val_ds, batch_size=batch_size, shuffle=False, collate_fn=cyclone_collate_fn
+    )
+    test_loader = DataLoader(
+        test_ds, batch_size=batch_size, shuffle=False, collate_fn=cyclone_collate_fn
+    )
 
     # 2. Generate Candidate Configurations
-    all_combinations = list(itertools.product(
-        space.learning_rates,
-        space.weight_decays,
-        space.dropouts,
-        space.backbones,
-        space.track_hidden_dims,
-        space.fusion_hidden_dims,
-        space.task_loss_inits,
-    ))
+    all_combinations = list(
+        itertools.product(
+            space.learning_rates,
+            space.weight_decays,
+            space.dropouts,
+            space.backbones,
+            space.track_hidden_dims,
+            space.fusion_hidden_dims,
+            space.task_loss_inits,
+        )
+    )
 
     if search_strategy == "random":
         random.seed(42)
@@ -135,14 +165,18 @@ def run_hyperparameter_sweep(
     else:
         selected_combos = all_combinations[:num_trials]
 
-    trial_results: List[Dict[str, Any]] = []
+    trial_results: list[dict[str, Any]] = []
 
-    for trial_idx, (lr, wd, drop, backbone, track_dim, fusion_dim, loss_init) in enumerate(selected_combos):
+    for trial_idx, (lr, wd, drop, backbone, track_dim, fusion_dim, loss_init) in enumerate(
+        selected_combos
+    ):
         trial_id = f"trial_{trial_idx + 1:02d}"
         trial_dir = save_dir / trial_id
         trial_dir.mkdir(parents=True, exist_ok=True)
 
-        print(f"\n[SWEEP] === Running {trial_id}/{len(selected_combos)}: lr={lr}, wd={wd}, drop={drop}, bb={backbone}, track_dim={track_dim}, fusion_dim={fusion_dim} ===")
+        print(
+            f"\n[SWEEP] === Running {trial_id}/{len(selected_combos)}: lr={lr}, wd={wd}, drop={drop}, bb={backbone}, track_dim={track_dim}, fusion_dim={fusion_dim} ==="
+        )
 
         # Build Model with trial hyperparameters
         model = FusionNet(
@@ -249,7 +283,9 @@ def run_hyperparameter_sweep(
             "learned_task_weights": criterion.get_task_weights(),
         }
         trial_results.append(trial_record)
-        print(f"[SWEEP] {trial_id} Finished -> Composite Val Score: {composite_score:.4f} (Track: {val_metrics.get('track_mean_error_km', 0):.1f}km, Int: {val_metrics.get('intensity_wind_rmse_kt', 0):.2f}kt, Stage F1: {val_metrics.get('stage_macro_f1', 0):.4f})")
+        print(
+            f"[SWEEP] {trial_id} Finished -> Composite Val Score: {composite_score:.4f} (Track: {val_metrics.get('track_mean_error_km', 0):.1f}km, Int: {val_metrics.get('intensity_wind_rmse_kt', 0):.2f}kt, Stage F1: {val_metrics.get('stage_macro_f1', 0):.4f})"
+        )
 
     # Rank trials by composite validation score (ascending: lower is better)
     trial_results.sort(key=lambda t: t["composite_val_score"])
@@ -277,11 +313,13 @@ def run_hyperparameter_sweep(
 
 
 def lock_in_best_config(
-    best_params: Dict[str, Any],
-    output_path: Optional[Path] = None,
+    best_params: dict[str, Any],
+    output_path: Path | None = None,
 ) -> Path:
     """Locks in and writes the winning hyperparameter configuration to model.best.yaml."""
-    target_path = output_path or (Path(__file__).resolve().parent.parent / "config" / "model.best.yaml")
+    target_path = output_path or (
+        Path(__file__).resolve().parent.parent / "config" / "model.best.yaml"
+    )
     target_path.parent.mkdir(parents=True, exist_ok=True)
 
     best_config_dict = {
@@ -333,13 +371,16 @@ def lock_in_best_config(
         },
         "loss_weights": {
             "strategy": "homoscedastic_learnable",
-            "initial_weights": best_params.get("task_loss_init", {
-                "detection": 0.0,
-                "stage": 0.0,
-                "intensity_reg": 0.0,
-                "intensity_cls": 0.0,
-                "track": 0.0,
-            }),
+            "initial_weights": best_params.get(
+                "task_loss_init",
+                {
+                    "detection": 0.0,
+                    "stage": 0.0,
+                    "intensity_reg": 0.0,
+                    "intensity_cls": 0.0,
+                    "track": 0.0,
+                },
+            ),
         },
     }
 
@@ -357,8 +398,8 @@ def lock_in_best_config(
 
 
 def update_models_report_sweep(
-    sweep_summary: Dict[str, Any],
-    report_path: Optional[Path] = None,
+    sweep_summary: dict[str, Any],
+    report_path: Path | None = None,
 ) -> None:
     """Records the HPO hyperparameter sweep summary and best config lock-in to models_report.md."""
     rep_path = report_path or Path("ml/cyclone/eval/models_report.md")
@@ -368,7 +409,9 @@ def update_models_report_sweep(
     for t in sweep_summary["ranked_trials"]:
         p = t["params"]
         vm = t["val_metrics"]
-        rank_icon = "🥇 **WINNER**" if t["trial_id"] == sweep_summary["best_trial_id"] else "Runner-up"
+        rank_icon = (
+            "🥇 **WINNER**" if t["trial_id"] == sweep_summary["best_trial_id"] else "Runner-up"
+        )
         row = f"| **{t['trial_id']}** ({rank_icon}) | `{p['backbone']}` | {p['learning_rate']:.1e} | {p['dropout']} | {p['track_hidden_dim']} | {p['fusion_hidden_dim']} | {p['weight_decay']:.1e} | **{t['composite_val_score']:.4f}** | {vm['track_mean_error_km']:.1f} km | {vm['intensity_wind_rmse_kt']:.2f} kt | {vm['stage_macro_f1']:.4f} |"
         trials_table_rows.append(row)
 
@@ -408,7 +451,7 @@ $$\\text{{Score}} = 0.01 \\cdot \\text{{Track Error (km)}} + 0.1 \\cdot \\text{{
 
     existing_content = ""
     if rep_path.is_file():
-        with open(rep_path, "r", encoding="utf-8") as f:
+        with open(rep_path, encoding="utf-8") as f:
             existing_content = f.read()
 
     if "## 7. " in existing_content:
@@ -433,7 +476,9 @@ def main() -> None:
     parser.add_argument("--num-trials", type=int, default=3, help="Number of sweep trials to run")
     parser.add_argument("--epochs-per-trial", type=int, default=2, help="Epochs per trial")
     parser.add_argument("--batch-size", type=int, default=8, help="Mini-batch size")
-    parser.add_argument("--strategy", type=str, default="random", choices=["random", "grid"], help="Search strategy")
+    parser.add_argument(
+        "--strategy", type=str, default="random", choices=["random", "grid"], help="Search strategy"
+    )
     args = parser.parse_args()
 
     summary = run_hyperparameter_sweep(

@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
+
 import torch
 import torch.nn as nn
 from torch.optim import Optimizer
-from torch.optim.lr_scheduler import _LRScheduler, LambdaLR
+from torch.optim.lr_scheduler import LambdaLR, _LRScheduler
 
 
 class CosineWarmupScheduler(_LRScheduler):
@@ -31,7 +32,7 @@ class CosineWarmupScheduler(_LRScheduler):
         self.min_lr = min_lr
         super().__init__(optimizer, last_epoch)
 
-    def get_lr(self) -> List[float]:
+    def get_lr(self) -> list[float]:
         step = self.last_epoch
         if step < self.warmup_steps:
             # Linear warmup
@@ -41,9 +42,13 @@ class CosineWarmupScheduler(_LRScheduler):
             return [self.min_lr for _ in self.base_lrs]
         else:
             # Cosine decay
-            progress = float(step - self.warmup_steps) / float(max(1, self.total_steps - self.warmup_steps))
+            progress = float(step - self.warmup_steps) / float(
+                max(1, self.total_steps - self.warmup_steps)
+            )
             cosine_decay = 0.5 * (1.0 + math.cos(math.pi * progress))
-            return [self.min_lr + (base_lr - self.min_lr) * cosine_decay for base_lr in self.base_lrs]
+            return [
+                self.min_lr + (base_lr - self.min_lr) * cosine_decay for base_lr in self.base_lrs
+            ]
 
 
 def get_cosine_schedule_with_warmup(
@@ -63,10 +68,13 @@ def get_cosine_schedule_with_warmup(
     Returns:
         LambdaLR scheduler instance.
     """
+
     def lr_lambda(current_step: int) -> float:
         if current_step < num_warmup_steps:
             return float(current_step) / float(max(1, num_warmup_steps))
-        progress = float(current_step - num_warmup_steps) / float(max(1, num_training_steps - num_warmup_steps))
+        progress = float(current_step - num_warmup_steps) / float(
+            max(1, num_training_steps - num_warmup_steps)
+        )
         cosine_decay = 0.5 * (1.0 + math.cos(math.pi * min(1.0, progress)))
         return min_lr_ratio + (1.0 - min_lr_ratio) * cosine_decay
 
@@ -80,7 +88,7 @@ def get_layerwise_decay_param_groups(
     backbone_lr_ratio: float = 0.1,
     layer_decay: float = 0.75,
     no_decay_bias_norm: bool = True,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     r"""Builds optimizer parameter groups with Layer-wise Learning Rate Decay (LLRD).
 
     Atmospheric Vision Physics & Transfer Learning:
@@ -101,7 +109,7 @@ def get_layerwise_decay_param_groups(
     Returns:
         List of parameter group dictionaries for torch.optim.AdamW.
     """
-    param_groups: List[Dict[str, Any]] = []
+    param_groups: list[dict[str, Any]] = []
 
     # Identify if model contains image_branch backbone
     backbone_module = None
@@ -112,7 +120,7 @@ def get_layerwise_decay_param_groups(
 
     # Determine depth stages for backbone if present
     num_stages = 4
-    decay_scales: Dict[str, float] = {}
+    decay_scales: dict[str, float] = {}
 
     for name, param in model.named_parameters():
         if not param.requires_grad:
@@ -121,7 +129,12 @@ def get_layerwise_decay_param_groups(
         # Check if parameter is 1D normalization or bias
         is_bias_or_norm = False
         if no_decay_bias_norm:
-            if param.ndim <= 1 or name.endswith(".bias") or "norm" in name.lower() or "bn" in name.lower():
+            if (
+                param.ndim <= 1
+                or name.endswith(".bias")
+                or "norm" in name.lower()
+                or "bn" in name.lower()
+            ):
                 is_bias_or_norm = True
 
         this_wd = 0.0 if is_bias_or_norm else weight_decay
@@ -151,13 +164,15 @@ def get_layerwise_decay_param_groups(
         group_lr = base_lr * lr_scale
         decay_scales[name] = lr_scale
 
-        param_groups.append({
-            "params": [param],
-            "lr": group_lr,
-            "weight_decay": this_wd,
-            "name": name,
-            "lr_scale": lr_scale,
-        })
+        param_groups.append(
+            {
+                "params": [param],
+                "lr": group_lr,
+                "weight_decay": this_wd,
+                "name": name,
+                "lr_scale": lr_scale,
+            }
+        )
 
     return param_groups
 
@@ -168,7 +183,7 @@ def build_optimizer_with_llrd(
     weight_decay: float = 1e-4,
     backbone_lr_ratio: float = 0.1,
     layer_decay: float = 0.75,
-    extra_parameters: Optional[List[nn.Parameter]] = None,
+    extra_parameters: list[nn.Parameter] | None = None,
 ) -> Optimizer:
     """Convenience constructor for AdamW with layer-wise learning rate decay.
 
@@ -192,13 +207,15 @@ def build_optimizer_with_llrd(
     )
 
     if extra_parameters:
-        param_groups.append({
-            "params": extra_parameters,
-            "lr": lr,
-            "weight_decay": 0.0,
-            "name": "extra_loss_parameters",
-            "lr_scale": 1.0,
-        })
+        param_groups.append(
+            {
+                "params": extra_parameters,
+                "lr": lr,
+                "weight_decay": 0.0,
+                "name": "extra_loss_parameters",
+                "lr_scale": 1.0,
+            }
+        )
 
     return torch.optim.AdamW(param_groups)
 

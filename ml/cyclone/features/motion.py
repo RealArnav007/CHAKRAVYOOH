@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
+
 import numpy as np
 
-from ml.cyclone.preprocess.geo import initial_bearing_deg
-
-
-MOTION_FEATURE_NAMES: List[str] = [
+MOTION_FEATURE_NAMES: list[str] = [
     "current_speed_kt",
     "current_heading_deg",
     "heading_sin",
@@ -33,10 +31,10 @@ EARTH_OMEGA = 7.2921159e-5
 
 
 def _find_history_point_at_offset(
-    history: List[Dict[str, Any]],
+    history: list[dict[str, Any]],
     target_offset_h: float,
     tolerance_h: float = 3.5,
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     """Finds the closest history point within target offset window (e.g. -6h +/- 3.5h)."""
     best_pt = None
     min_err = float("inf")
@@ -49,7 +47,7 @@ def _find_history_point_at_offset(
     return best_pt
 
 
-def extract_motion_features(sample: Dict[str, Any]) -> np.ndarray:
+def extract_motion_features(sample: dict[str, Any]) -> np.ndarray:
     """Extracts a fixed-order 16-dimensional motion & intensity dynamics feature vector from a sample.
 
     Features:

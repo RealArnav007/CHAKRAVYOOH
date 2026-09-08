@@ -2,20 +2,16 @@
 
 import math
 from pathlib import Path
-import numpy as np
+
 import pandas as pd
-import pytest
 
 from ml.cyclone.ingest.satellite import load_image_index
 from ml.cyclone.preprocess.align import resample_track
 from ml.cyclone.preprocess.colocalize import build_samples
 from ml.cyclone.preprocess.geo import (
-    calculate_speed_and_heading,
     haversine_distance_km,
-    haversine_distance_nm,
     initial_bearing_deg,
 )
-
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
@@ -35,7 +31,7 @@ def test_haversine_and_bearing_known_city_pairs():
     bearing_ny_lon = initial_bearing_deg(ny_lat, ny_lon, lon_lat, lon_lon)
 
     assert 5550.0 < dist_ny_lon < 5600.0  # Approx 5570 km
-    assert 48.0 < bearing_ny_lon < 54.0   # Approx 51 deg
+    assert 48.0 < bearing_ny_lon < 54.0  # Approx 51 deg
 
     # Pair 2: Chennai to Kolkata (Bay of Bengal cyclone corridor)
     chn_lat, chn_lon = 13.0827, 80.2707
@@ -45,7 +41,7 @@ def test_haversine_and_bearing_known_city_pairs():
     bearing_chn_kol = initial_bearing_deg(chn_lat, chn_lon, kol_lat, kol_lon)
 
     assert 1350.0 < dist_chn_kol < 1390.0  # Approx 1366 km
-    assert 34.0 < bearing_chn_kol < 40.0   # Approx 37 deg
+    assert 34.0 < bearing_chn_kol < 40.0  # Approx 37 deg
 
     # Pair 3: Cardinal Directions (Due North & Due East from Equator)
     dist_north = haversine_distance_km(0.0, 0.0, 1.0, 0.0)
@@ -67,12 +63,42 @@ def test_haversine_and_bearing_known_city_pairs():
 def test_resample_track_regular_spacing_and_motion():
     """Asserts resample_track produces exact equidistant time grids with computed velocity vectors."""
     # Create irregular raw track observations (every 3-9 hours)
-    irregular_data = pd.DataFrame([
-        {"storm_id": "TEST_STORM", "time": "2020-05-16 00:00:00", "lat": 10.0, "lon": 85.0, "wind_kt": 30.0, "pres_mb": 1000.0},
-        {"storm_id": "TEST_STORM", "time": "2020-05-16 03:00:00", "lat": 10.5, "lon": 85.0, "wind_kt": 35.0, "pres_mb": 995.0},
-        {"storm_id": "TEST_STORM", "time": "2020-05-16 12:00:00", "lat": 12.0, "lon": 85.0, "wind_kt": 50.0, "pres_mb": 980.0},
-        {"storm_id": "TEST_STORM", "time": "2020-05-16 21:00:00", "lat": 13.5, "lon": 85.0, "wind_kt": 65.0, "pres_mb": 965.0},
-    ])
+    irregular_data = pd.DataFrame(
+        [
+            {
+                "storm_id": "TEST_STORM",
+                "time": "2020-05-16 00:00:00",
+                "lat": 10.0,
+                "lon": 85.0,
+                "wind_kt": 30.0,
+                "pres_mb": 1000.0,
+            },
+            {
+                "storm_id": "TEST_STORM",
+                "time": "2020-05-16 03:00:00",
+                "lat": 10.5,
+                "lon": 85.0,
+                "wind_kt": 35.0,
+                "pres_mb": 995.0,
+            },
+            {
+                "storm_id": "TEST_STORM",
+                "time": "2020-05-16 12:00:00",
+                "lat": 12.0,
+                "lon": 85.0,
+                "wind_kt": 50.0,
+                "pres_mb": 980.0,
+            },
+            {
+                "storm_id": "TEST_STORM",
+                "time": "2020-05-16 21:00:00",
+                "lat": 13.5,
+                "lon": 85.0,
+                "wind_kt": 65.0,
+                "pres_mb": 965.0,
+            },
+        ]
+    )
 
     resampled_6h = resample_track(irregular_data, step_hours=6)
 
@@ -102,11 +128,40 @@ def test_resample_track_regular_spacing_and_motion():
 
 def test_build_samples_missing_sources_resilience():
     """Asserts build_samples executes cleanly with safe fallbacks when imagery or ERA5 are missing."""
-    track_data = pd.DataFrame([
-        {"storm_id": "CYC_01", "time": "2020-05-16 00:00:00", "lat": 12.0, "lon": 85.0, "wind_kt": 35.0, "pres_mb": 995.0, "storm_speed_kt": 10.0, "heading_deg": 350.0},
-        {"storm_id": "CYC_01", "time": "2020-05-16 06:00:00", "lat": 13.0, "lon": 84.8, "wind_kt": 45.0, "pres_mb": 988.0, "storm_speed_kt": 10.5, "heading_deg": 350.0},
-        {"storm_id": "CYC_01", "time": "2020-05-16 12:00:00", "lat": 14.0, "lon": 84.6, "wind_kt": 60.0, "pres_mb": 975.0, "storm_speed_kt": 11.0, "heading_deg": 350.0},
-    ])
+    track_data = pd.DataFrame(
+        [
+            {
+                "storm_id": "CYC_01",
+                "time": "2020-05-16 00:00:00",
+                "lat": 12.0,
+                "lon": 85.0,
+                "wind_kt": 35.0,
+                "pres_mb": 995.0,
+                "storm_speed_kt": 10.0,
+                "heading_deg": 350.0,
+            },
+            {
+                "storm_id": "CYC_01",
+                "time": "2020-05-16 06:00:00",
+                "lat": 13.0,
+                "lon": 84.8,
+                "wind_kt": 45.0,
+                "pres_mb": 988.0,
+                "storm_speed_kt": 10.5,
+                "heading_deg": 350.0,
+            },
+            {
+                "storm_id": "CYC_01",
+                "time": "2020-05-16 12:00:00",
+                "lat": 14.0,
+                "lon": 84.6,
+                "wind_kt": 60.0,
+                "pres_mb": 975.0,
+                "storm_speed_kt": 11.0,
+                "heading_deg": 350.0,
+            },
+        ]
+    )
 
     # Case 1: Neither imagery nor ERA5 provided
     samples = build_samples(track_df=track_data, image_index=None, era5_ds=None, history_steps=4)
@@ -130,18 +185,20 @@ def test_build_samples_with_sample_image_index():
 
     # Create a track point matching a timestamp from the image index
     sample_time = img_index["time"].iloc[0]
-    track_data = pd.DataFrame([
-        {
-            "storm_id": img_index["storm_id"].iloc[0],
-            "time": sample_time,
-            "lat": 15.0,
-            "lon": 85.0,
-            "wind_kt": 50.0,
-            "pres_mb": 980.0,
-            "storm_speed_kt": 8.0,
-            "heading_deg": 320.0,
-        }
-    ])
+    track_data = pd.DataFrame(
+        [
+            {
+                "storm_id": img_index["storm_id"].iloc[0],
+                "time": sample_time,
+                "lat": 15.0,
+                "lon": 85.0,
+                "wind_kt": 50.0,
+                "pres_mb": 980.0,
+                "storm_speed_kt": 8.0,
+                "heading_deg": 320.0,
+            }
+        ]
+    )
 
     samples = build_samples(
         track_df=track_data,

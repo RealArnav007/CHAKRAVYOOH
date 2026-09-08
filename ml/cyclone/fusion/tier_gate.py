@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
-import logging
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
+
 import numpy as np
 
 from ml.cyclone.preprocess.scales import wind_kt_to_saffir_simpson
@@ -39,11 +40,11 @@ class ConfidenceGatesConfig:
 
 def select_tier(
     field: str,
-    tier1_out: Optional[Union[Dict[str, Any], Any]],
-    tier0_out: Union[Dict[str, Any], Any],
-    inputs: Dict[str, Any],
-    config: Optional[Union[ConfidenceGatesConfig, Dict[str, Any]]] = None,
-) -> Tuple[Any, str, str]:
+    tier1_out: dict[str, Any] | Any | None,
+    tier0_out: dict[str, Any] | Any,
+    inputs: dict[str, Any],
+    config: ConfidenceGatesConfig | dict[str, Any] | None = None,
+) -> tuple[Any, str, str]:
     """Performs per-field gating between Tier-1 (neural) and Tier-0 (deterministic baseline).
 
     Decision Rules:
@@ -72,7 +73,11 @@ def select_tier(
     Returns:
         Tuple of (selected_payload, source_tier_tag, decision_reason).
     """
-    cfg = config if isinstance(config, ConfidenceGatesConfig) else ConfidenceGatesConfig(**(config or {}))
+    cfg = (
+        config
+        if isinstance(config, ConfidenceGatesConfig)
+        else ConfidenceGatesConfig(**(config or {}))
+    )
 
     # Check input availability flags
     has_image = bool(inputs.get("image_available", False))
@@ -81,7 +86,11 @@ def select_tier(
 
     # 1. Failure mode check: If only track is available and both image & env are missing -> Fallback to Tier-0
     if not has_image and not has_env:
-        return tier0_out, "tier0", "Missing both satellite imagery and ERA5 environment -> Tier-0 deterministic fallback"
+        return (
+            tier0_out,
+            "tier0",
+            "Missing both satellite imagery and ERA5 environment -> Tier-0 deterministic fallback",
+        )
 
     # If Tier-1 output is completely missing or None
     if tier1_out is None:
@@ -92,7 +101,11 @@ def select_tier(
     # -------------------------------------------------------------------------
 
     if field == "identification":
-        det_flag = bool(tier1_out.get("detected", False)) if isinstance(tier1_out, dict) else getattr(tier1_out, "detected", False)
+        det_flag = (
+            bool(tier1_out.get("detected", False))
+            if isinstance(tier1_out, dict)
+            else getattr(tier1_out, "detected", False)
+        )
         conf = _extract_confidence(tier1_out)
         if conf is None:
             return tier0_out, "tier0", "Tier-1 identification confidence missing -> Tier-0 fallback"
@@ -100,21 +113,45 @@ def select_tier(
         obs_wind = float(inputs.get("wind_kt", 0.0))
         if conf >= cfg.min_detection_confidence:
             if not det_flag and not has_image and obs_wind >= 17.0:
-                return tier0_out, "tier0", f"Tier-1 (no-image) non-detection overridden by observed wind ({obs_wind} kt >= 17 kt) -> Tier-0 fallback"
+                return (
+                    tier0_out,
+                    "tier0",
+                    f"Tier-1 (no-image) non-detection overridden by observed wind ({obs_wind} kt >= 17 kt) -> Tier-0 fallback",
+                )
             source = "tier1 (image+env)" if has_image else "tier1 (env+track fallback)"
             status_str = "Detection" if det_flag else "Non-detection"
-            return tier1_out, "tier1", f"{status_str} confidence ({conf:.2f}) >= threshold ({cfg.min_detection_confidence:.2f}) via {source}"
+            return (
+                tier1_out,
+                "tier1",
+                f"{status_str} confidence ({conf:.2f}) >= threshold ({cfg.min_detection_confidence:.2f}) via {source}",
+            )
         else:
-            return tier0_out, "tier0", f"Detection confidence ({conf:.2f}) < threshold ({cfg.min_detection_confidence:.2f}) -> Tier-0 fallback"
+            return (
+                tier0_out,
+                "tier0",
+                f"Detection confidence ({conf:.2f}) < threshold ({cfg.min_detection_confidence:.2f}) -> Tier-0 fallback",
+            )
 
     elif field == "classification":
         conf = _extract_confidence(tier1_out)
         if conf is None:
-            return tier0_out, "tier0", "Tier-1 stage classification confidence missing -> Tier-0 fallback"
+            return (
+                tier0_out,
+                "tier0",
+                "Tier-1 stage classification confidence missing -> Tier-0 fallback",
+            )
         if conf >= cfg.min_stage_confidence:
-            return tier1_out, "tier1", f"Stage confidence ({conf:.2f}) >= threshold ({cfg.min_stage_confidence:.2f})"
+            return (
+                tier1_out,
+                "tier1",
+                f"Stage confidence ({conf:.2f}) >= threshold ({cfg.min_stage_confidence:.2f})",
+            )
         else:
-            return tier0_out, "tier0", f"Stage confidence ({conf:.2f}) < threshold ({cfg.min_stage_confidence:.2f}) -> Tier-0 fallback"
+            return (
+                tier0_out,
+                "tier0",
+                f"Stage confidence ({conf:.2f}) < threshold ({cfg.min_stage_confidence:.2f}) -> Tier-0 fallback",
+            )
 
     elif field == "intensity":
         conf = _extract_confidence(tier1_out)
@@ -124,24 +161,48 @@ def select_tier(
         # Check physical bounds on predicted wind
         pred_wind = _extract_wind_kt(tier1_out)
         if pred_wind is None or pred_wind < 0.0 or pred_wind > 250.0:
-            return tier0_out, "tier0", f"Predicted wind speed ({pred_wind} kt) violates physical bounds -> Tier-0 fallback"
+            return (
+                tier0_out,
+                "tier0",
+                f"Predicted wind speed ({pred_wind} kt) violates physical bounds -> Tier-0 fallback",
+            )
 
         if conf >= cfg.min_intensity_confidence:
-            return tier1_out, "tier1", f"Intensity confidence ({conf:.2f}) >= threshold ({cfg.min_intensity_confidence:.2f})"
+            return (
+                tier1_out,
+                "tier1",
+                f"Intensity confidence ({conf:.2f}) >= threshold ({cfg.min_intensity_confidence:.2f})",
+            )
         else:
-            return tier0_out, "tier0", f"Intensity confidence ({conf:.2f}) < threshold ({cfg.min_intensity_confidence:.2f}) -> Tier-0 fallback"
+            return (
+                tier0_out,
+                "tier0",
+                f"Intensity confidence ({conf:.2f}) < threshold ({cfg.min_intensity_confidence:.2f}) -> Tier-0 fallback",
+            )
 
     elif field == "prediction":
         conf = _extract_confidence(tier1_out) or 0.8
         max_log_var = _extract_max_log_variance(tier1_out)
 
         if max_log_var is not None and max_log_var > cfg.max_track_variance_ceiling:
-            return tier0_out, "tier0", f"Predicted track log-variance ({max_log_var:.2f}) exceeded ceiling ({cfg.max_track_variance_ceiling:.2f}) -> Tier-0 CLIPER fallback"
+            return (
+                tier0_out,
+                "tier0",
+                f"Predicted track log-variance ({max_log_var:.2f}) exceeded ceiling ({cfg.max_track_variance_ceiling:.2f}) -> Tier-0 CLIPER fallback",
+            )
 
         if conf >= cfg.min_track_confidence:
-            return tier1_out, "tier1", f"Track confidence ({conf:.2f}) >= threshold ({cfg.min_track_confidence:.2f})"
+            return (
+                tier1_out,
+                "tier1",
+                f"Track confidence ({conf:.2f}) >= threshold ({cfg.min_track_confidence:.2f})",
+            )
         else:
-            return tier0_out, "tier0", f"Track confidence ({conf:.2f}) < threshold ({cfg.min_track_confidence:.2f}) -> Tier-0 fallback"
+            return (
+                tier0_out,
+                "tier0",
+                f"Track confidence ({conf:.2f}) < threshold ({cfg.min_track_confidence:.2f}) -> Tier-0 fallback",
+            )
 
     # Default fallback
     return tier0_out, "tier0", f"Unrecognized field '{field}' -> Tier-0 default"
@@ -153,16 +214,16 @@ def select_tier(
 
 
 def gate_and_assemble_cyclone_intelligence(
-    tier1_payload: Optional[Dict[str, Any]],
-    tier0_payload: Dict[str, Any],
-    inputs: Dict[str, Any],
-    config: Optional[Union[ConfidenceGatesConfig, Dict[str, Any]]] = None,
+    tier1_payload: dict[str, Any] | None,
+    tier0_payload: dict[str, Any],
+    inputs: dict[str, Any],
+    config: ConfidenceGatesConfig | dict[str, Any] | None = None,
     cyclone_id: str = "CYC-LIVE-001",
     name: str = "INVEST-SYSTEM",
     basin: str = "North Indian Ocean",
-    timestamp: Optional[str] = None,
+    timestamp: str | None = None,
     model_version: str = "chakravyuh-fusion-net-v1.0",
-    extra: Optional[Dict[str, Any]] = None,
+    extra: dict[str, Any] | None = None,
 ) -> CycloneIntelligence:
     """Gates per-field outputs and builds a certified, schema-validated CycloneIntelligence object.
 
@@ -179,8 +240,8 @@ def gate_and_assemble_cyclone_intelligence(
     t1 = tier1_payload or {}
     t0 = tier0_payload
 
-    provenance_sources: Dict[str, str] = {}
-    provenance_reasons: Dict[str, str] = {}
+    provenance_sources: dict[str, str] = {}
+    provenance_reasons: dict[str, str] = {}
 
     try:
         # 1. Identification Gating
@@ -296,7 +357,7 @@ def gate_and_assemble_cyclone_intelligence(
 # -----------------------------------------------------------------------------
 
 
-def _extract_confidence(data: Any) -> Optional[float]:
+def _extract_confidence(data: Any) -> float | None:
     if isinstance(data, dict):
         val = data.get("confidence")
         return float(val) if val is not None else None
@@ -305,7 +366,7 @@ def _extract_confidence(data: Any) -> Optional[float]:
     return None
 
 
-def _extract_wind_kt(data: Any) -> Optional[float]:
+def _extract_wind_kt(data: Any) -> float | None:
     if isinstance(data, dict):
         val = data.get("max_wind_kt") or data.get("wind_kt")
         return float(val) if val is not None else None
@@ -314,7 +375,7 @@ def _extract_wind_kt(data: Any) -> Optional[float]:
     return None
 
 
-def _extract_max_log_variance(data: Any) -> Optional[float]:
+def _extract_max_log_variance(data: Any) -> float | None:
     if isinstance(data, dict):
         val = data.get("max_log_var") or data.get("log_var")
         return float(val) if val is not None else None
@@ -366,7 +427,7 @@ def _parse_intensity(data: Any) -> IntensityPayload:
     )
 
 
-def _parse_prediction(data: Any, current_pos: Optional[Dict[str, float]] = None) -> PredictionPayload:
+def _parse_prediction(data: Any, current_pos: dict[str, float] | None = None) -> PredictionPayload:
     if isinstance(data, PredictionPayload):
         return data
 
@@ -375,7 +436,7 @@ def _parse_prediction(data: Any, current_pos: Optional[Dict[str, float]] = None)
     c_lat, c_lon = float(c_pos_raw.get("lat", 15.0)), float(c_pos_raw.get("lon", 85.0))
 
     raw_path = d.get("predicted_path", [])
-    path_points: List[TrajectoryPoint] = []
+    path_points: list[TrajectoryPoint] = []
 
     if raw_path:
         for idx, pt in enumerate(raw_path):
@@ -391,7 +452,9 @@ def _parse_prediction(data: Any, current_pos: Optional[Dict[str, float]] = None)
         # Construct default 6h-72h path
         path_points.append(TrajectoryPoint(t_plus_h=0, lat=c_lat, lon=c_lon))
         for h in [6, 12, 24, 48, 72]:
-            path_points.append(TrajectoryPoint(t_plus_h=h, lat=c_lat + 0.1 * (h / 6), lon=c_lon + 0.1 * (h / 6)))
+            path_points.append(
+                TrajectoryPoint(t_plus_h=h, lat=c_lat + 0.1 * (h / 6), lon=c_lon + 0.1 * (h / 6))
+            )
 
     raw_unc = d.get("uncertainty", {})
     raw_radii = raw_unc.get("cone_radius_km", [])
@@ -405,7 +468,9 @@ def _parse_prediction(data: Any, current_pos: Optional[Dict[str, float]] = None)
         current_position=GeoPoint(lat=c_lat, lon=c_lon),
         heading_deg=float(np.clip(d.get("heading_deg", 0.0), 0.0, 360.0)),
         speed_kt=max(0.0, float(d.get("speed_kt", 10.0))),
-        forecast_hours=int(d.get("forecast_hours", path_points[-1].t_plus_h if path_points else 72)),
+        forecast_hours=int(
+            d.get("forecast_hours", path_points[-1].t_plus_h if path_points else 72)
+        ),
         predicted_path=path_points,
         confidence=float(np.clip(d.get("confidence", 0.7), 0.0, 1.0)),
         uncertainty=UncertaintyCone(cone_radius_km=raw_radii),
@@ -413,12 +478,12 @@ def _parse_prediction(data: Any, current_pos: Optional[Dict[str, float]] = None)
 
 
 def _build_safe_tier0_fallback(
-    t0: Dict[str, Any],
+    t0: dict[str, Any],
     cyclone_id: str,
     name: str,
     basin: str,
     timestamp: str,
-    inputs: Dict[str, Any],
+    inputs: dict[str, Any],
     error_msg: str,
 ) -> CycloneIntelligence:
     """Constructs a deterministic Tier-0 fallback guaranteed to satisfy the frozen schema contract."""
@@ -428,7 +493,9 @@ def _build_safe_tier0_fallback(
 
     fallback_path = [TrajectoryPoint(t_plus_h=0, lat=c_lat, lon=c_lon)]
     for h in [6, 12, 24, 48, 72]:
-        fallback_path.append(TrajectoryPoint(t_plus_h=h, lat=c_lat + 0.1 * (h / 6), lon=c_lon + 0.1 * (h / 6)))
+        fallback_path.append(
+            TrajectoryPoint(t_plus_h=h, lat=c_lat + 0.1 * (h / 6), lon=c_lon + 0.1 * (h / 6))
+        )
 
     return CycloneIntelligence(
         schema_version="1.0",
@@ -438,7 +505,13 @@ def _build_safe_tier0_fallback(
         basin=basin,
         identification=IdentificationPayload(detected=True, confidence=0.5),
         classification=ClassificationPayload(stage=StageEnum.TROPICAL_DEPRESSION, confidence=0.5),
-        intensity=IntensityPayload(level=IntensityLevelEnum.DEPRESSION, scale="IMD", max_wind_kt=25.0, min_pressure_mb=1000.0, confidence=0.5),
+        intensity=IntensityPayload(
+            level=IntensityLevelEnum.DEPRESSION,
+            scale="IMD",
+            max_wind_kt=25.0,
+            min_pressure_mb=1000.0,
+            confidence=0.5,
+        ),
         prediction=PredictionPayload(
             current_position=GeoPoint(lat=c_lat, lon=c_lon),
             heading_deg=0.0,
@@ -453,8 +526,13 @@ def _build_safe_tier0_fallback(
         tier=TierEnum.TIER0,
         extra={
             "provenance": {
-                "sources": {k: "tier0" for k in ["identification", "classification", "intensity", "prediction"]},
-                "reasons": {k: f"Safety-net fallback triggered: {error_msg}" for k in ["identification", "classification", "intensity", "prediction"]},
+                "sources": dict.fromkeys(
+                    ["identification", "classification", "intensity", "prediction"], "tier0"
+                ),
+                "reasons": dict.fromkeys(
+                    ["identification", "classification", "intensity", "prediction"],
+                    f"Safety-net fallback triggered: {error_msg}",
+                ),
                 "object_tier": "tier0",
             },
             "error_fallback": True,

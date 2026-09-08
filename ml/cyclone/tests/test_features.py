@@ -2,8 +2,8 @@
 
 import json
 from pathlib import Path
+
 import numpy as np
-import pytest
 
 from ml.cyclone.features.environmental import (
     DEFAULT_IMPUTER_MEDIANS,
@@ -20,7 +20,6 @@ from ml.cyclone.features.motion import (
     extract_motion_features,
 )
 
-
 SPEC_FILE = Path(__file__).resolve().parent.parent / "features" / "feature_spec.json"
 
 
@@ -32,7 +31,7 @@ SPEC_FILE = Path(__file__).resolve().parent.parent / "features" / "feature_spec.
 def test_feature_spec_matches_code_constants():
     """Asserts feature_spec.json exactly mirrors code definitions."""
     assert SPEC_FILE.is_file(), f"feature_spec.json missing at {SPEC_FILE}"
-    with open(SPEC_FILE, "r", encoding="utf-8") as f:
+    with open(SPEC_FILE, encoding="utf-8") as f:
         spec = json.load(f)
 
     assert spec["motion_features"] == MOTION_FEATURE_NAMES
@@ -57,10 +56,42 @@ def test_motion_feature_extraction():
         "storm_speed_kt": 12.0,
         "heading_deg": 25.0,
         "history": [
-            {"t_offset_h": -24.0, "lat": 14.0, "lon": 85.0, "wind_kt": 55.0, "pres_mb": 980.0, "speed_kt": 10.0, "heading_deg": 15.0},
-            {"t_offset_h": -12.0, "lat": 16.0, "lon": 85.8, "wind_kt": 70.0, "pres_mb": 965.0, "speed_kt": 11.0, "heading_deg": 20.0},
-            {"t_offset_h": -6.0, "lat": 17.2, "lon": 86.3, "wind_kt": 80.0, "pres_mb": 955.0, "speed_kt": 11.5, "heading_deg": 22.0},
-            {"t_offset_h": 0.0, "lat": 18.5, "lon": 86.8, "wind_kt": 85.0, "pres_mb": 950.0, "speed_kt": 12.0, "heading_deg": 25.0},
+            {
+                "t_offset_h": -24.0,
+                "lat": 14.0,
+                "lon": 85.0,
+                "wind_kt": 55.0,
+                "pres_mb": 980.0,
+                "speed_kt": 10.0,
+                "heading_deg": 15.0,
+            },
+            {
+                "t_offset_h": -12.0,
+                "lat": 16.0,
+                "lon": 85.8,
+                "wind_kt": 70.0,
+                "pres_mb": 965.0,
+                "speed_kt": 11.0,
+                "heading_deg": 20.0,
+            },
+            {
+                "t_offset_h": -6.0,
+                "lat": 17.2,
+                "lon": 86.3,
+                "wind_kt": 80.0,
+                "pres_mb": 955.0,
+                "speed_kt": 11.5,
+                "heading_deg": 22.0,
+            },
+            {
+                "t_offset_h": 0.0,
+                "lat": 18.5,
+                "lon": 86.8,
+                "wind_kt": 85.0,
+                "pres_mb": 950.0,
+                "speed_kt": 12.0,
+                "heading_deg": 25.0,
+            },
         ],
     }
 
@@ -95,12 +126,12 @@ def test_environmental_feature_imputation():
     """Asserts environmental extractor imputes NaNs with medians and preserves real values."""
     sample_with_nans = {
         "env": {
-            "sst_c": 29.2,            # Real value
-            "shear_ms": float("nan"), # Missing -> should impute 12.0
-            "rh500": 70.0,            # Real value
-            "vort850": None,          # Missing -> should impute 15.0
-            "mslp_mb": 1004.0,        # Real value
-            "wind10m_ms": float("nan"),# Missing -> should impute 8.0
+            "sst_c": 29.2,  # Real value
+            "shear_ms": float("nan"),  # Missing -> should impute 12.0
+            "rh500": 70.0,  # Real value
+            "vort850": None,  # Missing -> should impute 15.0
+            "mslp_mb": 1004.0,  # Real value
+            "wind10m_ms": float("nan"),  # Missing -> should impute 8.0
         }
     }
 
@@ -114,12 +145,12 @@ def test_environmental_feature_imputation():
     assert not np.isnan(vec).any()
 
     # Check preserved vs imputed values
-    assert abs(vec[0] - 29.2) < 1e-4                        # sst_c preserved
-    assert abs(vec[1] - DEFAULT_IMPUTER_MEDIANS["shear_ms"]) < 1e-4 # shear imputed
-    assert abs(vec[2] - 70.0) < 1e-4                        # rh500 preserved
+    assert abs(vec[0] - 29.2) < 1e-4  # sst_c preserved
+    assert abs(vec[1] - DEFAULT_IMPUTER_MEDIANS["shear_ms"]) < 1e-4  # shear imputed
+    assert abs(vec[2] - 70.0) < 1e-4  # rh500 preserved
     assert abs(vec[3] - DEFAULT_IMPUTER_MEDIANS["vort850"]) < 1e-4  # vort imputed
-    assert abs(vec[4] - 1004.0) < 1e-4                      # mslp preserved
-    assert abs(vec[5] - DEFAULT_IMPUTER_MEDIANS["wind10m_ms"]) < 1e-4 # wind10m imputed
+    assert abs(vec[4] - 1004.0) < 1e-4  # mslp preserved
+    assert abs(vec[5] - DEFAULT_IMPUTER_MEDIANS["wind10m_ms"]) < 1e-4  # wind10m imputed
 
 
 # -----------------------------------------------------------------------------
@@ -139,7 +170,15 @@ def test_fused_sample_future_horizons_and_masking():
         "storm_speed_kt": 12.0,
         "heading_deg": 25.0,
         "history": [
-            {"t_offset_h": 0.0, "lat": 18.5, "lon": 86.8, "wind_kt": 85.0, "pres_mb": 950.0, "speed_kt": 12.0, "heading_deg": 25.0}
+            {
+                "t_offset_h": 0.0,
+                "lat": 18.5,
+                "lon": 86.8,
+                "wind_kt": 85.0,
+                "pres_mb": 950.0,
+                "speed_kt": 12.0,
+                "heading_deg": 25.0,
+            }
         ],
     }
 
@@ -179,5 +218,5 @@ def test_fused_sample_future_horizons_and_masking():
     assert fused.targets["wind_kt"] == 85.0
     assert fused.targets["pres_mb"] == 950.0
     assert fused.targets["imd_level_idx"] == 4  # VERY_SEVERE_CYCLONIC_STORM
-    assert fused.targets["stage_idx"] == 3      # MATURE_TROPICAL_CYCLONE
+    assert fused.targets["stage_idx"] == 3  # MATURE_TROPICAL_CYCLONE
     assert fused.targets["detected"] == 1.0

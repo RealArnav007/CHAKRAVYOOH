@@ -1,17 +1,14 @@
 """Unit tests for leak-free storm splitting, temporal isolation, and PyTorch dataset batching."""
 
 import json
-from pathlib import Path
-import numpy as np
+
 import pandas as pd
-import pytest
 import torch
 from torch.utils.data import DataLoader
 
 from ml.cyclone.datasets.splits import make_splits
 from ml.cyclone.datasets.torch_dataset import CycloneDataset, cyclone_collate_fn
-from ml.cyclone.features.fusion import FusedSample, make_fused_sample
-
+from ml.cyclone.features.fusion import make_fused_sample
 
 # -----------------------------------------------------------------------------
 # Data Splitting & Leak-Free Guarantee Tests
@@ -26,7 +23,7 @@ def test_make_splits_zero_leakage_and_chronology(tmp_path):
         ("STORM_2018_A", "2018-05-10T00:00:00Z", 4),
         ("STORM_2018_B", "2018-11-15T00:00:00Z", 5),
         ("STORM_2019_C", "2019-06-01T00:00:00Z", 6),
-        ("STORM_2020_DEMO", "2020-05-18T00:00:00Z", 8), # Demo storm
+        ("STORM_2020_DEMO", "2020-05-18T00:00:00Z", 8),  # Demo storm
         ("STORM_2021_E", "2021-05-25T00:00:00Z", 4),
         ("STORM_2022_F", "2022-10-10T00:00:00Z", 5),
     ]
@@ -34,14 +31,16 @@ def test_make_splits_zero_leakage_and_chronology(tmp_path):
     for sid, start_t, n_steps in storms_info:
         base_time = pd.Timestamp(start_t)
         for i in range(n_steps):
-            records.append({
-                "storm_id": sid,
-                "time": (base_time + pd.Timedelta(hours=i * 6)).isoformat(),
-                "lat": 12.0 + i * 0.5,
-                "lon": 85.0 + i * 0.3,
-                "wind_kt": 35.0 + i * 5.0,
-                "pres_mb": 995.0 - i * 4.0,
-            })
+            records.append(
+                {
+                    "storm_id": sid,
+                    "time": (base_time + pd.Timedelta(hours=i * 6)).isoformat(),
+                    "lat": 12.0 + i * 0.5,
+                    "lon": 85.0 + i * 0.3,
+                    "wind_kt": 35.0 + i * 5.0,
+                    "pres_mb": 995.0 - i * 4.0,
+                }
+            )
 
     manifest_file = tmp_path / "test_manifest.json"
     splits = make_splits(
@@ -59,8 +58,7 @@ def test_make_splits_zero_leakage_and_chronology(tmp_path):
 
     # 2. Extract storm IDs per split
     split_storms = {
-        name: set(records[idx]["storm_id"] for idx in indices)
-        for name, indices in splits.items()
+        name: set(records[idx]["storm_id"] for idx in indices) for name, indices in splits.items()
     }
 
     # Invariant 1: Zero storm overlap between any two splits
@@ -86,7 +84,7 @@ def test_make_splits_zero_leakage_and_chronology(tmp_path):
 
     # Invariant 4: Written manifest is valid JSON
     assert manifest_file.is_file()
-    with open(manifest_file, "r", encoding="utf-8") as f:
+    with open(manifest_file, encoding="utf-8") as f:
         manifest_data = json.load(f)
     assert "splits" in manifest_data
     assert "storm_counts" in manifest_data
@@ -112,7 +110,15 @@ def test_pytorch_dataset_and_collate_fn():
             "storm_speed_kt": 10.0,
             "heading_deg": 315.0,
             "history": [
-                {"t_offset_h": 0.0, "lat": 15.0 + i, "lon": 85.0 + i, "wind_kt": 45.0 + i * 10.0, "pres_mb": 990.0, "speed_kt": 10.0, "heading_deg": 315.0}
+                {
+                    "t_offset_h": 0.0,
+                    "lat": 15.0 + i,
+                    "lon": 85.0 + i,
+                    "wind_kt": 45.0 + i * 10.0,
+                    "pres_mb": 990.0,
+                    "speed_kt": 10.0,
+                    "heading_deg": 315.0,
+                }
             ],
             "env": {
                 "sst_c": 29.0,

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List, Optional, Sequence, Union
+from collections.abc import Callable, Sequence
+from typing import Any
+
 import numpy as np
 import torch
 from torch.utils.data import Dataset
@@ -15,11 +17,11 @@ class CycloneDataset(Dataset):
 
     def __init__(
         self,
-        samples: Sequence[Union[FusedSample, Dict[str, Any]]],
-        indices: Optional[Sequence[int]] = None,
+        samples: Sequence[FusedSample | dict[str, Any]],
+        indices: Sequence[int] | None = None,
         mode: str = "multimodal",
         image_shape: tuple[int, int] = (224, 224),
-        transform: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+        transform: Callable[[torch.Tensor], torch.Tensor] | None = None,
     ) -> None:
         """Initializes CycloneDataset.
 
@@ -39,7 +41,7 @@ class CycloneDataset(Dataset):
     def __len__(self) -> int:
         return len(self.indices)
 
-    def __getitem__(self, item_idx: int) -> Dict[str, Any]:
+    def __getitem__(self, item_idx: int) -> dict[str, Any]:
         raw_idx = self.indices[item_idx]
         sample_obj = self.raw_samples[raw_idx]
 
@@ -56,7 +58,9 @@ class CycloneDataset(Dataset):
             if self.transform is not None:
                 image_tensor = self.transform(image_tensor)
         else:
-            image_tensor = torch.zeros((1, self.image_shape[0], self.image_shape[1]), dtype=torch.float32)
+            image_tensor = torch.zeros(
+                (1, self.image_shape[0], self.image_shape[1]), dtype=torch.float32
+            )
             image_available = torch.tensor(0.0, dtype=torch.float32)
 
         # Targets
@@ -96,7 +100,7 @@ class CycloneDataset(Dataset):
         }
 
 
-def cyclone_collate_fn(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
+def cyclone_collate_fn(batch: list[dict[str, Any]]) -> dict[str, Any]:
     """Custom batch collator for CycloneDataset handling multi-modal variable presence and horizon masks.
 
     Args:
@@ -139,7 +143,9 @@ def cyclone_collate_fn(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
         "stage_idx": torch.stack([item["targets"]["stage_idx"] for item in batch], dim=0),
         "detected": torch.stack([item["targets"]["detected"] for item in batch], dim=0),
         "future_deltas": torch.stack([item["targets"]["future_deltas"] for item in batch], dim=0),
-        "future_positions": torch.stack([item["targets"]["future_positions"] for item in batch], dim=0),
+        "future_positions": torch.stack(
+            [item["targets"]["future_positions"] for item in batch], dim=0
+        ),
         "horizon_masks": torch.stack([item["targets"]["horizon_masks"] for item in batch], dim=0),
     }
 
@@ -158,7 +164,7 @@ def generate_negative_samples(
     num_samples: int = 20,
     image_shape: tuple[int, int] = (224, 224),
     seed: int = 42,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Generates non-cyclone negative sample dictionaries (calm open ocean / low-wind timesteps).
 
     Used for balanced binary detection pretraining to guard models against false-positive triggers
@@ -173,7 +179,7 @@ def generate_negative_samples(
         List of sample dictionaries with detected=0.0 and low wind values.
     """
     rng = np.random.RandomState(seed)
-    neg_samples: List[Dict[str, Any]] = []
+    neg_samples: list[dict[str, Any]] = []
 
     for i in range(num_samples):
         # Calm ocean background: wind 5-12 kt, normal sea level pressure 1010-1016 mb
@@ -187,28 +193,30 @@ def generate_negative_samples(
         noise = rng.normal(0.0, 0.02, size=(1, image_shape[0], image_shape[1])).astype(np.float32)
         ir_patch = np.clip(base_brightness + noise, 0.0, 1.0)
 
-        neg_samples.append({
-            "storm_id": f"NON_CYCLONE_BG_{i:03d}",
-            "time": f"2022-01-{(i % 28) + 1:02d}T00:00:00Z",
-            "lat": round(lat, 4),
-            "lon": round(lon, 4),
-            "wind_kt": round(wind_kt, 1),
-            "pres_mb": round(pres_mb, 1),
-            "storm_speed_kt": 0.0,
-            "heading_deg": 0.0,
-            "image_path": None,
-            "image_tensor": ir_patch,
-            "image_available": True,
-            "env": {
-                "sst_c": 28.5,
-                "shear_ms": 5.0,
-                "rh500": 45.0,
-                "vort850": 2.0,
-                "mslp_mb": pres_mb,
-                "wind10m_ms": 3.0,
-            },
-            "history": [],
-        })
+        neg_samples.append(
+            {
+                "storm_id": f"NON_CYCLONE_BG_{i:03d}",
+                "time": f"2022-01-{(i % 28) + 1:02d}T00:00:00Z",
+                "lat": round(lat, 4),
+                "lon": round(lon, 4),
+                "wind_kt": round(wind_kt, 1),
+                "pres_mb": round(pres_mb, 1),
+                "storm_speed_kt": 0.0,
+                "heading_deg": 0.0,
+                "image_path": None,
+                "image_tensor": ir_patch,
+                "image_available": True,
+                "env": {
+                    "sst_c": 28.5,
+                    "shear_ms": 5.0,
+                    "rh500": 45.0,
+                    "vort850": 2.0,
+                    "mslp_mb": pres_mb,
+                    "wind10m_ms": 3.0,
+                },
+                "history": [],
+            }
+        )
 
     return neg_samples
 

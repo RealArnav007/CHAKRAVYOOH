@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
 import json
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
+
 import numpy as np
-import pandas as pd
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -39,11 +39,11 @@ def train_fusion(
     batch_size: int = 8,
     lr: float = 2e-4,
     weight_decay: float = 1e-4,
-    pretrained_image_checkpoint: Optional[Union[str, Path]] = None,
+    pretrained_image_checkpoint: str | Path | None = None,
     freeze_image_blocks: int = 0,
-    artifact_dir: Optional[Path] = None,
-    device: Optional[torch.device] = None,
-) -> Dict[str, Any]:
+    artifact_dir: Path | None = None,
+    device: torch.device | None = None,
+) -> dict[str, Any]:
     """Trains FusionNet end-to-end across all modalities and heads using learnable multi-task loss.
 
     Args:
@@ -63,9 +63,9 @@ def train_fusion(
     save_dir.mkdir(parents=True, exist_ok=True)
 
     compute_device = device or (
-        torch.device("mps") if torch.backends.mps.is_available()
-        else torch.device("cuda") if torch.cuda.is_available()
-        else torch.device("cpu")
+        torch.device("mps")
+        if torch.backends.mps.is_available()
+        else torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     )
     print(f"[FUSION] Using compute device: {compute_device}")
 
@@ -81,15 +81,23 @@ def train_fusion(
     val_indices = splits["val"]
     test_indices = splits["test"]
 
-    print(f"[FUSION] Split counts -> Train: {len(train_indices)}, Val: {len(val_indices)}, Test: {len(test_indices)}")
+    print(
+        f"[FUSION] Split counts -> Train: {len(train_indices)}, Val: {len(val_indices)}, Test: {len(test_indices)}"
+    )
 
     train_ds = CycloneDataset(all_samples, indices=train_indices, mode="multimodal")
     val_ds = CycloneDataset(all_samples, indices=val_indices, mode="multimodal")
     test_ds = CycloneDataset(all_samples, indices=test_indices, mode="multimodal")
 
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, collate_fn=cyclone_collate_fn)
-    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, collate_fn=cyclone_collate_fn)
-    test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, collate_fn=cyclone_collate_fn)
+    train_loader = DataLoader(
+        train_ds, batch_size=batch_size, shuffle=True, collate_fn=cyclone_collate_fn
+    )
+    val_loader = DataLoader(
+        val_ds, batch_size=batch_size, shuffle=False, collate_fn=cyclone_collate_fn
+    )
+    test_loader = DataLoader(
+        test_ds, batch_size=batch_size, shuffle=False, collate_fn=cyclone_collate_fn
+    )
 
     # 2. Instantiate FusionNet & Load Pretrained Weights
     model = FusionNet(
@@ -110,15 +118,27 @@ def train_fusion(
     # Warm-start from pretrained image branch if available
     img_ckpt_path = pretrained_image_checkpoint
     if img_ckpt_path is None:
-        default_intensity_ckpt = Path(__file__).resolve().parent.parent / "artifacts" / "intensity" / "best_intensity_model.pt"
-        default_detection_ckpt = Path(__file__).resolve().parent.parent / "artifacts" / "detection" / "best_detection_model.pt"
+        default_intensity_ckpt = (
+            Path(__file__).resolve().parent.parent
+            / "artifacts"
+            / "intensity"
+            / "best_intensity_model.pt"
+        )
+        default_detection_ckpt = (
+            Path(__file__).resolve().parent.parent
+            / "artifacts"
+            / "detection"
+            / "best_detection_model.pt"
+        )
         if default_intensity_ckpt.is_file():
             img_ckpt_path = default_intensity_ckpt
         elif default_detection_ckpt.is_file():
             img_ckpt_path = default_detection_ckpt
 
     if img_ckpt_path and Path(img_ckpt_path).is_file():
-        loaded = model.load_pretrained_image_weights(img_ckpt_path, freeze_early_blocks=freeze_image_blocks)
+        loaded = model.load_pretrained_image_weights(
+            img_ckpt_path, freeze_early_blocks=freeze_image_blocks
+        )
         print(f"[FUSION] Warm-started ImageBranch from {img_ckpt_path} (Success: {loaded})")
 
     # 3. Loss & Optimizer (joint optimization over weights and homoscedastic log-variances)
@@ -182,7 +202,7 @@ def evaluate_fusion_net(
     model: nn.Module,
     dataloader: DataLoader,
     device: torch.device,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Evaluates FusionNet across all 4 tasks on a given dataloader."""
     model.eval()
 
@@ -197,7 +217,7 @@ def evaluate_fusion_net(
     pred_imds, true_imds = [], []
 
     # Track accumulators
-    track_errors_by_horizon: Dict[int, List[float]] = {h: [] for h in DEFAULT_TRACK_HORIZONS}
+    track_errors_by_horizon: dict[int, list[float]] = {h: [] for h in DEFAULT_TRACK_HORIZONS}
     all_pred_pts, all_true_pts, all_cone_radii = [], [], []
 
     with torch.no_grad():
@@ -253,11 +273,15 @@ def evaluate_fusion_net(
                 curr_lat = float(meta["lat"])
                 curr_lon = float(meta["lon"])
 
-                radii = predict_cone_radii(log_vars=p_logvars[i], current_lat=curr_lat, coverage_level=0.95)
+                radii = predict_cone_radii(
+                    log_vars=p_logvars[i], current_lat=curr_lat, coverage_level=0.95
+                )
 
                 for h_idx, h in enumerate(DEFAULT_TRACK_HORIZONS):
                     if h_masks[i, h_idx]:
-                        t_lat, t_lon = float(t_positions[i, h_idx, 0]), float(t_positions[i, h_idx, 1])
+                        t_lat, t_lon = float(t_positions[i, h_idx, 0]), float(
+                            t_positions[i, h_idx, 1]
+                        )
                         dlat, dlon = float(p_deltas[i, h_idx, 0]), float(p_deltas[i, h_idx, 1])
                         p_lat = curr_lat + dlat
                         p_lon = (curr_lon + dlon + 540.0) % 360.0 - 180.0
@@ -274,10 +298,14 @@ def evaluate_fusion_net(
                         all_cone_radii.append(r_km)
 
     # Compute task metrics
-    det_met = classification_metrics(y_true=det_trues, y_pred=det_preds, y_prob=det_probs, classes=[0, 1])
+    det_met = classification_metrics(
+        y_true=det_trues, y_pred=det_preds, y_prob=det_probs, classes=[0, 1]
+    )
     det_ece = expected_calibration_error(y_true=det_trues, y_prob=det_probs)
 
-    stage_met = classification_metrics(y_true=stage_trues, y_pred=stage_preds, classes=list(range(6)))
+    stage_met = classification_metrics(
+        y_true=stage_trues, y_pred=stage_preds, classes=list(range(6))
+    )
     int_met = intensity_metrics(pred_wind=pred_winds, true_wind=true_winds)
     imd_met = classification_metrics(y_true=true_imds, y_pred=pred_imds, classes=list(range(7)))
 
@@ -290,7 +318,9 @@ def evaluate_fusion_net(
         all_t_errs.extend(errs)
 
     overall_track_mean = round(float(np.mean(all_t_errs)), 2) if all_t_errs else 0.0
-    cone_cov = cone_coverage(pred_cone=all_cone_radii, pred_path=all_pred_pts, true_path=all_true_pts)
+    cone_cov = cone_coverage(
+        pred_cone=all_cone_radii, pred_path=all_pred_pts, true_path=all_true_pts
+    )
 
     return {
         "detection_accuracy": det_met["accuracy"],
@@ -310,8 +340,8 @@ def evaluate_fusion_net(
 
 
 def update_models_report_fusion(
-    fusion_results: Dict[str, Any],
-    report_path: Optional[Path] = None,
+    fusion_results: dict[str, Any],
+    report_path: Path | None = None,
 ) -> None:
     """Updates models_report.md with unified Multi-Modal FusionNet performance."""
     rep_path = report_path or Path("ml/cyclone/eval/models_report.md")
@@ -346,7 +376,7 @@ def update_models_report_fusion(
 
     existing_content = ""
     if rep_path.is_file():
-        with open(rep_path, "r", encoding="utf-8") as f:
+        with open(rep_path, encoding="utf-8") as f:
             existing_content = f.read()
 
     if "## 6. " in existing_content:
@@ -363,16 +393,27 @@ def update_models_report_fusion(
     with open(mirror_path, "w", encoding="utf-8") as f:
         f.write(new_content)
 
-    print(f"[REPORT] Models report updated with FusionNet benchmark at {rep_path} and {mirror_path}")
+    print(
+        f"[REPORT] Models report updated with FusionNet benchmark at {rep_path} and {mirror_path}"
+    )
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Train multi-modal FusionNet with learnable MultiTaskLoss.")
+    parser = argparse.ArgumentParser(
+        description="Train multi-modal FusionNet with learnable MultiTaskLoss."
+    )
     parser.add_argument("--epochs", type=int, default=8, help="Number of training epochs")
     parser.add_argument("--batch-size", type=int, default=8, help="Batch size")
     parser.add_argument("--lr", type=float, default=2e-4, help="Learning rate")
-    parser.add_argument("--pretrained-image-ckpt", type=str, default=None, help="Pretrained image checkpoint path")
-    parser.add_argument("--freeze-image-blocks", type=int, default=0, help="Number of early image backbone blocks to freeze")
+    parser.add_argument(
+        "--pretrained-image-ckpt", type=str, default=None, help="Pretrained image checkpoint path"
+    )
+    parser.add_argument(
+        "--freeze-image-blocks",
+        type=int,
+        default=0,
+        help="Number of early image backbone blocks to freeze",
+    )
     args = parser.parse_args()
 
     results = train_fusion(

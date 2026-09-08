@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import math
 import random
-from typing import Any, Dict, Optional, Tuple, Union
-import numpy as np
+from typing import Any
+
 import torch
 import torch.nn as nn
 import torchvision.transforms.functional as TF
@@ -33,7 +32,7 @@ class SatelliteAugmentor(nn.Module):
         max_rotation_deg: float = 360.0,
         random_flip_h: bool = True,
         random_flip_v: bool = True,
-        random_crop_scale: Tuple[float, float] = (0.88, 1.0),
+        random_crop_scale: tuple[float, float] = (0.88, 1.0),
         brightness_jitter: float = 0.05,
         contrast_jitter: float = 0.05,
         cutout: bool = True,
@@ -69,7 +68,9 @@ class SatelliteAugmentor(nn.Module):
         if img_tensor.ndim == 3:
             return self._augment_single(img_tensor)
         elif img_tensor.ndim == 4:
-            augmented_list = [self._augment_single(img_tensor[i]) for i in range(img_tensor.size(0))]
+            augmented_list = [
+                self._augment_single(img_tensor[i]) for i in range(img_tensor.size(0))
+            ]
             return torch.stack(augmented_list, dim=0)
         else:
             return img_tensor
@@ -106,7 +107,9 @@ class SatelliteAugmentor(nn.Module):
             left = random.randint(0, w - crop_w)
 
             x_cropped = TF.crop(x, top=top, left=left, height=crop_h, width=crop_w)
-            x = TF.resize(x_cropped, size=[h, w], interpolation=TF.InterpolationMode.BILINEAR, antialias=True)
+            x = TF.resize(
+                x_cropped, size=[h, w], interpolation=TF.InterpolationMode.BILINEAR, antialias=True
+            )
 
         # 4. IR Photometric Jitter (Realistic brightness & contrast bounds)
         if self.brightness_jitter > 0.0:
@@ -134,7 +137,7 @@ class SatelliteAugmentor(nn.Module):
 
 
 def build_satellite_augmentation(
-    config: Optional[Union[AugmentationConfig, CycloneConfig, Dict[str, Any]]] = None,
+    config: AugmentationConfig | CycloneConfig | dict[str, Any] | None = None,
     is_train: bool = True,
 ) -> SatelliteAugmentor:
     """Factory builder for satellite imagery augmentor configured from project config.
@@ -154,7 +157,9 @@ def build_satellite_augmentation(
     elif isinstance(config, AugmentationConfig):
         aug_cfg = config
     elif isinstance(config, dict):
-        aug_cfg = AugmentationConfig(**{k: v for k, v in config.items() if hasattr(AugmentationConfig, k)})
+        aug_cfg = AugmentationConfig(
+            **{k: v for k, v in config.items() if hasattr(AugmentationConfig, k)}
+        )
     else:
         aug_cfg = AugmentationConfig()
 

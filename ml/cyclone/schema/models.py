@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from enum import Enum
-import json
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
+
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -68,7 +69,9 @@ class GeoPoint(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     lat: float = Field(..., ge=-90.0, le=90.0, description="Latitude in decimal degrees [-90, 90]")
-    lon: float = Field(..., ge=-180.0, le=180.0, description="Longitude in decimal degrees [-180, 180]")
+    lon: float = Field(
+        ..., ge=-180.0, le=180.0, description="Longitude in decimal degrees [-180, 180]"
+    )
 
     @field_validator("lat", "lon")
     @classmethod
@@ -81,7 +84,9 @@ class TrajectoryPoint(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    t_plus_h: int = Field(..., ge=0, description="Forecast horizon offset in hours (e.g. 0, 6, 12, 24)")
+    t_plus_h: int = Field(
+        ..., ge=0, description="Forecast horizon offset in hours (e.g. 0, 6, 12, 24)"
+    )
     lat: float = Field(..., ge=-90.0, le=90.0, description="Forecast latitude")
     lon: float = Field(..., ge=-180.0, le=180.0, description="Forecast longitude")
 
@@ -96,7 +101,7 @@ class UncertaintyCone(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    cone_radius_km: List[float] = Field(
+    cone_radius_km: list[float] = Field(
         ...,
         min_length=1,
         description="Uncertainty cone radii in km, parallel to predicted_path entries.",
@@ -104,7 +109,7 @@ class UncertaintyCone(BaseModel):
 
     @field_validator("cone_radius_km")
     @classmethod
-    def validate_radii(cls, v: List[float]) -> List[float]:
+    def validate_radii(cls, v: list[float]) -> list[float]:
         for r in v:
             if r < 0:
                 raise ValueError(f"Cone radius must be non-negative, got {r}")
@@ -122,8 +127,12 @@ class PredictionPayload(BaseModel):
     heading_deg: float = Field(..., ge=0.0, le=360.0, description="Forward motion heading [0, 360]")
     speed_kt: float = Field(..., ge=0.0, description="Forward translation speed in knots")
     forecast_hours: int = Field(..., ge=0, description="Forecast horizon duration in hours")
-    predicted_path: List[TrajectoryPoint] = Field(..., min_length=1, description="Time-ordered forecast points")
-    confidence: float = Field(..., ge=0.0, le=1.0, description="Trajectory forecast confidence in [0, 1]")
+    predicted_path: list[TrajectoryPoint] = Field(
+        ..., min_length=1, description="Time-ordered forecast points"
+    )
+    confidence: float = Field(
+        ..., ge=0.0, le=1.0, description="Trajectory forecast confidence in [0, 1]"
+    )
     uncertainty: UncertaintyCone = Field(..., description="Uncertainty cone parallel to path")
 
     @model_validator(mode="after")
@@ -175,7 +184,9 @@ class IdentificationPayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     detected: bool = Field(..., description="System presence indicator")
-    confidence: float = Field(..., ge=0.0, le=1.0, description="Detection confidence score in [0, 1]")
+    confidence: float = Field(
+        ..., ge=0.0, le=1.0, description="Detection confidence score in [0, 1]"
+    )
 
 
 class ClassificationPayload(BaseModel):
@@ -184,7 +195,9 @@ class ClassificationPayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     stage: StageEnum = Field(..., description="Life-cycle stage enum")
-    confidence: float = Field(..., ge=0.0, le=1.0, description="Classification confidence in [0, 1]")
+    confidence: float = Field(
+        ..., ge=0.0, le=1.0, description="Classification confidence in [0, 1]"
+    )
 
 
 class IntensityPayload(BaseModel):
@@ -195,7 +208,9 @@ class IntensityPayload(BaseModel):
     level: IntensityLevelEnum = Field(..., description="IMD intensity classification")
     scale: Literal["IMD"] = Field("IMD", description="Meteorological scale, locked to IMD")
     max_wind_kt: float = Field(..., ge=0.0, description="Maximum sustained wind in knots")
-    min_pressure_mb: float = Field(..., ge=800.0, le=1050.0, description="Central pressure in millibars")
+    min_pressure_mb: float = Field(
+        ..., ge=800.0, le=1050.0, description="Central pressure in millibars"
+    )
     confidence: float = Field(..., ge=0.0, le=1.0, description="Intensity confidence in [0, 1]")
 
 
@@ -212,20 +227,24 @@ class CycloneIntelligence(BaseModel):
     schema_version: Literal["1.0"] = Field("1.0", description="Locked schema version")
     cyclone_id: str = Field(..., min_length=1, description="Unique storm identifier")
     name: str = Field(..., min_length=1, description="Cyclone or disturbance name")
-    timestamp: str = Field(..., description="ISO-8601 UTC timestamp string (e.g. 2026-09-08T10:00:00Z)")
+    timestamp: str = Field(
+        ..., description="ISO-8601 UTC timestamp string (e.g. 2026-09-08T10:00:00Z)"
+    )
     basin: str = Field(..., min_length=1, description="Oceanic basin")
 
     identification: IdentificationPayload
     classification: ClassificationPayload
     intensity: IntensityPayload
-    prediction: Optional[PredictionPayload] = Field(
+    prediction: PredictionPayload | None = Field(
         ..., description="Forecast trajectory and uncertainty. None if detected is false."
     )
 
-    sources: List[str] = Field(..., min_length=1, description="Active input sources")
+    sources: list[str] = Field(..., min_length=1, description="Active input sources")
     model_version: str = Field(..., min_length=1, description="Model release version")
     tier: TierEnum = Field(..., description="Engine execution tier: tier1, tier0, or mixed")
-    extra: Dict[str, Any] = Field(default_factory=dict, description="Free-form supplemental metadata")
+    extra: dict[str, Any] = Field(
+        default_factory=dict, description="Free-form supplemental metadata"
+    )
 
     @field_validator("timestamp")
     @classmethod
@@ -243,19 +262,21 @@ class CycloneIntelligence(BaseModel):
     def validate_detection_prediction_invariant(self) -> CycloneIntelligence:
         # Invariant: If detected is False, prediction must be None
         if not self.identification.detected and self.prediction is not None:
-            raise ValueError("When identification.detected is False, prediction must be null (None)")
+            raise ValueError(
+                "When identification.detected is False, prediction must be null (None)"
+            )
         return self
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converts model to serializable dictionary."""
         return self.model_dump(mode="json")
 
-    def to_validated_dict(self) -> Dict[str, Any]:
+    def to_validated_dict(self) -> dict[str, Any]:
         """Serializes and validates against JSON Schema."""
         d = self.to_dict()
         schema_path = Path(__file__).resolve().parent / "cyclone_intelligence.schema.json"
         if jsonschema is not None and schema_path.is_file():
-            with open(schema_path, "r", encoding="utf-8") as f:
+            with open(schema_path, encoding="utf-8") as f:
                 schema = json.load(f)
             jsonschema.validate(instance=d, schema=schema)
         return d

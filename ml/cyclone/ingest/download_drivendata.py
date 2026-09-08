@@ -3,13 +3,10 @@
 from __future__ import annotations
 
 import argparse
-import os
-from pathlib import Path
-import shutil
 import sys
 import tarfile
-from typing import Optional
 import zipfile
+from pathlib import Path
 
 try:
     import numpy as np
@@ -43,7 +40,9 @@ def create_synthetic_drivendata_sample(output_dir: Path, num_samples: int = 50) 
     images_dir.mkdir(exist_ok=True)
 
     records = []
-    print(f"[DrivenData] Generating {num_samples} sample synthetic satellite IR patches for CI/testing...")
+    print(
+        f"[DrivenData] Generating {num_samples} sample synthetic satellite IR patches for CI/testing..."
+    )
 
     for i in range(num_samples):
         img_id = f"storm_sample_{i:03d}"
@@ -59,7 +58,9 @@ def create_synthetic_drivendata_sample(output_dir: Path, num_samples: int = 50) 
                 # Cold eyewall around r=30
                 eyewall = np.exp(-((r - 30) ** 2) / (2 * 15**2))
                 spiral = np.sin(r / 10 + np.arctan2(y, x) * 2) * np.exp(-r / 70)
-                temp_field = 290.0 - 90.0 * eyewall + 15.0 * spiral + np.random.normal(0, 2.0, (224, 224))
+                temp_field = (
+                    290.0 - 90.0 * eyewall + 15.0 * spiral + np.random.normal(0, 2.0, (224, 224))
+                )
                 temp_field = np.clip(temp_field, 180.0, 310.0).astype(np.float32)
                 np.save(img_path, temp_field)
             else:
@@ -69,15 +70,17 @@ def create_synthetic_drivendata_sample(output_dir: Path, num_samples: int = 50) 
         wind_kt = float(30.0 + (i % 8) * 12.5 + (i * 0.5))
         pres_mb = float(1005.0 - (wind_kt - 30) * 0.7)
 
-        records.append({
-            "image_id": img_id,
-            "storm_id": f"SYN_{i // 10:02d}",
-            "image_path": str(img_path),
-            "relative_path": f"images/{img_filename}",
-            "wind_speed_kt": round(wind_kt, 1),
-            "min_pressure_mb": round(pres_mb, 1),
-            "time_step": i % 10,
-        })
+        records.append(
+            {
+                "image_id": img_id,
+                "storm_id": f"SYN_{i // 10:02d}",
+                "image_path": str(img_path),
+                "relative_path": f"images/{img_filename}",
+                "wind_speed_kt": round(wind_kt, 1),
+                "min_pressure_mb": round(pres_mb, 1),
+                "time_step": i % 10,
+            }
+        )
 
     index_csv = output_dir / "drivendata_sample.csv"
     if pd is not None:
@@ -85,9 +88,13 @@ def create_synthetic_drivendata_sample(output_dir: Path, num_samples: int = 50) 
     else:
         # Fallback manual CSV writing
         with open(index_csv, "w", encoding="utf-8") as f:
-            f.write("image_id,storm_id,image_path,relative_path,wind_speed_kt,min_pressure_mb,time_step\n")
+            f.write(
+                "image_id,storm_id,image_path,relative_path,wind_speed_kt,min_pressure_mb,time_step\n"
+            )
             for r in records:
-                f.write(f"{r['image_id']},{r['storm_id']},{r['image_path']},{r['relative_path']},{r['wind_speed_kt']},{r['min_pressure_mb']},{r['time_step']}\n")
+                f.write(
+                    f"{r['image_id']},{r['storm_id']},{r['image_path']},{r['relative_path']},{r['wind_speed_kt']},{r['min_pressure_mb']},{r['time_step']}\n"
+                )
 
     print(f"[DrivenData] Sample index saved to {index_csv} ({len(records)} records).")
     return index_csv
@@ -95,7 +102,7 @@ def create_synthetic_drivendata_sample(output_dir: Path, num_samples: int = 50) 
 
 def unpack_and_index_drivendata(
     archive_path: Path,
-    labels_csv_path: Optional[Path],
+    labels_csv_path: Path | None,
     output_dir: Path,
     sample_size: int = 50,
 ) -> Path:
@@ -117,7 +124,11 @@ def unpack_and_index_drivendata(
         raise ValueError(f"Unsupported archive format: {archive_path}")
 
     # Discover images (.jpg, .png, .npy)
-    image_files = list(extract_dir.rglob("*.jpg")) + list(extract_dir.rglob("*.png")) + list(extract_dir.rglob("*.npy"))
+    image_files = (
+        list(extract_dir.rglob("*.jpg"))
+        + list(extract_dir.rglob("*.png"))
+        + list(extract_dir.rglob("*.npy"))
+    )
     print(f"[DrivenData] Discovered {len(image_files):,} satellite image frames.")
 
     labels_map = {}
@@ -131,12 +142,14 @@ def unpack_and_index_drivendata(
     for img_p in image_files:
         stem = img_p.stem
         wind = labels_map.get(stem, 45.0)
-        records.append({
-            "image_id": stem,
-            "storm_id": stem.split("_")[0] if "_" in stem else "STORM",
-            "image_path": str(img_p),
-            "wind_speed_kt": wind,
-        })
+        records.append(
+            {
+                "image_id": stem,
+                "storm_id": stem.split("_")[0] if "_" in stem else "STORM",
+                "image_path": str(img_p),
+                "wind_speed_kt": wind,
+            }
+        )
 
     index_csv = output_dir / "drivendata_index.csv"
     if pd is not None:
@@ -151,15 +164,29 @@ def unpack_and_index_drivendata(
     return index_csv
 
 
-def main(argv: Optional[list] = None) -> int:
+def main(argv: list | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="DrivenData Wind-Dependent Tropical Cyclone Dataset processor and indexer.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--archive", type=Path, default=None, help="Path to downloaded train_features archive (.tar.gz / .zip)")
+    parser.add_argument(
+        "--archive",
+        type=Path,
+        default=None,
+        help="Path to downloaded train_features archive (.tar.gz / .zip)",
+    )
     parser.add_argument("--labels", type=Path, default=None, help="Path to train_labels.csv")
-    parser.add_argument("--output-dir", type=Path, default=Path("ml/cyclone/data/drivendata"), help="Output directory")
-    parser.add_argument("--generate-sample-only", action="store_true", help="Generate synthetic test sample dataset.")
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("ml/cyclone/data/drivendata"),
+        help="Output directory",
+    )
+    parser.add_argument(
+        "--generate-sample-only",
+        action="store_true",
+        help="Generate synthetic test sample dataset.",
+    )
 
     args = parser.parse_args(argv)
 

@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Union
+from typing import Any
+
 import torch
 import torch.nn as nn
-from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+from torch.nn.utils.rnn import pack_padded_sequence
 
 from ml.cyclone.config import CycloneConfig, load_config
 
@@ -65,7 +66,7 @@ class TrackBranch(nn.Module):
     def forward(
         self,
         track_sequence: torch.Tensor,
-        seq_lengths: Optional[torch.Tensor] = None,
+        seq_lengths: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Forward pass through recurrent GRU.
 
@@ -109,20 +110,42 @@ class TrackBranch(nn.Module):
         return out
 
     @classmethod
-    def from_config(cls, cfg: Optional[Union[CycloneConfig, Dict[str, Any]]] = None) -> TrackBranch:
+    def from_config(cls, cfg: CycloneConfig | dict[str, Any] | None = None) -> TrackBranch:
         """Factory constructor instantiating TrackBranch from configuration."""
         if cfg is None:
             cfg = load_config()
 
-        model_cfg = cfg.model if hasattr(cfg, "model") else (cfg.get("model", {}) if isinstance(cfg, dict) else {})
-        track_cfg = getattr(model_cfg, "track_branch", {}) if hasattr(model_cfg, "track_branch") else (
-            model_cfg.get("track_branch", {}) if isinstance(model_cfg, dict) else {}
+        model_cfg = (
+            cfg.model
+            if hasattr(cfg, "model")
+            else (cfg.get("model", {}) if isinstance(cfg, dict) else {})
+        )
+        track_cfg = (
+            getattr(model_cfg, "track_branch", {})
+            if hasattr(model_cfg, "track_branch")
+            else (model_cfg.get("track_branch", {}) if isinstance(model_cfg, dict) else {})
         )
 
-        in_dim = getattr(track_cfg, "input_dim", 7) if hasattr(track_cfg, "input_dim") else track_cfg.get("input_dim", 7)
-        hidden_dim = getattr(track_cfg, "hidden_dim", 128) if hasattr(track_cfg, "hidden_dim") else track_cfg.get("hidden_dim", 128)
-        num_layers = getattr(track_cfg, "num_layers", 2) if hasattr(track_cfg, "num_layers") else track_cfg.get("num_layers", 2)
-        out_dim = getattr(track_cfg, "out_dim", 128) if hasattr(track_cfg, "out_dim") else track_cfg.get("out_dim", 128)
+        in_dim = (
+            getattr(track_cfg, "input_dim", 7)
+            if hasattr(track_cfg, "input_dim")
+            else track_cfg.get("input_dim", 7)
+        )
+        hidden_dim = (
+            getattr(track_cfg, "hidden_dim", 128)
+            if hasattr(track_cfg, "hidden_dim")
+            else track_cfg.get("hidden_dim", 128)
+        )
+        num_layers = (
+            getattr(track_cfg, "num_layers", 2)
+            if hasattr(track_cfg, "num_layers")
+            else track_cfg.get("num_layers", 2)
+        )
+        out_dim = (
+            getattr(track_cfg, "out_dim", 128)
+            if hasattr(track_cfg, "out_dim")
+            else track_cfg.get("out_dim", 128)
+        )
 
         return cls(
             input_dim=in_dim,

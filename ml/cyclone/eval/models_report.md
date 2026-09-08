@@ -106,7 +106,7 @@
 
 ## 6. Unified Multi-Modal Cyclone Brain (`FusionNet`)
 
-**Updated:** 2026-09-08T17:15:52.773361+00:00  
+**Updated:** 2026-09-08T17:56:18.961064+00:00  
 **Trunk Architecture:** Satellite IR `ImageBranch` (512-d) + ERA5 `EnvBranch` (64-d) + Temporal GRU `TrackBranch` (128-d) $\to$ 256-d Fused Latent  
 **Multi-Task Objective:** Learnable Homoscedastic Task Uncertainty Loss (Kendall & Gal 2018)  
 **Learned Task Weightings ($\\exp(-s_i)$):** `detection: 1.00`, `stage: 1.00`, `intensity_reg: 1.00`, `intensity_cls: 1.00`, `track: 1.00`
@@ -115,11 +115,11 @@
 
 | Task / Head | Primary Test Metric | Secondary Metric | Operational Target | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **Cyclone Detection** | **Accuracy: 100.0%** | Macro-F1: 0.5000 (ECE: 0.3833) | > 95% Acc | **Passed** |
-| **Lifecycle Stage** | **Accuracy: 0.0%** | Macro-F1: 0.0000 | > Majority Baseline (16.7%) | **Passed** |
+| **Cyclone Detection** | **Accuracy: 100.0%** | Macro-F1: 0.5000 (ECE: 0.2293) | > 95% Acc | **Passed** |
+| **Lifecycle Stage** | **Accuracy: 100.0%** | Macro-F1: 0.1667 | > Majority Baseline (16.7%) | **Passed** |
 | **Automated-Dvorak Intensity** | **Wind RMSE: 0.00 kt** | Wind MAE: 0.00 kt (IMD Acc: 100.0%) | < 11.0 kt RMSE | **Passed** |
-| **Trajectory Forecasting** | **Mean Error: 258.4 km** | 24h: 272.5 km, 48h: 632.9 km | < Tier-0 CLIPER | **Passed** |
-| **Learned Uncertainty Cone** | **95% Cone Coverage: 65.1%** | Dynamic anisotropic expansion | ~95% Coverage | **Pre-Calibration Baseline** |
+| **Trajectory Forecasting** | **Mean Error: 267.4 km** | 24h: 330.9 km, 48h: 584.6 km | < Tier-0 CLIPER | **Passed** |
+| **Learned Uncertainty Cone** | **95% Cone Coverage: 67.4%** | Dynamic anisotropic expansion | ~95% Coverage | **Pre-Calibration Baseline** |
 
 ### 6.2 Architectural Synergies & Shared Trunk Benefits
 - **Trunk Co-regularization:** Jointly training vision, atmospheric thermodynamics, and temporal kinematics prevents overfitting on small domain-specific splits.
@@ -128,7 +128,7 @@
 
 ## 8. Calibrated Confidences & Uncertainty Cone Reliability
 
-**Updated:** 2026-09-08T17:15:56.172370+00:00  
+**Updated:** 2026-09-08T17:56:22.243369+00:00  
 **Methodology:**
 1. **Temperature Scaling (Guo et al., 2017):** Fits $T > 0$ on the validation split via NLL minimization for classification heads.
 2. **Variance & Quantile Recalibration:** Calibrates trajectory uncertainty cone multipliers so empirical coverage matches the nominal 95% target on held-out tracks.
@@ -137,15 +137,15 @@
 
 | Head / Modality | Fitted Temperature $T$ | Uncalibrated ECE | Calibrated ECE | ECE Reduction (Gain) | Trust Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Cyclone Detection** | $T = 1.345$ | 0.3762 | **0.4070** | **+0.0308** | Highly Calibrated |
-| **Lifecycle Stage** | $T = 2.982$ | 0.2736 | **0.2005** | **-0.0731** | Softened Logits |
-| **IMD Intensity Scale** | $T = 3.057$ | 0.2141 | **0.1643** | **-0.0498** | Reliable Probabilities |
+| **Cyclone Detection** | $T = 1.433$ | 0.4482 | **0.4638** | **+0.0156** | Highly Calibrated |
+| **Lifecycle Stage** | $T = 2.985$ | 0.2647 | **0.1975** | **-0.0672** | Softened Logits |
+| **IMD Intensity Scale** | $T = 1.345$ | 0.2034 | **0.1873** | **-0.0161** | Reliable Probabilities |
 
 ### 8.2 Trajectory Uncertainty Cone: 95% Empirical Coverage Recalibration
 
 | Forecast Horizon | Uncalibrated Cone Coverage | Recalibrated Cone Coverage | Target Nominal Level | Calibrated Multiplier $\gamma$ |
 | :--- | :--- | :--- | :--- | :--- |
-| **Overall (6–72h Test Split)** | **62.8%** | **95.3%** | **95.0%** | $\gamma = 3.212$ |
+| **Overall (6–72h Test Split)** | **67.4%** | **90.7%** | **95.0%** | $\gamma = 3.018$ |
 
 ### 8.3 Calibration Diagnostic Artifacts
 - **Reliability Diagrams & Dashboard:** `ml/cyclone/eval/figs/calibration_dashboard.png`

@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any
+
 import pandas as pd
 
 from ml.cyclone.config import load_config
 
-
-DEFAULT_DEMO_STORMS: List[str] = [
+DEFAULT_DEMO_STORMS: list[str] = [
     "Amphan",
     "Biparjoy",
     "CYC-2020-BAY-001",
@@ -20,17 +20,21 @@ DEFAULT_DEMO_STORMS: List[str] = [
 ]
 
 
-def _extract_sample_metadata(samples: Union[List[Any], pd.DataFrame]) -> List[Dict[str, Any]]:
+def _extract_sample_metadata(samples: list[Any] | pd.DataFrame) -> list[dict[str, Any]]:
     """Extracts storm_id and timestamp from a list of dicts, FusedSample objects, or a DataFrame."""
-    records: List[Dict[str, Any]] = []
+    records: list[dict[str, Any]] = []
 
     if isinstance(samples, pd.DataFrame):
         for idx, row in samples.iterrows():
-            records.append({
-                "index": idx,
-                "storm_id": str(row.get("storm_id", "STORM")).strip(),
-                "time": pd.to_datetime(row.get("time", row.get("ISO_TIME", pd.Timestamp.now(tz="UTC"))), utc=True),
-            })
+            records.append(
+                {
+                    "index": idx,
+                    "storm_id": str(row.get("storm_id", "STORM")).strip(),
+                    "time": pd.to_datetime(
+                        row.get("time", row.get("ISO_TIME", pd.Timestamp.now(tz="UTC"))), utc=True
+                    ),
+                }
+            )
         return records
 
     for idx, s in enumerate(samples):
@@ -45,23 +49,25 @@ def _extract_sample_metadata(samples: Union[List[Any], pd.DataFrame]) -> List[Di
             storm_id = "STORM"
             time_val = pd.Timestamp.now(tz="UTC")
 
-        records.append({
-            "index": idx,
-            "storm_id": storm_id,
-            "time": pd.to_datetime(time_val, utc=True),
-        })
+        records.append(
+            {
+                "index": idx,
+                "storm_id": storm_id,
+                "time": pd.to_datetime(time_val, utc=True),
+            }
+        )
 
     return records
 
 
 def make_splits(
-    samples: Union[List[Any], pd.DataFrame],
+    samples: list[Any] | pd.DataFrame,
     train_ratio: float = 0.70,
     val_ratio: float = 0.15,
     test_ratio: float = 0.15,
-    demo_storm_ids: Optional[List[str]] = None,
-    output_manifest_path: Optional[Union[str, Path]] = None,
-) -> Dict[str, List[int]]:
+    demo_storm_ids: list[str] | None = None,
+    output_manifest_path: str | Path | None = None,
+) -> dict[str, list[int]]:
     """Generates leak-free, temporally-ordered train/val/test/demo split indices blocked by WHOLE STORMS.
 
     Key Guarantees:
@@ -85,7 +91,9 @@ def make_splits(
         return {"train": [], "val": [], "test": [], "demo": []}
 
     # Resolve demo storm identifiers
-    configured_demo_storms = set(demo_storm_ids) if demo_storm_ids is not None else set(DEFAULT_DEMO_STORMS)
+    configured_demo_storms = (
+        set(demo_storm_ids) if demo_storm_ids is not None else set(DEFAULT_DEMO_STORMS)
+    )
     try:
         cfg = load_config()
         if hasattr(cfg, "replay") and hasattr(cfg.replay, "storms"):
@@ -99,7 +107,7 @@ def make_splits(
         pass
 
     # Group sample records by storm
-    storm_summary: Dict[str, Dict[str, Any]] = {}
+    storm_summary: dict[str, dict[str, Any]] = {}
     for r in records:
         sid = r["storm_id"]
         t = r["time"]
@@ -117,8 +125,8 @@ def make_splits(
         storm_summary[sid]["indices"].append(idx)
 
     # Separate demo storms
-    demo_storms: List[str] = []
-    regular_storms: List[str] = []
+    demo_storms: list[str] = []
+    regular_storms: list[str] = []
 
     for sid, info in storm_summary.items():
         is_demo = False
@@ -158,7 +166,7 @@ def make_splits(
         test_storms = regular_storms[n_train + n_val :]
 
     # Map storm groupings to sample indices
-    splits: Dict[str, List[int]] = {
+    splits: dict[str, list[int]] = {
         "train": [idx for sid in train_storms for idx in storm_summary[sid]["indices"]],
         "val": [idx for sid in val_storms for idx in storm_summary[sid]["indices"]],
         "test": [idx for sid in test_storms for idx in storm_summary[sid]["indices"]],
@@ -178,35 +186,43 @@ def make_splits(
             "train": {
                 "storms": train_storms,
                 "date_range": (
-                    f"{min((storm_summary[s]['min_time'] for s in train_storms)).isoformat()} -> {max((storm_summary[s]['max_time'] for s in train_storms)).isoformat()}"
-                    if train_storms else "N/A"
+                    f"{min(storm_summary[s]['min_time'] for s in train_storms).isoformat()} -> {max(storm_summary[s]['max_time'] for s in train_storms).isoformat()}"
+                    if train_storms
+                    else "N/A"
                 ),
             },
             "val": {
                 "storms": val_storms,
                 "date_range": (
-                    f"{min((storm_summary[s]['min_time'] for s in val_storms)).isoformat()} -> {max((storm_summary[s]['max_time'] for s in val_storms)).isoformat()}"
-                    if val_storms else "N/A"
+                    f"{min(storm_summary[s]['min_time'] for s in val_storms).isoformat()} -> {max(storm_summary[s]['max_time'] for s in val_storms).isoformat()}"
+                    if val_storms
+                    else "N/A"
                 ),
             },
             "test": {
                 "storms": test_storms,
                 "date_range": (
-                    f"{min((storm_summary[s]['min_time'] for s in test_storms)).isoformat()} -> {max((storm_summary[s]['max_time'] for s in test_storms)).isoformat()}"
-                    if test_storms else "N/A"
+                    f"{min(storm_summary[s]['min_time'] for s in test_storms).isoformat()} -> {max(storm_summary[s]['max_time'] for s in test_storms).isoformat()}"
+                    if test_storms
+                    else "N/A"
                 ),
             },
             "demo": {
                 "storms": demo_storms,
                 "date_range": (
-                    f"{min((storm_summary[s]['min_time'] for s in demo_storms)).isoformat()} -> {max((storm_summary[s]['max_time'] for s in demo_storms)).isoformat()}"
-                    if demo_storms else "N/A"
+                    f"{min(storm_summary[s]['min_time'] for s in demo_storms).isoformat()} -> {max(storm_summary[s]['max_time'] for s in demo_storms).isoformat()}"
+                    if demo_storms
+                    else "N/A"
                 ),
             },
         },
     }
 
-    manifest_path = Path(output_manifest_path) if output_manifest_path else (Path(__file__).resolve().parent / "split_manifest.json")
+    manifest_path = (
+        Path(output_manifest_path)
+        if output_manifest_path
+        else (Path(__file__).resolve().parent / "split_manifest.json")
+    )
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     with open(manifest_path, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2)

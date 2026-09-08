@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
-import numpy as np
 import pandas as pd
 
 from ml.cyclone.preprocess.geo import calculate_speed_and_heading
@@ -35,7 +33,7 @@ def resample_track(
     working_df["time"] = pd.to_datetime(working_df["time"], utc=True)
     working_df = working_df.sort_values(by=["storm_id", "time"]).reset_index(drop=True)
 
-    resampled_storm_groups: List[pd.DataFrame] = []
+    resampled_storm_groups: list[pd.DataFrame] = []
 
     for storm_id, grp in working_df.groupby("storm_id", sort=False):
         if len(grp) == 0:
@@ -88,8 +86,8 @@ def resample_track(
             grid_df["qc_clipped"] = False
 
         # Calculate forward translation speed (kt) and heading (deg)
-        speeds: List[float] = []
-        headings: List[float] = []
+        speeds: list[float] = []
+        headings: list[float] = []
         n_pts = len(grid_df)
 
         for i in range(n_pts):
@@ -97,7 +95,9 @@ def resample_track(
                 p1 = grid_df.iloc[i]
                 p2 = grid_df.iloc[i + 1]
                 dt_h = (p2["time"] - p1["time"]).total_seconds() / 3600.0
-                spd, hdg = calculate_speed_and_heading(p1["lat"], p1["lon"], p2["lat"], p2["lon"], dt_h)
+                spd, hdg = calculate_speed_and_heading(
+                    p1["lat"], p1["lon"], p2["lat"], p2["lon"], dt_h
+                )
             elif n_pts > 1:
                 # Terminal point: inherit previous velocity vector
                 spd, hdg = speeds[-1], headings[-1]

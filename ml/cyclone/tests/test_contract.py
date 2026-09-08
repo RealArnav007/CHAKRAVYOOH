@@ -2,27 +2,26 @@
 
 from __future__ import annotations
 
-from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
-from pathlib import Path
 import socket
 import threading
-from typing import Any, Dict, List
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
+from typing import Any
+
 import jsonschema
-import pytest
 
 from ml.cyclone.export.producer import (
     file_drop,
-    post_frame,
     run_producer,
     write_jsonl,
 )
 from ml.cyclone.schema.models import CycloneIntelligence
 
-
 # -----------------------------------------------------------------------------
 # 1. Local Stub Ingestion Server
 # -----------------------------------------------------------------------------
+
 
 class IngestionStubHandler(BaseHTTPRequestHandler):
     """Local HTTP handler simulating Harshit's backend ingestion endpoint."""
@@ -32,7 +31,10 @@ class IngestionStubHandler(BaseHTTPRequestHandler):
         pass
 
     def do_POST(self) -> None:
-        if self.path == "/api/v1/cyclone/intelligence" or self.path == "/api/v1/cyclone/intelligence/":
+        if (
+            self.path == "/api/v1/cyclone/intelligence"
+            or self.path == "/api/v1/cyclone/intelligence/"
+        ):
             content_length = int(self.headers.get("Content-Length", 0))
             body_bytes = self.rfile.read(content_length)
             try:
@@ -43,9 +45,11 @@ class IngestionStubHandler(BaseHTTPRequestHandler):
 
                 # 2. Strict Contract Validation against Raw JSON Schema
                 schema_path = (
-                    Path(__file__).resolve().parent.parent / "schema" / "cyclone_intelligence.schema.json"
+                    Path(__file__).resolve().parent.parent
+                    / "schema"
+                    / "cyclone_intelligence.schema.json"
                 )
-                with open(schema_path, "r", encoding="utf-8") as f:
+                with open(schema_path, encoding="utf-8") as f:
                     raw_schema = json.load(f)
                 jsonschema.validate(instance=payload, schema=raw_schema)
 
@@ -68,7 +72,9 @@ class IngestionStubHandler(BaseHTTPRequestHandler):
                 self.send_response(422)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({"status": "rejected", "error": str(e)}).encode("utf-8"))
+                self.wfile.write(
+                    json.dumps({"status": "rejected", "error": str(e)}).encode("utf-8")
+                )
         else:
             self.send_response(404)
             self.end_headers()
@@ -134,11 +140,13 @@ def test_end_to_end_contract_handoff_with_stub_server(tmp_path: Path) -> None:
 
         # Assert file drop directory contains all JSON files plus latest.json
         dropped_files = list(watch_dir.glob("*.json"))
-        assert len(dropped_files) >= summary["frames_produced"] + 1  # individual frames + latest.json
+        assert (
+            len(dropped_files) >= summary["frames_produced"] + 1
+        )  # individual frames + latest.json
 
         latest_path = watch_dir / "latest.json"
         assert latest_path.is_file()
-        with open(latest_path, "r", encoding="utf-8") as f:
+        with open(latest_path, encoding="utf-8") as f:
             latest_payload = json.load(f)
             CycloneIntelligence.model_validate(latest_payload)
             assert latest_payload["cyclone_id"] == canonical_id
@@ -164,7 +172,13 @@ def test_producer_file_drop_atomic_safety(tmp_path: Path) -> None:
         "basin": "North Indian Ocean",
         "identification": {"detected": True, "confidence": 0.90},
         "classification": {"stage": "TROPICAL_DEPRESSION", "confidence": 0.85},
-        "intensity": {"level": "DEPRESSION", "scale": "IMD", "max_wind_kt": 25.0, "min_pressure_mb": 1000.0, "confidence": 0.85},
+        "intensity": {
+            "level": "DEPRESSION",
+            "scale": "IMD",
+            "max_wind_kt": 25.0,
+            "min_pressure_mb": 1000.0,
+            "confidence": 0.85,
+        },
         "prediction": {
             "current_position": {"lat": 15.0, "lon": 85.0},
             "heading_deg": 350.0,
@@ -205,13 +219,22 @@ def test_producer_write_jsonl(tmp_path: Path) -> None:
             "basin": "North Indian Ocean",
             "identification": {"detected": True, "confidence": 0.90},
             "classification": {"stage": "DEVELOPING_DISTURBANCE", "confidence": 0.85},
-            "intensity": {"level": "DEPRESSION", "scale": "IMD", "max_wind_kt": 25.0, "min_pressure_mb": 1000.0, "confidence": 0.85},
+            "intensity": {
+                "level": "DEPRESSION",
+                "scale": "IMD",
+                "max_wind_kt": 25.0,
+                "min_pressure_mb": 1000.0,
+                "confidence": 0.85,
+            },
             "prediction": {
                 "current_position": {"lat": 15.0, "lon": 85.0},
                 "heading_deg": 350.0,
                 "speed_kt": 10.0,
                 "forecast_hours": 72,
-                "predicted_path": [{"t_plus_h": 0, "lat": 15.0, "lon": 85.0}, {"t_plus_h": 6, "lat": 15.6, "lon": 84.9}],
+                "predicted_path": [
+                    {"t_plus_h": 0, "lat": 15.0, "lon": 85.0},
+                    {"t_plus_h": 6, "lat": 15.6, "lon": 84.9},
+                ],
                 "confidence": 0.80,
                 "uncertainty": {"cone_radius_km": [0.0, 45.0]},
             },

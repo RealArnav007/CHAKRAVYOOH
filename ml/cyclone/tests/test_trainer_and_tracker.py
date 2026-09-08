@@ -2,18 +2,16 @@
 
 import csv
 import json
-from pathlib import Path
 import tempfile
+from pathlib import Path
+
 import numpy as np
-import pytest
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 
 from ml.cyclone.train.track_experiment import (
     ExperimentTracker,
-    compute_split_manifest_hash,
-    get_git_commit_hash,
 )
 from ml.cyclone.train.trainer import Trainer, seed_everything
 
@@ -57,7 +55,7 @@ def test_experiment_tracker_logging_and_manifest_hash():
         # Check CSV content
         csv_file = run_path / "metrics.csv"
         assert csv_file.is_file()
-        with open(csv_file, "r", encoding="utf-8") as f:
+        with open(csv_file, encoding="utf-8") as f:
             reader = csv.DictReader(f)
             rows = list(reader)
             assert len(rows) == 2
@@ -67,7 +65,7 @@ def test_experiment_tracker_logging_and_manifest_hash():
         # Check summary JSON
         summary_file = run_path / "summary_metrics.json"
         assert summary_file.is_file()
-        with open(summary_file, "r", encoding="utf-8") as f:
+        with open(summary_file, encoding="utf-8") as f:
             data = json.load(f)
             assert data["test_acc"] == 0.92
 

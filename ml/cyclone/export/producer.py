@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
 import json
 import logging
 import os
-from pathlib import Path
 import time
-from typing import Any, Dict, Iterator, List, Optional, Sequence, Union
+from collections.abc import Sequence
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
 import requests
 
 from ml.cyclone.config import load_config
@@ -27,12 +29,14 @@ DEFAULT_DROP_DIRECTORY = "ml/cyclone/data/replay_feed"
 # -----------------------------------------------------------------------------
 
 
-def get_producer_endpoint(explicit_endpoint: Optional[str] = None) -> str:
+def get_producer_endpoint(explicit_endpoint: str | None = None) -> str:
     """Resolves target backend ingestion endpoint from environment variable, config, or default."""
     if explicit_endpoint:
         return explicit_endpoint
 
-    env_endpoint = os.environ.get("CHAKRAVYUH_PRODUCER_ENDPOINT") or os.environ.get("CYCLONE_PRODUCER_ENDPOINT")
+    env_endpoint = os.environ.get("CHAKRAVYUH_PRODUCER_ENDPOINT") or os.environ.get(
+        "CYCLONE_PRODUCER_ENDPOINT"
+    )
     if env_endpoint:
         return env_endpoint
 
@@ -48,7 +52,7 @@ def get_producer_endpoint(explicit_endpoint: Optional[str] = None) -> str:
     return DEFAULT_PRODUCER_ENDPOINT
 
 
-def get_auth_header(explicit_auth: Optional[str] = None) -> Optional[str]:
+def get_auth_header(explicit_auth: str | None = None) -> str | None:
     """Resolves API token / Authorization header from environment variable, config, or None."""
     if explicit_auth:
         return explicit_auth
@@ -66,7 +70,7 @@ def get_auth_header(explicit_auth: Optional[str] = None) -> Optional[str]:
     return None
 
 
-def get_watch_directory(explicit_dir: Optional[Union[str, Path]] = None) -> Path:
+def get_watch_directory(explicit_dir: str | Path | None = None) -> Path:
     """Resolves target directory for atomic file-drop mode."""
     if explicit_dir:
         return Path(explicit_dir)
@@ -93,8 +97,8 @@ def get_watch_directory(explicit_dir: Optional[Union[str, Path]] = None) -> Path
 
 
 def write_jsonl(
-    objects: Sequence[Union[Dict[str, Any], CycloneIntelligence]],
-    path: Union[str, Path],
+    objects: Sequence[dict[str, Any] | CycloneIntelligence],
+    path: str | Path,
 ) -> Path:
     """Exports a sequence of CycloneIntelligence objects to a JSONL file.
 
@@ -118,9 +122,9 @@ def write_jsonl(
 
 
 def post_frame(
-    obj: Union[Dict[str, Any], CycloneIntelligence],
-    endpoint: Optional[str] = None,
-    auth_header: Optional[str] = None,
+    obj: dict[str, Any] | CycloneIntelligence,
+    endpoint: str | None = None,
+    auth_header: str | None = None,
     max_retries: int = 3,
     backoff_factor: float = 0.5,
     timeout_seconds: float = 5.0,
@@ -162,7 +166,9 @@ def post_frame(
             )
 
             if resp.status_code in [200, 201, 202, 204]:
-                logger.info(f"[PRODUCER] Successfully POSTed frame {c_id} ({ts}) to {target_url} [HTTP {resp.status_code}]")
+                logger.info(
+                    f"[PRODUCER] Successfully POSTed frame {c_id} ({ts}) to {target_url} [HTTP {resp.status_code}]"
+                )
                 return True
             elif resp.status_code >= 500:
                 logger.warning(
@@ -183,14 +189,16 @@ def post_frame(
             sleep_duration = backoff_factor * (2 ** (attempt - 1))
             time.sleep(sleep_duration)
 
-    logger.error(f"[PRODUCER] Exhausted {max_retries} attempts posting frame {c_id} to {target_url}.")
+    logger.error(
+        f"[PRODUCER] Exhausted {max_retries} attempts posting frame {c_id} to {target_url}."
+    )
     return False
 
 
 def file_drop(
-    obj: Union[Dict[str, Any], CycloneIntelligence],
-    watch_dir: Optional[Union[str, Path]] = None,
-    filename: Optional[str] = None,
+    obj: dict[str, Any] | CycloneIntelligence,
+    watch_dir: str | Path | None = None,
+    filename: str | None = None,
     keep_latest_symlink: bool = True,
 ) -> Path:
     """Performs an atomic file-drop write of one CycloneIntelligence frame to the watched directory.
@@ -213,7 +221,11 @@ def file_drop(
 
     payload = obj.to_dict() if hasattr(obj, "to_dict") else obj
     c_id = payload.get("cyclone_id", "CYC-FRAME").replace(" ", "_")
-    ts_str = payload.get("timestamp", datetime.now(timezone.utc).isoformat()).replace(":", "-").replace("Z", "")
+    ts_str = (
+        payload.get("timestamp", datetime.now(timezone.utc).isoformat())
+        .replace(":", "-")
+        .replace("Z", "")
+    )
 
     if filename is None:
         target_name = f"{c_id}_{ts_str}.json"
@@ -249,14 +261,14 @@ def run_producer(
     storm_id: str = "Amphan",
     mode: str = "both",
     speed: float = 1.0,
-    jump: Optional[str] = None,
+    jump: str | None = None,
     step_hours: int = 6,
-    endpoint: Optional[str] = None,
-    auth_header: Optional[str] = None,
-    watch_dir: Optional[Union[str, Path]] = None,
-    output_jsonl_path: Optional[Union[str, Path]] = None,
-    max_frames: Optional[int] = None,
-) -> Dict[str, Any]:
+    endpoint: str | None = None,
+    auth_header: str | None = None,
+    watch_dir: str | Path | None = None,
+    output_jsonl_path: str | Path | None = None,
+    max_frames: int | None = None,
+) -> dict[str, Any]:
     """Drives the historical replay stream into target production channels (POST, file-drop, and/or JSONL).
 
     Args:
@@ -285,7 +297,7 @@ def run_producer(
         f"[PRODUCER] Starting producer run for storm='{storm_id}' | mode='{mode}' | speed={speed} | jump='{jump}'"
     )
 
-    frames_produced: List[Dict[str, Any]] = []
+    frames_produced: list[dict[str, Any]] = []
     posted_count = 0
     dropped_count = 0
 
@@ -317,7 +329,9 @@ def run_producer(
 
     # 3. JSONL sequence export
     if output_jsonl_path is not None or mode_lower == "jsonl":
-        jsonl_dest = output_jsonl_path or target_watch_dir / f"{normalize_storm_key(storm_id)}.jsonl"
+        jsonl_dest = (
+            output_jsonl_path or target_watch_dir / f"{normalize_storm_key(storm_id)}.jsonl"
+        )
         write_jsonl(frames_produced, jsonl_dest)
 
     summary = {
