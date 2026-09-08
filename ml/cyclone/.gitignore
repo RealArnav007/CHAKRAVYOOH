@@ -1,0 +1,38 @@
+# Ignore all data directory contents
+data/*
+
+# Allow keeping the directory structure
+!data/.gitkeep
+
+# Allow committing small sample fixtures and toy datasets
+!data/*_sample.*
+!data/**/_sample.*
+!data/**/*_sample.*
+
+# Python bytecode & caching
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Model checkpoints & training outputs
+checkpoints/
+*.pt
+*.pth
+*.onnx
+*.tflite
+*.safetensors
+logs/
+wandb/
+mlruns/
+
+# Large raw archive formats
+*.nc
+*.nc4
+*.h5
+*.hdf5
+*.tar.gz
+*.zip
