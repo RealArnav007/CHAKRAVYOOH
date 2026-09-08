@@ -4,7 +4,7 @@ kotlin = "1.9.24"
 coreKtx = "1.13.1"
 lifecycleRuntimeKtx = "2.8.0"
 activityCompose = "1.9.0"
-composeBom = "2024.05.00"
+composeBom = "2024.06.00"
 navigationCompose = "2.7.7"
 hilt = "2.51.1"
 hiltNavigationCompose = "1.2.0"
@@ -17,6 +17,8 @@ coroutines = "1.8.1"
 coil = "2.6.0"
 bouncyCastle = "1.70"
 datastore = "1.1.1"
+accompanist = "0.34.0"
+googleFonts = "1.6.8"
 ksp = "1.9.24-1.0.20"
 
 [libraries]
@@ -34,6 +36,7 @@ androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
+androidx-ui-text-google-fonts = { group = "androidx.compose.ui", name = "ui-text-google-fonts", version.ref = "googleFonts" }
 
 # Navigation
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
@@ -70,6 +73,9 @@ bouncycastle-bcprov = { group = "org.bouncycastle", name = "bcprov-jdk15on", ver
 
 # DataStore Preferences
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
+
+# Accompanist Permissions
+accompanist-permissions = { group = "com.google.accompanist", name = "accompanist-permissions", version.ref = "accompanist" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

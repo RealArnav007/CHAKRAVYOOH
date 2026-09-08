@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.chakravyuh.android"
+    namespace = "com.pukaar.android"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.chakravyuh.android"
+        applicationId = "com.pukaar.android"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
@@ -43,7 +43,8 @@ android {
         jvmTarget = "17"
         freeCompilerArgs += listOf(
             "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
-            "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi"
+            "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
+            "-opt-in=com.google.accompanist.permissions.ExperimentalPermissionsApi"
         )
     }
     buildFeatures {
@@ -70,13 +71,14 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
 
-    // Compose BOM & UI / Material3
+    // Compose BOM 2024.06.00 & UI / Material3
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
+    implementation(libs.androidx.ui.text.google.fonts)
     debugImplementation(libs.androidx.ui.tooling)
 
     // Navigation Compose
@@ -109,9 +111,12 @@ dependencies {
     // Coil Image Loading
     implementation(libs.coil.compose)
 
-    // Bouncy Castle Crypto
+    // Bouncy Castle Crypto (bcprov-jdk15on)
     implementation(libs.bouncycastle.bcprov)
 
     // DataStore Preferences
     implementation(libs.androidx.datastore.preferences)
+
+    // Accompanist Permissions
+    implementation(libs.accompanist.permissions)
 }
