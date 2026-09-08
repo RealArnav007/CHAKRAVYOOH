@@ -9,7 +9,9 @@ from fastapi.staticfiles import StaticFiles
 
 from src.api.router import api_router
 from src.config import get_settings
-from src.database.session import init_db
+from src.database.session import init_db, async_session_maker
+from src.cyclone.seed import seed_demo_zones
+from src.cyclone.router import router as cyclone_router
 
 # Setup basic logging
 logging.basicConfig(
@@ -29,6 +31,10 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing Database...")
     await init_db()
     logger.info("Database initialized successfully.")
+    
+    logger.info("Seeding Chakravyooh Demo Zones...")
+    async with async_session_maker() as db:
+        await seed_demo_zones(db)
     
     # Check keys configured
     if settings.ENVIRONMENT.lower() != "production":
@@ -56,6 +62,7 @@ app.add_middleware(
 
 # Include core API routes
 app.include_router(api_router, prefix="/api/v1")
+app.include_router(cyclone_router, prefix="/api/v1")
 
 @app.get("/health", tags=["Observability"])
 async def health_check():
