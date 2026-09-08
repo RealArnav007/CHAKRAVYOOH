@@ -1,50 +1,52 @@
 package com.pukaar.android.data.repository
 
-import com.pukaar.android.data.api.PukaarApiService
-import com.pukaar.android.data.demo.DemoDataGenerator
+import com.google.gson.Gson
+import com.pukaar.android.data.api.PukaarApi
+import com.pukaar.android.data.api.mapper.toDomain
 import com.pukaar.android.data.local.dao.AlertDao
-import com.pukaar.android.data.local.entity.AlertEntity
-import com.pukaar.android.domain.model.Alert
+import com.pukaar.android.data.local.entity.CachedAlertEntity
+import com.pukaar.android.domain.model.CycloneAlert
 import com.pukaar.android.domain.repository.AlertRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 
 @Singleton
 class AlertRepositoryImpl @Inject constructor(
+    private val api: PukaarApi,
     private val alertDao: AlertDao,
-    private val apiService: PukaarApiService
+    private val gson: Gson
 ) : AlertRepository {
 
-    override fun getAlertsStream(): Flow<List<Alert>> {
-        return alertDao.getAllAlerts().map { list ->
-            if (list.isEmpty()) {
-                val demo = DemoDataGenerator.generateAlerts()
-                demo
-            } else {
-                list.map { it.toDomain() }
-            }
-        }
-    }
+    private val _alertEvents = MutableSharedFlow<CycloneAlert>(replay = 0, extraBufferCapacity = 64)
 
-    override suspend fun refreshAlerts(): Result<Unit> {
+    override suspend fun getAlerts(): Result<List<CycloneAlert>> {
         return try {
-            val res = apiService.getAlerts()
-            if (res.isSuccessful && res.body() != null) {
-                val dtoList = res.body()!!
-                alertDao.insertAlerts(dtoList.map { AlertEntity.fromDomain(it.toDomain()) })
-            } else {
-                alertDao.insertAlerts(DemoDataGenerator.generateAlerts().map { AlertEntity.fromDomain(it) })
-            }
-            Result.success(Unit)
+            val dtos = api.getAlerts()
+            val domainList = dtos.map { it.toDomain() }
+            alertDao.insertAll(domainList.map { CachedAlertEntity.fromDomain(it, gson) })
+            Result.success(domainList)
         } catch (e: Exception) {
-            alertDao.insertAlerts(DemoDataGenerator.generateAlerts().map { AlertEntity.fromDomain(it) })
-            Result.success(Unit)
+            try {
+                val cached = alertDao.getAll()
+                if (cached.isNotEmpty()) {
+                    Result.success(cached.map { it.toDomain(gson) })
+                } else {
+                    Result.failure(e)
+                }
+            } catch (fallbackEx: Exception) {
+                Result.failure(e)
+            }
         }
     }
 
-    override suspend fun markAlertAsRead(alertId: String) {
-        alertDao.markAsRead(alertId)
+    override fun observeAlertEvents(): Flow<CycloneAlert> {
+        return _alertEvents.asSharedFlow()
+    }
+
+    suspend fun emitAlert(alert: CycloneAlert) {
+        _alertEvents.emit(alert)
     }
 }

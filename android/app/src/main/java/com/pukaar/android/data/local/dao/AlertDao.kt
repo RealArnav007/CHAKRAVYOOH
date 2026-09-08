@@ -4,20 +4,27 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import com.pukaar.android.data.local.entity.AlertEntity
+import com.pukaar.android.data.local.entity.CachedAlertEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface AlertDao {
-    @Query("SELECT * FROM alerts ORDER BY timestamp DESC")
-    fun getAllAlerts(): Flow<List<AlertEntity>>
+
+    @Query("SELECT * FROM cached_alerts ORDER BY issuedAt DESC")
+    fun getAllAsFlow(): Flow<List<CachedAlertEntity>>
+
+    @Query("SELECT * FROM cached_alerts ORDER BY issuedAt DESC")
+    suspend fun getAll(): List<CachedAlertEntity>
+
+    @Query("SELECT * FROM cached_alerts WHERE alertId = :alertId LIMIT 1")
+    suspend fun findById(alertId: String): CachedAlertEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAlerts(alerts: List<AlertEntity>)
+    suspend fun insert(alert: CachedAlertEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAlert(alert: AlertEntity)
+    suspend fun insertAll(alerts: List<CachedAlertEntity>)
 
-    @Query("UPDATE alerts SET isRead = 1 WHERE id = :alertId")
-    suspend fun markAsRead(alertId: String)
+    @Query("DELETE FROM cached_alerts WHERE alertId = :alertId")
+    suspend fun deleteById(alertId: String)
 }

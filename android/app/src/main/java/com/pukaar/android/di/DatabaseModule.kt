@@ -4,9 +4,9 @@ import android.content.Context
 import androidx.room.Room
 import com.pukaar.android.data.local.PukaarDatabase
 import com.pukaar.android.data.local.dao.AlertDao
-import com.pukaar.android.data.local.dao.CycloneDao
-import com.pukaar.android.data.local.dao.MeshPeerDao
-import com.pukaar.android.data.local.dao.SosDao
+import com.pukaar.android.data.local.dao.IncomingSosDao
+import com.pukaar.android.data.local.dao.IntelligenceDao
+import com.pukaar.android.data.local.dao.SeenPacketDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -31,14 +31,14 @@ object DatabaseModule {
     }
 
     @Provides
+    fun provideSeenPacketDao(db: PukaarDatabase): SeenPacketDao = db.seenPacketDao()
+
+    @Provides
+    fun provideIncomingSosDao(db: PukaarDatabase): IncomingSosDao = db.incomingSosDao()
+
+    @Provides
     fun provideAlertDao(db: PukaarDatabase): AlertDao = db.alertDao()
 
     @Provides
-    fun provideCycloneDao(db: PukaarDatabase): CycloneDao = db.cycloneDao()
-
-    @Provides
-    fun provideSosDao(db: PukaarDatabase): SosDao = db.sosDao()
-
-    @Provides
-    fun provideMeshPeerDao(db: PukaarDatabase): MeshPeerDao = db.meshPeerDao()
+    fun provideIntelligenceDao(db: PukaarDatabase): IntelligenceDao = db.intelligenceDao()
 }

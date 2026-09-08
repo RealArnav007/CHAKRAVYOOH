@@ -1,46 +1,67 @@
 package com.pukaar.android.data.repository
 
 import com.google.gson.Gson
-import com.pukaar.android.data.api.PukaarApiService
-import com.pukaar.android.data.demo.DemoDataGenerator
-import com.pukaar.android.data.local.dao.CycloneDao
-import com.pukaar.android.data.local.entity.CycloneEntity
-import com.pukaar.android.domain.model.CycloneData
+import com.pukaar.android.data.api.PukaarApi
+import com.pukaar.android.data.api.mapper.toDomain
+import com.pukaar.android.data.local.dao.IntelligenceDao
+import com.pukaar.android.data.local.entity.CachedIntelligenceEntity
+import com.pukaar.android.data.websocket.PukaarWebSocketManager
+import com.pukaar.android.domain.model.CycloneIntelligence
+import com.pukaar.android.domain.repository.CycloneEvent
 import com.pukaar.android.domain.repository.CycloneRepository
+import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 
 @Singleton
 class CycloneRepositoryImpl @Inject constructor(
-    private val cycloneDao: CycloneDao,
-    private val apiService: PukaarApiService,
+    private val api: PukaarApi,
+    private val intelligenceDao: IntelligenceDao,
+    private val wsManager: PukaarWebSocketManager,
     private val gson: Gson
 ) : CycloneRepository {
 
-    override fun getCycloneStream(): Flow<CycloneData?> {
-        return cycloneDao.getLatestCyclone().map { entity ->
-            entity?.toDomain(gson) ?: DemoDataGenerator.generateCyclone()
+    override suspend fun getActiveCyclones(): Result<List<CycloneIntelligence>> {
+        return try {
+            val dtos = api.getActiveCyclones()
+            val domainList = dtos.map { it.toDomain() }
+            intelligenceDao.insertAll(domainList.map { CachedIntelligenceEntity.fromDomain(it, gson) })
+            Result.success(domainList)
+        } catch (e: Exception) {
+            try {
+                val cached = intelligenceDao.findById("active")
+                if (cached != null) {
+                    Result.success(listOf(cached.toDomain(gson)))
+                } else {
+                    Result.failure(e)
+                }
+            } catch (fallbackEx: Exception) {
+                Result.failure(e)
+            }
         }
     }
 
-    override suspend fun refreshCycloneData(): Result<CycloneData> {
+    override suspend fun getCycloneById(id: String): Result<CycloneIntelligence> {
         return try {
-            val res = apiService.getActiveCyclone()
-            if (res.isSuccessful && res.body() != null) {
-                val domain = res.body()!!.toDomain()
-                cycloneDao.insertCyclone(CycloneEntity.fromDomain(domain, gson))
-                Result.success(domain)
-            } else {
-                val demo = DemoDataGenerator.generateCyclone()
-                cycloneDao.insertCyclone(CycloneEntity.fromDomain(demo, gson))
-                Result.success(demo)
-            }
+            val dto = api.getCycloneById(id)
+            val domain = dto.toDomain()
+            intelligenceDao.upsert(CachedIntelligenceEntity.fromDomain(domain, gson))
+            Result.success(domain)
         } catch (e: Exception) {
-            val demo = DemoDataGenerator.generateCyclone()
-            cycloneDao.insertCyclone(CycloneEntity.fromDomain(demo, gson))
-            Result.success(demo)
+            try {
+                val cached = intelligenceDao.findById(id)
+                if (cached != null) {
+                    Result.success(cached.toDomain(gson))
+                } else {
+                    Result.failure(e)
+                }
+            } catch (fallbackEx: Exception) {
+                Result.failure(e)
+            }
         }
+    }
+
+    override fun observeCycloneEvents(): Flow<CycloneEvent> {
+        return wsManager.eventsFlow
     }
 }
