@@ -1,14 +1,14 @@
 {
   "split_counts": {
-    "train": 137,
-    "val": 8,
-    "test": 9,
+    "train": 59,
+    "val": 30,
+    "test": 14,
     "demo": 0
   },
   "storm_counts": {
-    "train": 39,
-    "val": 8,
-    "test": 9,
+    "train": 3,
+    "val": 1,
+    "test": 1,
     "demo": 0
   },
   "splits": {
@@ -16,72 +16,21 @@
       "storms": [
         "1842298N11080",
         "1845336N10074",
-        "1854303N14072",
-        "1877135N10083",
-        "1877192N21090",
-        "NON_CYCLONE_BG_000",
-        "NON_CYCLONE_BG_028",
-        "NON_CYCLONE_BG_001",
-        "NON_CYCLONE_BG_029",
-        "NON_CYCLONE_BG_002",
-        "NON_CYCLONE_BG_030",
-        "NON_CYCLONE_BG_003",
-        "NON_CYCLONE_BG_031",
-        "NON_CYCLONE_BG_004",
-        "NON_CYCLONE_BG_032",
-        "NON_CYCLONE_BG_005",
-        "NON_CYCLONE_BG_033",
-        "NON_CYCLONE_BG_006",
-        "NON_CYCLONE_BG_034",
-        "NON_CYCLONE_BG_007",
-        "NON_CYCLONE_BG_035",
-        "NON_CYCLONE_BG_008",
-        "NON_CYCLONE_BG_036",
-        "NON_CYCLONE_BG_009",
-        "NON_CYCLONE_BG_037",
-        "NON_CYCLONE_BG_010",
-        "NON_CYCLONE_BG_038",
-        "NON_CYCLONE_BG_011",
-        "NON_CYCLONE_BG_039",
-        "NON_CYCLONE_BG_012",
-        "NON_CYCLONE_BG_040",
-        "NON_CYCLONE_BG_013",
-        "NON_CYCLONE_BG_041",
-        "NON_CYCLONE_BG_014",
-        "NON_CYCLONE_BG_042",
-        "NON_CYCLONE_BG_015",
-        "NON_CYCLONE_BG_043",
-        "NON_CYCLONE_BG_016",
-        "NON_CYCLONE_BG_044"
+        "1854303N14072"
       ],
-      "date_range": "1842-10-25T06:00:00+00:00 -> 2022-01-17T00:00:00+00:00"
+      "date_range": "1842-10-25T06:00:00+00:00 -> 1854-11-02T06:00:00+00:00"
     },
     "val": {
       "storms": [
-        "NON_CYCLONE_BG_017",
-        "NON_CYCLONE_BG_045",
-        "NON_CYCLONE_BG_018",
-        "NON_CYCLONE_BG_046",
-        "NON_CYCLONE_BG_019",
-        "NON_CYCLONE_BG_047",
-        "NON_CYCLONE_BG_020",
-        "NON_CYCLONE_BG_048"
+        "1877135N10083"
       ],
-      "date_range": "2022-01-18T00:00:00+00:00 -> 2022-01-21T00:00:00+00:00"
+      "date_range": "1877-05-15T00:00:00+00:00 -> 1877-05-22T06:00:00+00:00"
     },
     "test": {
       "storms": [
-        "NON_CYCLONE_BG_021",
-        "NON_CYCLONE_BG_049",
-        "NON_CYCLONE_BG_022",
-        "NON_CYCLONE_BG_050",
-        "NON_CYCLONE_BG_023",
-        "NON_CYCLONE_BG_024",
-        "NON_CYCLONE_BG_025",
-        "NON_CYCLONE_BG_026",
-        "NON_CYCLONE_BG_027"
+        "1877192N21090"
       ],
-      "date_range": "2022-01-22T00:00:00+00:00 -> 2022-01-28T00:00:00+00:00"
+      "date_range": "1877-07-11T00:00:00+00:00 -> 1877-07-14T06:00:00+00:00"
     },
     "demo": {
       "storms": [],

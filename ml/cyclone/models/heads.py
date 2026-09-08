@@ -193,6 +193,67 @@ class IntensityHead(nn.Module):
         }
 
 
+class IntensityModel(nn.Module):
+    """Standalone vision-only automated-Dvorak intensity estimation model (ImageBranch + IntensityHead)."""
+
+    def __init__(
+        self,
+        backbone_name: str = "efficientnet_b0",
+        pretrained: bool = True,
+        embedding_dim: int = 512,
+        dropout: float = 0.2,
+    ) -> None:
+        super().__init__()
+        self.image_branch = ImageBranch(
+            backbone_name=backbone_name,
+            pretrained=pretrained,
+            in_chans=1,
+            embedding_dim=embedding_dim,
+            dropout=dropout,
+        )
+        self.intensity_head = IntensityHead(
+            embedding_dim=embedding_dim,
+            num_imd_levels=7,
+            hidden_dim=128,
+            dropout=dropout,
+        )
+
+    def forward(
+        self,
+        img: Optional[torch.Tensor] = None,
+        image_available: Optional[torch.Tensor] = None,
+    ) -> Dict[str, torch.Tensor]:
+        """Forward pass predicting continuous wind/pressure and discrete IMD scale logits."""
+        embedding = self.image_branch(img, image_available=image_available)
+        head_out = self.intensity_head(embedding)
+
+        return {
+            "wind_kt": head_out["wind_kt"],
+            "pres_mb": head_out["pres_mb"],
+            "imd_logits": head_out["imd_logits"],
+            "imd_probs": head_out["imd_probs"],
+            "embedding": embedding,
+        }
+
+    @classmethod
+    def from_config(cls, cfg: Optional[Any] = None) -> IntensityModel:
+        """Factory constructor instantiating IntensityModel from config."""
+        from ml.cyclone.config import load_config
+        if cfg is None:
+            cfg = load_config()
+
+        model_cfg = cfg.model if hasattr(cfg, "model") else {}
+        img_cfg = getattr(model_cfg, "image_branch", {}) if hasattr(model_cfg, "image_branch") else {}
+        backbone = getattr(img_cfg, "backbone", "efficientnet_b0") if hasattr(img_cfg, "backbone") else "efficientnet_b0"
+        embedding_dim = getattr(img_cfg, "embedding_dim", 512) if hasattr(img_cfg, "embedding_dim") else 512
+
+        return cls(
+            backbone_name=backbone,
+            pretrained=True,
+            embedding_dim=embedding_dim,
+        )
+
+
 # -----------------------------------------------------------------------------
 # 5. Trajectory Displacement & Gaussian Uncertainty Head
 # -----------------------------------------------------------------------------
@@ -231,5 +292,6 @@ __all__ = [
     "DetectionModel",
     "StageClassificationHead",
     "IntensityHead",
+    "IntensityModel",
     "TrackHead",
 ]
