@@ -1,10 +1,12 @@
 package com.pukaar.android.domain.repository
 
-import com.pukaar.android.domain.model.MeshPeer
+import com.pukaar.android.domain.model.MeshPacket
+import com.pukaar.android.domain.model.MeshStatus
+import com.pukaar.android.domain.model.PacketLogEntry
 import kotlinx.coroutines.flow.Flow
 
 interface MeshRepository {
-    fun getDiscoveredPeers(): Flow<List<MeshPeer>>
-    suspend fun startMeshRelay(): Result<Unit>
-    suspend fun stopMeshRelay(): Result<Unit>
+    fun observeMeshStatus(): Flow<MeshStatus>
+    suspend fun relayPacket(packet: MeshPacket): Result<Unit>
+    fun observePacketLog(): Flow<List<PacketLogEntry>>
 }

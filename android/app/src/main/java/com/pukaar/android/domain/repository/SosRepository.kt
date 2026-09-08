@@ -1,17 +1,13 @@
 package com.pukaar.android.domain.repository
 
-import com.pukaar.android.domain.model.SosMessage
+import com.pukaar.android.domain.model.IncomingSos
+import com.pukaar.android.domain.model.RelayStatus
+import com.pukaar.android.domain.model.SosRequest
 import kotlinx.coroutines.flow.Flow
 
 interface SosRepository {
-    fun getSosInboxStream(): Flow<List<SosMessage>>
-    fun getActiveOutgoingSosStream(): Flow<SosMessage?>
-    suspend fun sendEmergencySos(
-        latitude: Double,
-        longitude: Double,
-        emergencyType: String,
-        victimCount: Int,
-        notes: String
-    ): Result<SosMessage>
-    suspend fun cancelSos(sosId: String): Result<Unit>
+    suspend fun sendSos(request: SosRequest): Result<String>
+    fun observeIncomingSos(): Flow<List<IncomingSos>>
+    suspend fun getInboxSnapshot(): List<IncomingSos>
+    suspend fun updateRelayStatus(msgId: String, status: RelayStatus)
 }

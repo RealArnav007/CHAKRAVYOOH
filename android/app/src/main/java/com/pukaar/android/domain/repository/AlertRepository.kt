@@ -1,10 +1,9 @@
 package com.pukaar.android.domain.repository
 
-import com.pukaar.android.domain.model.Alert
+import com.pukaar.android.domain.model.CycloneAlert
 import kotlinx.coroutines.flow.Flow
 
 interface AlertRepository {
-    fun getAlertsStream(): Flow<List<Alert>>
-    suspend fun refreshAlerts(): Result<Unit>
-    suspend fun markAlertAsRead(alertId: String)
+    suspend fun getAlerts(): Result<List<CycloneAlert>>
+    fun observeAlertEvents(): Flow<CycloneAlert>
 }
