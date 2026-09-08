@@ -22,6 +22,7 @@ from ml.cyclone.models.heads import (
     TrackHead,
     TrackModel,
 )
+from ml.cyclone.models.fusion_net import FusionNet
 from ml.cyclone.models.image_branch import ImageBranch
 from ml.cyclone.models.track_branch import TrackBranch
 
@@ -36,6 +37,7 @@ __all__ = [
     "ImageBranch",
     "EnvBranch",
     "TrackBranch",
+    "FusionNet",
     "DetectionHead",
     "DetectionModel",
     "IntensityHead",
