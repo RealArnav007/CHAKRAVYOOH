@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
+
 import numpy as np
-import pandas as pd
 
 from ml.cyclone.features.environmental import extract_environmental_features
 from ml.cyclone.features.motion import extract_motion_features
@@ -17,8 +17,7 @@ from ml.cyclone.preprocess.scales import (
 )
 from ml.cyclone.schema.models import IntensityLevelEnum, StageEnum
 
-
-IMD_LEVEL_MAP: Dict[IntensityLevelEnum, int] = {
+IMD_LEVEL_MAP: dict[IntensityLevelEnum, int] = {
     IntensityLevelEnum.DEPRESSION: 0,
     IntensityLevelEnum.DEEP_DEPRESSION: 1,
     IntensityLevelEnum.CYCLONIC_STORM: 2,
@@ -28,7 +27,7 @@ IMD_LEVEL_MAP: Dict[IntensityLevelEnum, int] = {
     IntensityLevelEnum.SUPER_CYCLONIC_STORM: 6,
 }
 
-STAGE_MAP: Dict[StageEnum, int] = {
+STAGE_MAP: dict[StageEnum, int] = {
     StageEnum.NO_SIGNIFICANT_SYSTEM: 0,
     StageEnum.DEVELOPING_DISTURBANCE: 1,
     StageEnum.TROPICAL_DEPRESSION: 2,
@@ -37,7 +36,7 @@ STAGE_MAP: Dict[StageEnum, int] = {
     StageEnum.POST_TROPICAL_REMNANT: 5,
 }
 
-DEFAULT_HORIZONS: List[int] = [6, 12, 24, 48, 72]
+DEFAULT_HORIZONS: list[int] = [6, 12, 24, 48, 72]
 TRACK_SEQUENCE_DIM = 7
 
 
@@ -45,16 +44,18 @@ TRACK_SEQUENCE_DIM = 7
 class FusedSample:
     """Unified multi-modal sample tensor container ready for model training and inference."""
 
-    image_tensor: Optional[np.ndarray]           # Shape: (1, H, W) float32 in [0, 1] or None
-    env_vector: np.ndarray                      # Shape: (6,) float32
-    motion_vector: np.ndarray                   # Shape: (16,) float32
-    track_sequence: np.ndarray                  # Shape: (N, 7) float32 [t_offset, lat, lon, wind, pres, speed, heading]
-    meta: Dict[str, Any]                        # Storm ID, timestamp, original coordinates
-    targets: Dict[str, Any]                     # Ground truth supervision signals
+    image_tensor: np.ndarray | None  # Shape: (1, H, W) float32 in [0, 1] or None
+    env_vector: np.ndarray  # Shape: (6,) float32
+    motion_vector: np.ndarray  # Shape: (16,) float32
+    track_sequence: (
+        np.ndarray
+    )  # Shape: (N, 7) float32 [t_offset, lat, lon, wind, pres, speed, heading]
+    meta: dict[str, Any]  # Storm ID, timestamp, original coordinates
+    targets: dict[str, Any]  # Ground truth supervision signals
 
 
 def _build_track_sequence_tensor(
-    history: List[Dict[str, Any]],
+    history: list[dict[str, Any]],
     current_lat: float,
     current_lon: float,
     history_steps: int = 8,
@@ -84,12 +85,12 @@ def _build_track_sequence_tensor(
 
 
 def make_fused_sample(
-    sample: Dict[str, Any],
-    storm_future_lookup: Optional[Dict[int, Tuple[float, float]]] = None,
-    horizons: Optional[List[int]] = None,
+    sample: dict[str, Any],
+    storm_future_lookup: dict[int, tuple[float, float]] | None = None,
+    horizons: list[int] | None = None,
     history_steps: int = 8,
-    image_target_size: Tuple[int, int] = (224, 224),
-    imputer_stats: Optional[Dict[str, float]] = None,
+    image_target_size: tuple[int, int] = (224, 224),
+    imputer_stats: dict[str, float] | None = None,
 ) -> FusedSample:
     """Transforms a raw colocalized sample dictionary into a model-ready FusedSample.
 
@@ -123,7 +124,7 @@ def make_fused_sample(
     )
 
     # 2. Image tensor (lazy load if image path is valid)
-    image_tensor: Optional[np.ndarray] = None
+    image_tensor: np.ndarray | None = None
     img_path_str = sample.get("image_path")
     if img_path_str and Path(img_path_str).is_file():
         try:

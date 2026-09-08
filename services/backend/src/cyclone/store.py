@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,12 +10,20 @@ async def save_intelligence_frame(db: AsyncSession, intelligence_json: dict) -> 
     Upserts the latest pointer atomically using ON CONFLICT DO UPDATE.
     """
     cyc_id = intelligence_json.get("cyclone_id")
-    ts_str = intelligence_json.get("timestamp")
+    raw_ts = intelligence_json.get("timestamp")
+    
+    # Ensure timestamp is a Python datetime object for SQLAlchemy DateTime columns
+    if isinstance(raw_ts, str):
+        ts = datetime.fromisoformat(raw_ts.replace("Z", "+00:00"))
+    elif isinstance(raw_ts, datetime):
+        ts = raw_ts
+    else:
+        ts = datetime.now(timezone.utc)
     
     # 1. Atomic Insert for History
     stmt_record = insert(CycloneIntelligenceRecord).values(
         cyclone_id=cyc_id,
-        timestamp=ts_str,
+        timestamp=ts,
         model_version=intelligence_json.get("model_version", "Chakravyooh-brain-0.1"),
         raw_json=intelligence_json
     ).on_conflict_do_nothing(
@@ -42,7 +51,7 @@ async def save_intelligence_frame(db: AsyncSession, intelligence_json: dict) -> 
         confidence=ident.get("confidence") if ident else None,
         current_lat=curr.get("lat"),
         current_lon=curr.get("lon"),
-        timestamp=ts_str,
+        timestamp=ts,
         raw_json=intelligence_json
     )
     

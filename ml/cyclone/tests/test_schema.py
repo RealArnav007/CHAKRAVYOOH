@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
@@ -11,19 +12,9 @@ except ImportError:
     jsonschema = None
 
 from ml.cyclone.schema.models import (
-    ClassificationPayload,
     CycloneIntelligence,
-    GeoPoint,
-    IdentificationPayload,
-    IntensityLevelEnum,
-    IntensityPayload,
-    PredictionPayload,
-    StageEnum,
     TierEnum,
-    TrajectoryPoint,
-    UncertaintyCone,
 )
-
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
 SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schema" / "cyclone_intelligence.schema.json"
@@ -32,7 +23,7 @@ SCHEMA_PATH = Path(__file__).resolve().parent.parent / "schema" / "cyclone_intel
 @pytest.fixture
 def json_schema():
     assert SCHEMA_PATH.is_file(), f"Schema file missing at {SCHEMA_PATH}"
-    with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
+    with open(SCHEMA_PATH, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -43,7 +34,7 @@ def golden_fixtures():
     for filename in fixture_files:
         p = FIXTURES_DIR / filename
         assert p.is_file(), f"Fixture {filename} not found at {p}"
-        with open(p, "r", encoding="utf-8") as f:
+        with open(p, encoding="utf-8") as f:
             loaded[filename] = json.load(f)
     return loaded
 
@@ -134,7 +125,9 @@ def test_negative_cone_length_mismatch(golden_fixtures):
     """cone_radius_km length != predicted_path length must fail validation."""
     data = json.loads(json.dumps(golden_fixtures["landfall_imminent.json"]))
     # Drop one radius point
-    data["prediction"]["uncertainty"]["cone_radius_km"] = data["prediction"]["uncertainty"]["cone_radius_km"][:-1]
+    data["prediction"]["uncertainty"]["cone_radius_km"] = data["prediction"]["uncertainty"][
+        "cone_radius_km"
+    ][:-1]
     with pytest.raises(ValidationError):
         CycloneIntelligence.model_validate(data)
 
@@ -150,7 +143,9 @@ def test_negative_cone_nonzero_initial_radius(golden_fixtures):
 def test_negative_path_first_point_mismatch_current_pos(golden_fixtures):
     """predicted_path[0] coordinate mismatching current_position must fail validation."""
     data = json.loads(json.dumps(golden_fixtures["landfall_imminent.json"]))
-    data["prediction"]["predicted_path"][0]["lat"] = data["prediction"]["current_position"]["lat"] + 5.0
+    data["prediction"]["predicted_path"][0]["lat"] = (
+        data["prediction"]["current_position"]["lat"] + 5.0
+    )
     with pytest.raises(ValidationError):
         CycloneIntelligence.model_validate(data)
 

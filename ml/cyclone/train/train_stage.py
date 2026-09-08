@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
 import json
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -20,7 +21,8 @@ from ml.cyclone.models.heads import StageModel
 from ml.cyclone.preprocess.align import resample_track
 from ml.cyclone.preprocess.clean import clean_tracks
 from ml.cyclone.preprocess.colocalize import build_samples
-
+from ml.cyclone.train.track_experiment import ExperimentTracker
+from ml.cyclone.train.trainer import Trainer
 
 # 6-Stage Inverse-Frequency Weights from EDA
 # NO_SIGNIFICANT_SYSTEM, DEVELOPING_DISTURBANCE, TROPICAL_DEPRESSION, MATURE_TROPICAL_CYCLONE, WEAKENING_SYSTEM, POST_TROPICAL_REMNANT
@@ -32,9 +34,9 @@ def train_stage(
     batch_size: int = 8,
     lr: float = 3e-4,
     weight_decay: float = 1e-4,
-    artifact_dir: Optional[Path] = None,
-    device: Optional[torch.device] = None,
-) -> Dict[str, Any]:
+    artifact_dir: Path | None = None,
+    device: torch.device | None = None,
+) -> dict[str, Any]:
     """Trains non-image StageModel using only environmental (ERA5) and temporal track dynamics.
 
     Args:
@@ -52,9 +54,9 @@ def train_stage(
     save_dir.mkdir(parents=True, exist_ok=True)
 
     compute_device = device or (
-        torch.device("mps") if torch.backends.mps.is_available()
-        else torch.device("cuda") if torch.cuda.is_available()
-        else torch.device("cpu")
+        torch.device("mps")
+        if torch.backends.mps.is_available()
+        else torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     )
     print(f"[STAGE] Using compute device: {compute_device}")
 
@@ -70,15 +72,23 @@ def train_stage(
     val_indices = splits["val"]
     test_indices = splits["test"]
 
-    print(f"[STAGE] Split counts -> Train: {len(train_indices)}, Val: {len(val_indices)}, Test: {len(test_indices)}")
+    print(
+        f"[STAGE] Split counts -> Train: {len(train_indices)}, Val: {len(val_indices)}, Test: {len(test_indices)}"
+    )
 
     train_ds = CycloneDataset(all_samples, indices=train_indices, mode="multimodal")
     val_ds = CycloneDataset(all_samples, indices=val_indices, mode="multimodal")
     test_ds = CycloneDataset(all_samples, indices=test_indices, mode="multimodal")
 
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, collate_fn=cyclone_collate_fn)
-    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, collate_fn=cyclone_collate_fn)
-    test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, collate_fn=cyclone_collate_fn)
+    train_loader = DataLoader(
+        train_ds, batch_size=batch_size, shuffle=True, collate_fn=cyclone_collate_fn
+    )
+    val_loader = DataLoader(
+        val_ds, batch_size=batch_size, shuffle=False, collate_fn=cyclone_collate_fn
+    )
+    test_loader = DataLoader(
+        test_ds, batch_size=batch_size, shuffle=False, collate_fn=cyclone_collate_fn
+    )
 
     # 2. Model & Weighted Cross-Entropy Loss
     model = StageModel(
@@ -94,7 +104,9 @@ def train_stage(
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max(1, epochs))
 
-    def stage_step_fn(m: nn.Module, batch: Dict[str, Any], crit: Any, dev: torch.device) -> Tuple[torch.Tensor, Dict[str, Any]]:
+    def stage_step_fn(
+        m: nn.Module, batch: dict[str, Any], crit: Any, dev: torch.device
+    ) -> Tuple[torch.Tensor, dict[str, Any]]:
         env = torch.nan_to_num(batch["env_vector"].to(dev), nan=0.0)
         track = torch.nan_to_num(batch["track_sequence"].to(dev), nan=0.0)
         targets = torch.clamp(batch["targets"]["stage_idx"].to(dev), min=0, max=5)
@@ -156,11 +168,11 @@ def evaluate_stage_model(
     model: nn.Module,
     dataloader: DataLoader,
     device: torch.device,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Evaluates StageModel on dataloader emitting Accuracy, Macro-F1, and Confusion Matrix."""
     model.eval()
-    pred_stages: List[int] = []
-    true_stages: List[int] = []
+    pred_stages: list[int] = []
+    true_stages: list[int] = []
 
     with torch.no_grad():
         for batch in dataloader:
@@ -191,8 +203,8 @@ def evaluate_stage_model(
 
 
 def update_models_report_stage(
-    stage_results: Dict[str, Any],
-    report_path: Optional[Path] = None,
+    stage_results: dict[str, Any],
+    report_path: Path | None = None,
 ) -> None:
     """Updates models_report.md with non-image stage classification benchmark."""
     rep_path = report_path or Path("ml/cyclone/eval/models_report.md")
@@ -222,7 +234,7 @@ def update_models_report_stage(
 
     existing_content = ""
     if rep_path.is_file():
-        with open(rep_path, "r", encoding="utf-8") as f:
+        with open(rep_path, encoding="utf-8") as f:
             existing_content = f.read()
 
     if "## 4. Non-Image Lifecycle Stage Classification Model" in existing_content:
@@ -243,7 +255,9 @@ def update_models_report_stage(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Train non-image lifecycle stage classification model.")
+    parser = argparse.ArgumentParser(
+        description="Train non-image lifecycle stage classification model."
+    )
     parser.add_argument("--epochs", type=int, default=5, help="Number of epochs")
     parser.add_argument("--batch-size", type=int, default=8, help="Batch size")
     parser.add_argument("--lr", type=float, default=3e-4, help="Learning rate")

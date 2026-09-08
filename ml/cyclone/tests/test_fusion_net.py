@@ -1,6 +1,5 @@
 """Unit tests for multi-modal FusionNet architecture and learnable MultiTaskLoss."""
 
-import pytest
 import torch
 
 from ml.cyclone.models.fusion_net import FusionNet

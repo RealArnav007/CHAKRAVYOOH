@@ -1,0 +1,86 @@
+{
+  "timestamp": "2026-09-08T15:20:08.952444+00:00",
+  "best_epoch": 2,
+  "best_metric": "track_mean_error_km",
+  "best_metric_value": 335.63,
+  "best_checkpoint_path": "/Users/rana/Documents/Chakravyooh/ml/cyclone/artifacts/sweep/trial_03/model_trial_03.pt",
+  "test_metrics": {
+    "detection_accuracy": 1.0,
+    "detection_macro_f1": 0.5,
+    "detection_ece": 0.3576,
+    "stage_accuracy": 0.0,
+    "stage_macro_f1": 0.0,
+    "intensity_wind_rmse_kt": 0.0,
+    "intensity_wind_mae_kt": 0.0,
+    "imd_class_accuracy": 1.0,
+    "imd_macro_f1": 0.1429,
+    "track_mean_error_km": 279.65,
+    "track_errors_by_horizon_km": {
+      "6h": 71.11,
+      "12h": 177.05,
+      "24h": 324.89,
+      "48h": 642.1,
+      "72h": 937.38
+    },
+    "cone_coverage_pct": 65.12,
+    "val_loss": 279.65
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 7.6031,
+      "train_detection_loss": 0.6645,
+      "train_stage_loss": 1.6779,
+      "train_intensity_reg_loss": 0.0,
+      "train_intensity_cls_loss": 1.7523,
+      "train_track_loss": 7.0168,
+      "detection_accuracy": 1.0,
+      "detection_macro_f1": 0.5,
+      "detection_ece": 0.428,
+      "stage_accuracy": 0.0,
+      "stage_macro_f1": 0.0,
+      "intensity_wind_rmse_kt": 0.0,
+      "intensity_wind_mae_kt": 0.0,
+      "imd_class_accuracy": 1.0,
+      "imd_macro_f1": 0.1429,
+      "track_mean_error_km": 348.22,
+      "track_errors_by_horizon_km": {
+        "6h": 65.03,
+        "12h": 165.57,
+        "24h": 266.71,
+        "48h": 622.33,
+        "72h": 871.32
+      },
+      "cone_coverage_pct": 60.98,
+      "val_loss": 348.22
+    },
+    {
+      "epoch": 2,
+      "train_loss": 5.5255,
+      "train_detection_loss": 0.4939,
+      "train_stage_loss": 1.1602,
+      "train_intensity_reg_loss": 0.0,
+      "train_intensity_cls_loss": 1.3437,
+      "train_track_loss": 5.0592,
+      "detection_accuracy": 1.0,
+      "detection_macro_f1": 0.5,
+      "detection_ece": 0.3572,
+      "stage_accuracy": 0.0,
+      "stage_macro_f1": 0.0,
+      "intensity_wind_rmse_kt": 0.0,
+      "intensity_wind_mae_kt": 0.0,
+      "imd_class_accuracy": 1.0,
+      "imd_macro_f1": 0.1429,
+      "track_mean_error_km": 335.63,
+      "track_errors_by_horizon_km": {
+        "6h": 51.55,
+        "12h": 152.78,
+        "24h": 256.12,
+        "48h": 606.34,
+        "72h": 861.78
+      },
+      "cone_coverage_pct": 62.6,
+      "val_loss": 335.63
+    }
+  ]
+}

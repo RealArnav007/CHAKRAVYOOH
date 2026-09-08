@@ -5,11 +5,11 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 import numpy as np
 
-
-ENV_FEATURE_NAMES: List[str] = [
+ENV_FEATURE_NAMES: list[str] = [
     "sst_c",
     "shear_ms",
     "rh500",
@@ -19,22 +19,22 @@ ENV_FEATURE_NAMES: List[str] = [
 ]
 
 # Standard training-set empirical medians for missing data imputation
-DEFAULT_IMPUTER_MEDIANS: Dict[str, float] = {
-    "sst_c": 28.5,        # Mean tropical Indian Ocean SST in Celsius
-    "shear_ms": 12.0,     # Deep-layer vertical wind shear (m/s)
-    "rh500": 65.0,        # 500 hPa relative humidity (%)
-    "vort850": 15.0,      # 850 hPa relative vorticity (* 10^-5 s^-1)
-    "mslp_mb": 1006.0,    # Background environmental surface pressure (mb)
-    "wind10m_ms": 8.0,    # Surface 10m wind speed (m/s)
+DEFAULT_IMPUTER_MEDIANS: dict[str, float] = {
+    "sst_c": 28.5,  # Mean tropical Indian Ocean SST in Celsius
+    "shear_ms": 12.0,  # Deep-layer vertical wind shear (m/s)
+    "rh500": 65.0,  # 500 hPa relative humidity (%)
+    "vort850": 15.0,  # 850 hPa relative vorticity (* 10^-5 s^-1)
+    "mslp_mb": 1006.0,  # Background environmental surface pressure (mb)
+    "wind10m_ms": 8.0,  # Surface 10m wind speed (m/s)
 }
 
 
-def load_imputer_medians(spec_path: Optional[Path] = None) -> Dict[str, float]:
+def load_imputer_medians(spec_path: Path | None = None) -> dict[str, float]:
     """Loads feature imputer medians from feature_spec.json if present, else returns defaults."""
     path = spec_path or (Path(__file__).resolve().parent / "feature_spec.json")
     if path.is_file():
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
             return data.get("environmental_imputer_medians", DEFAULT_IMPUTER_MEDIANS)
         except Exception:
@@ -43,8 +43,8 @@ def load_imputer_medians(spec_path: Optional[Path] = None) -> Dict[str, float]:
 
 
 def extract_environmental_features(
-    sample: Dict[str, Any],
-    imputer_stats: Optional[Dict[str, float]] = None,
+    sample: dict[str, Any],
+    imputer_stats: dict[str, float] | None = None,
 ) -> np.ndarray:
     """Assembles a 6-dimensional environmental atmospheric feature vector with deterministic imputation.
 
@@ -66,7 +66,7 @@ def extract_environmental_features(
     stats = imputer_stats or DEFAULT_IMPUTER_MEDIANS
     env_dict = sample.get("env", {}) if isinstance(sample.get("env"), dict) else {}
 
-    vector: List[float] = []
+    vector: list[float] = []
 
     for name in ENV_FEATURE_NAMES:
         val = env_dict.get(name, float("nan"))
@@ -80,9 +80,9 @@ def extract_environmental_features(
     return np.array(vector, dtype=np.float32)
 
 
-def fit_environmental_imputer(samples: List[Dict[str, Any]]) -> Dict[str, float]:
+def fit_environmental_imputer(samples: list[dict[str, Any]]) -> dict[str, float]:
     """Computes empirical medians from a list of training samples and returns imputer dictionary."""
-    accumulators: Dict[str, List[float]] = {name: [] for name in ENV_FEATURE_NAMES}
+    accumulators: dict[str, list[float]] = {name: [] for name in ENV_FEATURE_NAMES}
 
     for s in samples:
         env_dict = s.get("env", {})

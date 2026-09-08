@@ -1,6 +1,5 @@
 """Unit tests with hand-checkable tiny examples for evaluation metrics suite."""
 
-import numpy as np
 import pytest
 
 from ml.cyclone.eval.metrics import (
@@ -11,7 +10,6 @@ from ml.cyclone.eval.metrics import (
     track_error_km,
 )
 
-
 # -----------------------------------------------------------------------------
 # 1. Track Forecasting Error Tests
 # -----------------------------------------------------------------------------
@@ -20,8 +18,14 @@ from ml.cyclone.eval.metrics import (
 def test_track_error_km_exact_and_shifted():
     """Asserts track_error_km gives 0 for identical paths and correct haversine for known delta."""
     # Exact match at Equator
-    pred_path = [{"t_plus_h": 0, "lat": 0.0, "lon": 80.0}, {"t_plus_h": 12, "lat": 2.0, "lon": 82.0}]
-    true_path = [{"t_plus_h": 0, "lat": 0.0, "lon": 80.0}, {"t_plus_h": 12, "lat": 2.0, "lon": 82.0}]
+    pred_path = [
+        {"t_plus_h": 0, "lat": 0.0, "lon": 80.0},
+        {"t_plus_h": 12, "lat": 2.0, "lon": 82.0},
+    ]
+    true_path = [
+        {"t_plus_h": 0, "lat": 0.0, "lon": 80.0},
+        {"t_plus_h": 12, "lat": 2.0, "lon": 82.0},
+    ]
 
     res_zero = track_error_km(pred_path, true_path)
     assert res_zero["mean_error_km"] == 0.0
@@ -126,9 +130,9 @@ def test_cone_coverage_inside_and_outside():
         {"t_plus_h": 48, "lat": 15.0, "lon": 85.0},
     ]
     true_path = [
-        {"t_plus_h": 0, "lat": 10.0, "lon": 85.0},      # dist = 0 km
-        {"t_plus_h": 24, "lat": 12.4, "lon": 85.0},     # 0.4 deg lat ~ 44.4 km <= 78 km
-        {"t_plus_h": 48, "lat": 17.0, "lon": 85.0},     # 2.0 deg lat ~ 222.4 km > 100 km
+        {"t_plus_h": 0, "lat": 10.0, "lon": 85.0},  # dist = 0 km
+        {"t_plus_h": 24, "lat": 12.4, "lon": 85.0},  # 0.4 deg lat ~ 44.4 km <= 78 km
+        {"t_plus_h": 48, "lat": 17.0, "lon": 85.0},  # 2.0 deg lat ~ 222.4 km > 100 km
     ]
     pred_cone = [0.0, 78.0, 100.0]
 

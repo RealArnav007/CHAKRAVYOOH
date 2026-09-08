@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import argparse
 import os
-from pathlib import Path
 import sys
-from typing import List, Optional
+from pathlib import Path
 
 try:
     import cdsapi
@@ -48,13 +47,16 @@ def download_era5_storm_context(
     storm_name: str,
     date_start: str,
     date_end: str,
-    bbox: List[float],
+    bbox: list[float],
     output_dir: Path,
     force: bool = False,
-) -> Optional[Path]:
+) -> Path | None:
     """Requests and downloads ERA5 single-level and pressure-level atmospheric variables."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    out_nc = output_dir / f"era5_{storm_name.lower()}_{date_start.replace('-', '')}_{date_end.replace('-', '')}.nc"
+    out_nc = (
+        output_dir
+        / f"era5_{storm_name.lower()}_{date_start.replace('-', '')}_{date_end.replace('-', '')}.nc"
+    )
 
     if out_nc.exists() and not force:
         print(f"[ERA5] Environmental NetCDF already exists at {out_nc}. Skipping download.")
@@ -97,7 +99,9 @@ def download_era5_storm_context(
         )
 
         # Download pressure level variables (Shear: 850/200 u/v, RH: 500, Vorticity: 850)
-        print("[ERA5] Requesting pressure-level fields (850/200 hPa winds for shear, 500 hPa RH, 850 hPa vorticity)...")
+        print(
+            "[ERA5] Requesting pressure-level fields (850/200 hPa winds for shear, 500 hPa RH, 850 hPa vorticity)..."
+        )
         pressure_nc = output_dir / f"era5_pressure_{storm_name.lower()}.nc"
         client.retrieve(
             "reanalysis-era5-pressure-levels",
@@ -129,13 +133,15 @@ def download_era5_storm_context(
         return None
 
 
-def main(argv: Optional[list] = None) -> int:
+def main(argv: list | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Download ERA5 atmospheric reanalysis variables for cyclone environmental fusion.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("--storm", type=str, default="Amphan", help="Name of the cyclone")
-    parser.add_argument("--date-start", type=str, default="2020-05-16", help="Start date (YYYY-MM-DD)")
+    parser.add_argument(
+        "--date-start", type=str, default="2020-05-16", help="Start date (YYYY-MM-DD)"
+    )
     parser.add_argument("--date-end", type=str, default="2020-05-21", help="End date (YYYY-MM-DD)")
     parser.add_argument(
         "--bbox",
@@ -151,7 +157,9 @@ def main(argv: Optional[list] = None) -> int:
         default=Path("ml/cyclone/data/era5"),
         help="Directory to save downloaded NetCDF files.",
     )
-    parser.add_argument("--force", action="store_true", help="Force re-download even if files exist.")
+    parser.add_argument(
+        "--force", action="store_true", help="Force re-download even if files exist."
+    )
 
     args = parser.parse_args(argv)
 

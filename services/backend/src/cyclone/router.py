@@ -26,12 +26,52 @@ router = APIRouter(prefix="/cyclone", tags=["Cyclone Intelligence"])
 init_replay_routes(router)
 
 
+from typing import Optional
+from fastapi import Header
+from src.config import get_settings
+
+async def get_ingestion_user(
+    authorization: Optional[str] = Header(None),
+    x_api_key: Optional[str] = Header(None),
+    db: AsyncSession = Depends(get_db)
+) -> User:
+    """
+    Authenticates ingestion callers via either:
+    1. Machine-to-machine System API Key (CHAKRAVYUH_SYSTEM_API_KEY)
+    2. Interactive Admin / System User JWT
+    """
+    settings = get_settings()
+    token = None
+    if authorization:
+        if authorization.startswith("Bearer ") or authorization.startswith("ApiKey "):
+            token = authorization.split(" ", 1)[1].strip()
+        else:
+            token = authorization.strip()
+    elif x_api_key:
+        token = x_api_key.strip()
+        
+    if token and settings.CHAKRAVYUH_SYSTEM_API_KEY and token == settings.CHAKRAVYUH_SYSTEM_API_KEY:
+        return User(user_id="system-ml-producer", role="system", is_active=True)
+        
+    if token:
+        try:
+            return await get_current_user(token=token, db=db)
+        except HTTPException:
+            pass
+            
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Valid System API Key or Admin/System JWT required for intelligence ingestion",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
 @router.post("/intelligence", status_code=status.HTTP_202_ACCEPTED)
 @router.post("/ingest", status_code=status.HTTP_202_ACCEPTED)
 async def ingest_intelligence(
     intelligence: CycloneIntelligence,
     background_tasks: BackgroundTasks,
-    user: User = Depends(get_current_user)
+    user: User = Depends(get_ingestion_user)
 ):
     """
     Project Chakravyooh: Ingests intelligence from the AI engine.

@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional, Tuple, Union
+
 import numpy as np
 import pandas as pd
 from PIL import Image
 
 from ml.cyclone.config import load_config
-
 
 SATELLITE_INDEX_COLUMNS = [
     "image_path",
@@ -24,8 +23,8 @@ SATELLITE_INDEX_COLUMNS = [
 
 
 def load_image_index(
-    source: Optional[str] = None,
-    data_dir: Optional[Union[str, Path]] = None,
+    source: str | None = None,
+    data_dir: str | Path | None = None,
 ) -> pd.DataFrame:
     """Loads standardized satellite image index from Digital Typhoon and/or DrivenData.
 
@@ -74,21 +73,45 @@ def load_image_index(
             normalized_df["image_path"] = raw_df.iloc[:, 0].astype(str)
 
         # Time
-        time_col = "timestamp" if "timestamp" in raw_df.columns else ("time" if "time" in raw_df.columns else None)
+        time_col = (
+            "timestamp"
+            if "timestamp" in raw_df.columns
+            else ("time" if "time" in raw_df.columns else None)
+        )
         if time_col:
             normalized_df["time"] = pd.to_datetime(raw_df[time_col], utc=True, errors="coerce")
         else:
             normalized_df["time"] = pd.Series(pd.Timestamp.now(tz="UTC"), index=raw_df.index)
 
         # Lat / Lon
-        lat_series = raw_df["lat"] if "lat" in raw_df.columns else pd.Series(15.0, index=raw_df.index)
-        lon_series = raw_df["lon"] if "lon" in raw_df.columns else pd.Series(85.0, index=raw_df.index)
+        lat_series = (
+            raw_df["lat"] if "lat" in raw_df.columns else pd.Series(15.0, index=raw_df.index)
+        )
+        lon_series = (
+            raw_df["lon"] if "lon" in raw_df.columns else pd.Series(85.0, index=raw_df.index)
+        )
         normalized_df["lat"] = pd.to_numeric(lat_series, errors="coerce").fillna(15.0)
         normalized_df["lon"] = pd.to_numeric(lon_series, errors="coerce").fillna(85.0)
 
         # Wind speed & Pressure
-        wind_col = "wind_speed_kt" if "wind_speed_kt" in raw_df.columns else ("wind_kt" if "wind_kt" in raw_df.columns else ("wind_speed" if "wind_speed" in raw_df.columns else None))
-        pres_col = "min_pressure_mb" if "min_pressure_mb" in raw_df.columns else ("pres_mb" if "pres_mb" in raw_df.columns else ("pressure" if "pressure" in raw_df.columns else None))
+        wind_col = (
+            "wind_speed_kt"
+            if "wind_speed_kt" in raw_df.columns
+            else (
+                "wind_kt"
+                if "wind_kt" in raw_df.columns
+                else ("wind_speed" if "wind_speed" in raw_df.columns else None)
+            )
+        )
+        pres_col = (
+            "min_pressure_mb"
+            if "min_pressure_mb" in raw_df.columns
+            else (
+                "pres_mb"
+                if "pres_mb" in raw_df.columns
+                else ("pressure" if "pressure" in raw_df.columns else None)
+            )
+        )
 
         wind_series = raw_df[wind_col] if wind_col else pd.Series(45.0, index=raw_df.index)
         pres_series = raw_df[pres_col] if pres_col else pd.Series(990.0, index=raw_df.index)
@@ -97,7 +120,11 @@ def load_image_index(
         normalized_df["pres_mb"] = pd.to_numeric(pres_series, errors="coerce").fillna(990.0)
 
         # Storm ID
-        storm_series = raw_df["storm_id"] if "storm_id" in raw_df.columns else pd.Series("STORM", index=raw_df.index)
+        storm_series = (
+            raw_df["storm_id"]
+            if "storm_id" in raw_df.columns
+            else pd.Series("STORM", index=raw_df.index)
+        )
         normalized_df["storm_id"] = storm_series.astype(str)
         normalized_df["source"] = src
 
@@ -112,8 +139,8 @@ def load_image_index(
 
 
 def read_image(
-    path: Union[str, Path],
-    target_size: Tuple[int, int] = (224, 224),
+    path: str | Path,
+    target_size: tuple[int, int] = (224, 224),
     norm_min: float = 180.0,
     norm_max: float = 310.0,
 ) -> np.ndarray:
@@ -147,7 +174,9 @@ def read_image(
         with Image.open(img_path) as img:
             img_gray = img.convert("L")
             if img_gray.size != (target_size[1], target_size[0]):
-                img_gray = img_gray.resize((target_size[1], target_size[0]), Image.Resampling.BILINEAR)
+                img_gray = img_gray.resize(
+                    (target_size[1], target_size[0]), Image.Resampling.BILINEAR
+                )
             norm_arr = np.array(img_gray, dtype=np.float32) / 255.0
 
     else:

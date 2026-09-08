@@ -1,0 +1,229 @@
+{
+  "timestamp": "2026-09-08T15:12:22.113573+00:00",
+  "best_epoch": 1,
+  "best_metric": "wind_rmse_kt",
+  "best_metric_value": 0.0,
+  "best_checkpoint_path": "/Users/rana/Documents/Chakravyooh/ml/cyclone/artifacts/intensity/ablation_without_rotation/best_intensity_model.pt",
+  "test_metrics": {
+    "wind_mae_kt": 0.0,
+    "wind_rmse_kt": 0.0,
+    "wind_bias_kt": 0.0,
+    "imd_accuracy": 1.0,
+    "imd_macro_f1": 0.1429,
+    "confusion_matrix": [
+      [
+        14,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    ]
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 25.0163,
+      "wind_mae_kt": 0.0,
+      "wind_rmse_kt": 0.0,
+      "wind_bias_kt": 0.0,
+      "imd_accuracy": 1.0,
+      "imd_macro_f1": 0.1429,
+      "confusion_matrix": [
+        [
+          30,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ]
+    },
+    {
+      "epoch": 2,
+      "train_loss": 24.2244,
+      "wind_mae_kt": 0.0,
+      "wind_rmse_kt": 0.0,
+      "wind_bias_kt": 0.0,
+      "imd_accuracy": 1.0,
+      "imd_macro_f1": 0.1429,
+      "confusion_matrix": [
+        [
+          30,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ]
+    }
+  ]
+}

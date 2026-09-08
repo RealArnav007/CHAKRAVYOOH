@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import os
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
 try:
     import yaml
 except ImportError:
@@ -34,7 +35,7 @@ class SatelliteConfig:
 
 @dataclass
 class EnvironmentalConfig:
-    variables: List[str] = field(
+    variables: list[str] = field(
         default_factory=lambda: ["sst", "vertical_wind_shear", "rh_500", "vorticity_850", "ohc"]
     )
     spatial_radius_deg: float = 5.0
@@ -45,7 +46,7 @@ class EnvironmentalConfig:
 class TrackConfig:
     history_steps: int = 8
     step_interval_hours: int = 3
-    features: List[str] = field(
+    features: list[str] = field(
         default_factory=lambda: [
             "lat",
             "lon",
@@ -121,7 +122,7 @@ class ImageBranchConfig:
 @dataclass
 class EnvBranchConfig:
     input_dim: int = 5
-    hidden_dims: List[int] = field(default_factory=lambda: [64, 128])
+    hidden_dims: list[int] = field(default_factory=lambda: [64, 128])
     embedding_dim: int = 64
     dropout: float = 0.1
 
@@ -138,13 +139,13 @@ class TrackBranchConfig:
 
 @dataclass
 class FusionTrunkConfig:
-    hidden_dims: List[int] = field(default_factory=lambda: [512, 256])
+    hidden_dims: list[int] = field(default_factory=lambda: [512, 256])
     dropout: float = 0.3
 
 
 @dataclass
 class HeadsConfig:
-    forecast_horizons_hours: List[int] = field(default_factory=lambda: [0, 6, 12, 24, 48, 72])
+    forecast_horizons_hours: list[int] = field(default_factory=lambda: [0, 6, 12, 24, 48, 72])
     num_stage_classes: int = 6
     num_intensity_classes: int = 7
     uncertainty_method: str = "heteroscedastic"
@@ -202,7 +203,7 @@ class SchedulerConfig:
 @dataclass
 class LossWeightsConfig:
     strategy: str = "homoscedastic_learnable"
-    initial_weights: Dict[str, float] = field(
+    initial_weights: dict[str, float] = field(
         default_factory=lambda: {
             "detection_bce": 1.0,
             "stage_ce": 1.0,
@@ -256,8 +257,8 @@ class StormPresetConfig:
     landfall_time: str
     end_time: str
     step_hours: int = 3
-    landfall_coords: Dict[str, float] = field(default_factory=dict)
-    presets: Dict[str, str] = field(default_factory=dict)
+    landfall_coords: dict[str, float] = field(default_factory=dict)
+    presets: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -273,7 +274,7 @@ class ReplayConfig:
     default_storm_id: str = "CYC-2020-BAY-001"
     default_storm_name: str = "Amphan"
     basin: str = "North Indian Ocean"
-    storms: Dict[str, Any] = field(default_factory=dict)
+    storms: dict[str, Any] = field(default_factory=dict)
     playback: PlaybackConfig = field(default_factory=PlaybackConfig)
 
 
@@ -295,15 +296,15 @@ class CycloneConfig:
 # -----------------------------------------------------------------------------
 
 
-def _load_yaml(file_path: Path) -> Dict[str, Any]:
+def _load_yaml(file_path: Path) -> dict[str, Any]:
     if yaml is None or not file_path.is_file():
         return {}
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(file_path, encoding="utf-8") as f:
         content = yaml.safe_load(f)
         return content if isinstance(content, dict) else {}
 
 
-def _populate_dataclass(dc_cls: type, data: Dict[str, Any]) -> Any:
+def _populate_dataclass(dc_cls: type, data: dict[str, Any]) -> Any:
     """Recursively populates a dataclass from a dict with type-safe nested resolution."""
     if not isinstance(data, dict):
         return dc_cls()
@@ -324,7 +325,7 @@ def get_default_config_dir() -> Path:
     return Path(__file__).resolve().parent
 
 
-def load_config(config_dir: Optional[str | Path] = None) -> CycloneConfig:
+def load_config(config_dir: str | Path | None = None) -> CycloneConfig:
     """Loads and returns the unified typed CycloneConfig from YAML files."""
     base_dir = Path(config_dir) if config_dir else get_default_config_dir()
 
@@ -347,11 +348,15 @@ def load_config(config_dir: Optional[str | Path] = None) -> CycloneConfig:
     )
 
 
-def _populate_data_config(d: Dict[str, Any]) -> DataConfig:
+def _populate_data_config(d: dict[str, Any]) -> DataConfig:
     sat_d = d.get("satellite", {})
     norm_d = sat_d.get("normalization", {})
-    norm = NormalizationConfig(**{k: v for k, v in norm_d.items() if hasattr(NormalizationConfig, k)})
-    sat_kwargs = {k: v for k, v in sat_d.items() if k != "normalization" and hasattr(SatelliteConfig, k)}
+    norm = NormalizationConfig(
+        **{k: v for k, v in norm_d.items() if hasattr(NormalizationConfig, k)}
+    )
+    sat_kwargs = {
+        k: v for k, v in sat_d.items() if k != "normalization" and hasattr(SatelliteConfig, k)
+    }
     sat = SatelliteConfig(normalization=norm, **sat_kwargs)
 
     env_d = d.get("environmental", {})
@@ -372,14 +377,18 @@ def _populate_data_config(d: Dict[str, Any]) -> DataConfig:
     )
 
 
-def _populate_model_config(d: Dict[str, Any]) -> ModelConfig:
+def _populate_model_config(d: dict[str, Any]) -> ModelConfig:
     t0_d = d.get("tier0", {})
     t0_rules_d = t0_d.get("stage_rules", {})
-    t0_rules = Tier0StageRulesConfig(**{k: v for k, v in t0_rules_d.items() if hasattr(Tier0StageRulesConfig, k)})
+    t0_rules = Tier0StageRulesConfig(
+        **{k: v for k, v in t0_rules_d.items() if hasattr(Tier0StageRulesConfig, k)}
+    )
     t0_trk_d = t0_d.get("track_persistence", {})
     t0_trk = Tier0TrackConfig(**{k: v for k, v in t0_trk_d.items() if hasattr(Tier0TrackConfig, k)})
     t0_cone_d = t0_d.get("parametric_cone", {})
-    t0_cone = Tier0ParametricConeConfig(**{k: v for k, v in t0_cone_d.items() if hasattr(Tier0ParametricConeConfig, k)})
+    t0_cone = Tier0ParametricConeConfig(
+        **{k: v for k, v in t0_cone_d.items() if hasattr(Tier0ParametricConeConfig, k)}
+    )
     t0 = Tier0Config(
         detection_threshold_wind_kt=t0_d.get("detection_threshold_wind_kt", 17.0),
         stage_rules=t0_rules,
@@ -407,7 +416,9 @@ def _populate_model_config(d: Dict[str, Any]) -> ModelConfig:
     )
 
     cg_d = d.get("confidence_gates", {})
-    cg = ConfidenceGatesConfig(**{k: v for k, v in cg_d.items() if hasattr(ConfidenceGatesConfig, k)})
+    cg = ConfidenceGatesConfig(
+        **{k: v for k, v in cg_d.items() if hasattr(ConfidenceGatesConfig, k)}
+    )
 
     return ModelConfig(
         model_name=d.get("model_name", "chakravyuh-fusion-net"),
@@ -419,7 +430,7 @@ def _populate_model_config(d: Dict[str, Any]) -> ModelConfig:
     )
 
 
-def _populate_train_config(d: Dict[str, Any]) -> TrainConfig:
+def _populate_train_config(d: dict[str, Any]) -> TrainConfig:
     opt_d = d.get("optimization", {})
     opt = OptimizationConfig(**{k: v for k, v in opt_d.items() if hasattr(OptimizationConfig, k)})
 
@@ -448,7 +459,7 @@ def _populate_train_config(d: Dict[str, Any]) -> TrainConfig:
     )
 
 
-def _populate_replay_config(d: Dict[str, Any]) -> ReplayConfig:
+def _populate_replay_config(d: dict[str, Any]) -> ReplayConfig:
     pb_d = d.get("playback", {})
     pb = PlaybackConfig(**{k: v for k, v in pb_d.items() if hasattr(PlaybackConfig, k)})
 

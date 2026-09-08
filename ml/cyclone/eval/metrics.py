@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import math
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from collections.abc import Sequence
+from typing import Any
+
 import numpy as np
 
 from ml.cyclone.preprocess.geo import haversine_distance_km
-
 
 # -----------------------------------------------------------------------------
 # 1. Track Forecasting Error Metrics
@@ -15,10 +15,10 @@ from ml.cyclone.preprocess.geo import haversine_distance_km
 
 
 def track_error_km(
-    pred_path: Union[Sequence[Dict[str, Any]], Sequence[Tuple[float, float]], np.ndarray],
-    true_path: Union[Sequence[Dict[str, Any]], Sequence[Tuple[float, float]], np.ndarray],
-    horizons: Optional[Sequence[int]] = None,
-) -> Dict[str, Any]:
+    pred_path: Sequence[dict[str, Any]] | Sequence[tuple[float, float]] | np.ndarray,
+    true_path: Sequence[dict[str, Any]] | Sequence[tuple[float, float]] | np.ndarray,
+    horizons: Sequence[int] | None = None,
+) -> dict[str, Any]:
     """Computes great-circle track forecasting errors (in km) per horizon and overall mean.
 
     Args:
@@ -42,14 +42,18 @@ def track_error_km(
     if n == 0:
         return {"errors_by_horizon": {}, "mean_error_km": 0.0, "max_error_km": 0.0}
 
-    errors_by_horizon: Dict[int, float] = {}
-    error_list: List[float] = []
+    errors_by_horizon: dict[int, float] = {}
+    error_list: list[float] = []
 
     for i in range(n):
         p_h, p_lat, p_lon = pred_pts[i]
         t_h, t_lat, t_lon = true_pts[i]
 
-        h = horizons[i] if (horizons is not None and i < len(horizons)) else (p_h if p_h is not None else i)
+        h = (
+            horizons[i]
+            if (horizons is not None and i < len(horizons))
+            else (p_h if p_h is not None else i)
+        )
         err = haversine_distance_km(p_lat, p_lon, t_lat, t_lon)
         err = round(float(err), 2)
 
@@ -67,10 +71,10 @@ def track_error_km(
 
 
 def _normalize_path_points(
-    path: Union[Sequence[Dict[str, Any]], Sequence[Tuple[float, float]], np.ndarray]
-) -> List[Tuple[Optional[int], float, float]]:
+    path: Sequence[dict[str, Any]] | Sequence[tuple[float, float]] | np.ndarray,
+) -> list[tuple[int | None, float, float]]:
     """Helper to convert diverse path representations to standard List[(h, lat, lon)]."""
-    normalized: List[Tuple[Optional[int], float, float]] = []
+    normalized: list[tuple[int | None, float, float]] = []
 
     if isinstance(path, np.ndarray):
         for i in range(len(path)):
@@ -102,11 +106,11 @@ def _normalize_path_points(
 
 
 def intensity_metrics(
-    pred_wind: Union[Sequence[float], np.ndarray],
-    true_wind: Union[Sequence[float], np.ndarray],
-    pred_pres: Optional[Union[Sequence[float], np.ndarray]] = None,
-    true_pres: Optional[Union[Sequence[float], np.ndarray]] = None,
-) -> Dict[str, float]:
+    pred_wind: Sequence[float] | np.ndarray,
+    true_wind: Sequence[float] | np.ndarray,
+    pred_pres: Sequence[float] | np.ndarray | None = None,
+    true_pres: Sequence[float] | np.ndarray | None = None,
+) -> dict[str, float]:
     """Computes MAE, RMSE, and bias for cyclone wind speed (kt) and central pressure (mb).
 
     Args:
@@ -135,7 +139,7 @@ def intensity_metrics(
 
     w_diff = pw_valid - tw_valid
     wind_mae = float(np.mean(np.abs(w_diff)))
-    wind_rmse = float(np.sqrt(np.mean(w_diff ** 2)))
+    wind_rmse = float(np.sqrt(np.mean(w_diff**2)))
     wind_bias = float(np.mean(w_diff))
 
     results = {
@@ -153,7 +157,7 @@ def intensity_metrics(
             tp_valid = tp[valid_mask_p]
             p_diff = pp_valid - tp_valid
             results["pres_mae_mb"] = round(float(np.mean(np.abs(p_diff))), 2)
-            results["pres_rmse_mb"] = round(float(np.sqrt(np.mean(p_diff ** 2))), 2)
+            results["pres_rmse_mb"] = round(float(np.sqrt(np.mean(p_diff**2))), 2)
             results["pres_bias_mb"] = round(float(np.mean(p_diff)), 2)
 
     return results
@@ -165,11 +169,11 @@ def intensity_metrics(
 
 
 def classification_metrics(
-    y_true: Union[Sequence[Any], np.ndarray],
-    y_pred: Union[Sequence[Any], np.ndarray],
-    y_prob: Optional[Union[Sequence[Any], np.ndarray]] = None,
-    classes: Optional[Sequence[Any]] = None,
-) -> Dict[str, Any]:
+    y_true: Sequence[Any] | np.ndarray,
+    y_pred: Sequence[Any] | np.ndarray,
+    y_prob: Sequence[Any] | np.ndarray | None = None,
+    classes: Sequence[Any] | None = None,
+) -> dict[str, Any]:
     """Computes accuracy, macro-F1, confusion matrix, and PR-AUC for discrete classification.
 
     Args:
@@ -213,8 +217,8 @@ def classification_metrics(
     accuracy = float(np.trace(cm) / n) if n > 0 else 0.0
 
     # Per-class precision, recall, F1
-    per_class_f1: Dict[str, float] = {}
-    f1_list: List[float] = []
+    per_class_f1: dict[str, float] = {}
+    f1_list: list[float] = []
 
     for i, c in enumerate(unique_classes):
         tp = cm[i, i]
@@ -232,7 +236,7 @@ def classification_metrics(
     macro_f1 = float(np.mean(f1_list)) if f1_list else 0.0
 
     # PR-AUC Calculation
-    pr_auc_val: Optional[float] = None
+    pr_auc_val: float | None = None
     if y_prob is not None:
         pr_auc_val = _compute_pr_auc(yt, y_prob, unique_classes)
 
@@ -248,8 +252,8 @@ def classification_metrics(
 
 def _compute_pr_auc(
     y_true: np.ndarray,
-    y_prob: Union[Sequence[Any], np.ndarray],
-    unique_classes: List[Any],
+    y_prob: Sequence[Any] | np.ndarray,
+    unique_classes: list[Any],
 ) -> float:
     """Computes Precision-Recall AUC (binary or macro one-vs-rest for multi-class)."""
     probs = np.asarray(y_prob)
@@ -263,12 +267,14 @@ def _compute_pr_auc(
 
         # Binary labels: 1 if matches second class or 1/True, else 0
         pos_class = unique_classes[-1]
-        binary_y = np.array([1 if val == pos_class or val in [1, True, "1"] else 0 for val in y_true])
+        binary_y = np.array(
+            [1 if val == pos_class or val in [1, True, "1"] else 0 for val in y_true]
+        )
 
         return _binary_pr_auc(binary_y, scores)
 
     # Multi-class one-vs-rest macro PR-AUC
-    aucs: List[float] = []
+    aucs: list[float] = []
     for idx, c in enumerate(unique_classes):
         binary_y = np.array([1 if val == c else 0 for val in y_true])
         if probs.ndim == 2 and idx < probs.shape[1]:
@@ -312,8 +318,8 @@ def _binary_pr_auc(y_true: np.ndarray, y_scores: np.ndarray) -> float:
 
 
 def expected_calibration_error(
-    y_true: Union[Sequence[Any], np.ndarray],
-    y_prob: Union[Sequence[Any], np.ndarray],
+    y_true: Sequence[Any] | np.ndarray,
+    y_prob: Sequence[Any] | np.ndarray,
     n_bins: int = 10,
 ) -> float:
     """Computes Expected Calibration Error (ECE) measuring confidence calibration quality.
@@ -344,7 +350,7 @@ def expected_calibration_error(
     else:
         confidences = yp.squeeze()
         # Binary target alignment
-        if set(np.unique(yt)).issubset({0, 1, False, True}):
+        if set(np.unique(yt)).issubset({0, 1}):
             corrects = yt.astype(float)
         else:
             corrects = (yt == (confidences >= 0.5)).astype(float)
@@ -371,10 +377,10 @@ def expected_calibration_error(
 
 
 def cone_coverage(
-    pred_cone: Union[Sequence[float], np.ndarray],
-    pred_path: Union[Sequence[Dict[str, Any]], Sequence[Tuple[float, float]], np.ndarray],
-    true_path: Union[Sequence[Dict[str, Any]], Sequence[Tuple[float, float]], np.ndarray],
-) -> Dict[str, Any]:
+    pred_cone: Sequence[float] | np.ndarray,
+    pred_path: Sequence[dict[str, Any]] | Sequence[tuple[float, float]] | np.ndarray,
+    true_path: Sequence[dict[str, Any]] | Sequence[tuple[float, float]] | np.ndarray,
+) -> dict[str, Any]:
     """Computes parametric cone coverage percentage (% of horizons where true path lies within radius).
 
     Args:
@@ -403,7 +409,7 @@ def cone_coverage(
         }
 
     inside_count = 0
-    inside_by_horizon: Dict[int, bool] = {}
+    inside_by_horizon: dict[int, bool] = {}
 
     for i in range(n):
         p_h, p_lat, p_lon = pred_pts[i]

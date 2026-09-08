@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
+
 import numpy as np
 
 from ml.cyclone.preprocess.scales import lifecycle_stage
 from ml.cyclone.schema.models import ClassificationPayload, StageEnum
 
-
 STAGE_BOUNDARIES = [17.0, 28.0, 34.0, 48.0, 64.0]
 
 
-def classify(sample: Dict[str, Any]) -> Dict[str, Any]:
+def classify(sample: dict[str, Any]) -> dict[str, Any]:
     """Classifies the cyclone development stage with honest, margin-aware confidence.
 
     Confidence Modeling:

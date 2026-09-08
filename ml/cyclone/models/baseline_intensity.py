@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
+
 import numpy as np
 
 from ml.cyclone.preprocess.scales import wind_kt_to_imd_level
-from ml.cyclone.schema.models import IntensityLevelEnum, IntensityPayload
-
+from ml.cyclone.schema.models import IntensityPayload
 
 IMD_BOUNDARIES = [17.0, 28.0, 34.0, 48.0, 64.0, 90.0, 120.0]
 
 
-def intensity(sample: Dict[str, Any]) -> Dict[str, Any]:
+def intensity(sample: dict[str, Any]) -> dict[str, Any]:
     """Maps observed surface wind and central pressure to the IMD category with calibrated confidence.
 
     Args:

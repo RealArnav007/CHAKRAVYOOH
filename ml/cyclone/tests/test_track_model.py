@@ -1,11 +1,9 @@
 """Unit tests for learned TrackHead, TrackModel, and differentiable Haversine loss."""
 
-import math
-import numpy as np
 import pytest
 import torch
 
-from ml.cyclone.models.heads import DEFAULT_TRACK_HORIZONS, TrackHead, TrackModel
+from ml.cyclone.models.heads import TrackHead, TrackModel
 from ml.cyclone.train.train_track import haversine_loss
 
 
@@ -75,13 +73,18 @@ def test_track_model_forward_and_training_step():
     dummy_env = torch.rand(4, 6, dtype=torch.float32)
     dummy_track = torch.rand(4, 8, 7, dtype=torch.float32)
     dummy_target_deltas = torch.rand(4, 5, 2, dtype=torch.float32)
-    dummy_coords = torch.tensor([[12.0, 82.0], [14.0, 84.0], [16.0, 86.0], [18.0, 88.0]], dtype=torch.float32)
-    dummy_masks = torch.tensor([
-        [True, True, True, True, True],
-        [True, True, True, False, False],
-        [True, True, False, False, False],
-        [True, False, False, False, False],
-    ], dtype=torch.bool)
+    dummy_coords = torch.tensor(
+        [[12.0, 82.0], [14.0, 84.0], [16.0, 86.0], [18.0, 88.0]], dtype=torch.float32
+    )
+    dummy_masks = torch.tensor(
+        [
+            [True, True, True, True, True],
+            [True, True, True, False, False],
+            [True, True, False, False, False],
+            [True, False, False, False, False],
+        ],
+        dtype=torch.bool,
+    )
 
     optimizer.zero_grad()
     out = model(env_vector=dummy_env, track_sequence=dummy_track)

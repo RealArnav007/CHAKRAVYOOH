@@ -1,10 +1,9 @@
 """Unit tests for ImageBranch, DetectionModel, and negative sample generator."""
 
 import torch
-import pytest
 
 from ml.cyclone.datasets.torch_dataset import generate_negative_samples
-from ml.cyclone.models.heads import DetectionHead, DetectionModel
+from ml.cyclone.models.heads import DetectionModel
 from ml.cyclone.models.image_branch import ImageBranch
 
 

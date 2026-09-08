@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-import json
-from pathlib import Path
 import random
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from collections.abc import Callable
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -40,18 +41,24 @@ class Trainer:
     def __init__(
         self,
         model: nn.Module,
-        criterion: Union[nn.Module, Callable[..., Any]],
+        criterion: nn.Module | Callable[..., Any],
         train_loader: DataLoader,
-        val_loader: Optional[DataLoader] = None,
-        test_loader: Optional[DataLoader] = None,
-        optimizer: Optional[torch.optim.Optimizer] = None,
-        scheduler: Optional[Any] = None,
-        device: Optional[torch.device] = None,
-        save_dir: Optional[Union[str, Path]] = None,
-        tracker: Optional[ExperimentTracker] = None,
-        step_fn: Optional[Callable[[nn.Module, Dict[str, Any], Union[nn.Module, Callable], torch.device], Tuple[torch.Tensor, Dict[str, Any]]]] = None,
-        eval_fn: Optional[Callable[[nn.Module, DataLoader, torch.device], Dict[str, Any]]] = None,
-        test_eval_fn: Optional[Callable[[nn.Module, DataLoader, torch.device], Dict[str, Any]]] = None,
+        val_loader: DataLoader | None = None,
+        test_loader: DataLoader | None = None,
+        optimizer: torch.optim.Optimizer | None = None,
+        scheduler: Any | None = None,
+        device: torch.device | None = None,
+        save_dir: str | Path | None = None,
+        tracker: ExperimentTracker | None = None,
+        step_fn: (
+            Callable[
+                [nn.Module, dict[str, Any], nn.Module | Callable, torch.device],
+                tuple[torch.Tensor, dict[str, Any]],
+            ]
+            | None
+        ) = None,
+        eval_fn: Callable[[nn.Module, DataLoader, torch.device], dict[str, Any]] | None = None,
+        test_eval_fn: Callable[[nn.Module, DataLoader, torch.device], dict[str, Any]] | None = None,
         early_stopping_metric: str = "val_loss",
         early_stopping_mode: str = "min",
         early_stopping_patience: int = 10,
@@ -62,18 +69,22 @@ class Trainer:
     ) -> None:
         seed_everything(seed)
         self.device = device or (
-            torch.device("mps") if torch.backends.mps.is_available()
-            else torch.device("cuda") if torch.cuda.is_available()
-            else torch.device("cpu")
+            torch.device("mps")
+            if torch.backends.mps.is_available()
+            else torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         )
         self.model = model.to(self.device)
-        self.criterion = criterion.to(self.device) if isinstance(criterion, nn.Module) else criterion
+        self.criterion = (
+            criterion.to(self.device) if isinstance(criterion, nn.Module) else criterion
+        )
 
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.test_loader = test_loader
 
-        self.optimizer = optimizer or torch.optim.AdamW(self.model.parameters(), lr=3e-4, weight_decay=1e-4)
+        self.optimizer = optimizer or torch.optim.AdamW(
+            self.model.parameters(), lr=3e-4, weight_decay=1e-4
+        )
         self.scheduler = scheduler
         self.save_dir = Path(save_dir) if save_dir else Path("artifacts")
         self.save_dir.mkdir(parents=True, exist_ok=True)
@@ -91,19 +102,25 @@ class Trainer:
 
         # AMP Configuration
         self.use_amp = use_amp and (self.device.type in ["cuda", "mps"])
-        self.device_type = "cuda" if self.device.type == "cuda" else ("cpu" if self.device.type == "cpu" else "mps")
-        self.scaler = torch.amp.GradScaler("cuda") if (self.use_amp and self.device.type == "cuda") else None
+        self.device_type = (
+            "cuda"
+            if self.device.type == "cuda"
+            else ("cpu" if self.device.type == "cpu" else "mps")
+        )
+        self.scaler = (
+            torch.amp.GradScaler("cuda") if (self.use_amp and self.device.type == "cuda") else None
+        )
 
         # State tracking
         self.best_metric_val = float("inf") if self.early_stopping_mode == "min" else float("-inf")
         self.best_epoch = 0
         self.patience_counter = 0
-        self.history: List[Dict[str, Any]] = []
+        self.history: list[dict[str, Any]] = []
 
     def _default_step(
         self,
-        batch: Dict[str, Any],
-    ) -> Tuple[torch.Tensor, Dict[str, Any]]:
+        batch: dict[str, Any],
+    ) -> tuple[torch.Tensor, dict[str, Any]]:
         """Default batch execution for MultiTask and single-head pipelines."""
         if self.step_fn is not None:
             return self.step_fn(self.model, batch, self.criterion, self.device)
@@ -148,11 +165,11 @@ class Trainer:
         aux = loss_out if isinstance(loss_out, dict) else {"loss": loss.item()}
         return loss, aux
 
-    def train_epoch(self, epoch: int) -> Dict[str, float]:
+    def train_epoch(self, epoch: int) -> dict[str, float]:
         """Runs one full training epoch."""
         self.model.train()
-        epoch_losses: List[float] = []
-        task_losses_accum: Dict[str, List[float]] = {}
+        epoch_losses: list[float] = []
+        task_losses_accum: dict[str, list[float]] = {}
 
         for batch in self.train_loader:
             self.optimizer.zero_grad()
@@ -167,7 +184,9 @@ class Trainer:
                 self.scaler.scale(loss).backward()
                 if self.gradient_clip_val > 0:
                     self.scaler.unscale_(self.optimizer)
-                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.gradient_clip_val)
+                    torch.nn.utils.clip_grad_norm_(
+                        self.model.parameters(), max_norm=self.gradient_clip_val
+                    )
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
             else:
@@ -178,7 +197,9 @@ class Trainer:
 
                 loss.backward()
                 if self.gradient_clip_val > 0:
-                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.gradient_clip_val)
+                    torch.nn.utils.clip_grad_norm_(
+                        self.model.parameters(), max_norm=self.gradient_clip_val
+                    )
                 self.optimizer.step()
 
             epoch_losses.append(loss.item())
@@ -191,15 +212,13 @@ class Trainer:
                         task_losses_accum[k] = []
                     task_losses_accum[k].append(float(v))
 
-        metrics = {
-            "train_loss": round(float(np.mean(epoch_losses)), 4) if epoch_losses else 0.0
-        }
+        metrics = {"train_loss": round(float(np.mean(epoch_losses)), 4) if epoch_losses else 0.0}
         for k, v_list in task_losses_accum.items():
             metrics[f"train_{k}_loss"] = round(float(np.mean(v_list)), 4)
 
         return metrics
 
-    def validate(self) -> Dict[str, Any]:
+    def validate(self) -> dict[str, Any]:
         """Runs validation using custom eval_fn or default validation loss."""
         if self.val_loader is None:
             return {}
@@ -208,7 +227,7 @@ class Trainer:
             return self.eval_fn(self.model, self.val_loader, self.device)
 
         self.model.eval()
-        val_losses: List[float] = []
+        val_losses: list[float] = []
 
         with torch.no_grad():
             for batch in self.val_loader:
@@ -221,8 +240,8 @@ class Trainer:
     def train(
         self,
         epochs: int = 10,
-        resume_from: Optional[Union[str, Path]] = None,
-    ) -> Dict[str, Any]:
+        resume_from: str | Path | None = None,
+    ) -> dict[str, Any]:
         """Runs end-to-end training loop with early stopping, checkpointing, and evaluation.
 
         Args:
@@ -237,7 +256,9 @@ class Trainer:
             start_epoch = self.load_checkpoint(resume_from) + 1
             print(f"[TRAINER] Resumed state from {resume_from} (Starting at epoch {start_epoch})")
 
-        print(f"[TRAINER] Starting training on {self.device} for {epochs} epochs (AMP: {self.use_amp})...")
+        print(
+            f"[TRAINER] Starting training on {self.device} for {epochs} epochs (AMP: {self.use_amp})..."
+        )
         best_ckpt_path = self.save_dir / f"{self.checkpoint_prefix}.pt"
         last_ckpt_path = self.save_dir / f"last_{self.checkpoint_prefix}.pt"
 
@@ -260,13 +281,21 @@ class Trainer:
             # Check early stopping metric
             curr_val = val_metrics.get(self.early_stopping_metric, train_metrics["train_loss"])
             is_improvement = (
-                (curr_val < self.best_metric_val) if self.early_stopping_mode == "min"
+                (curr_val < self.best_metric_val)
+                if self.early_stopping_mode == "min"
                 else (curr_val > self.best_metric_val)
             )
 
             # Print status
-            val_summary = " | ".join([f"{k}: {v:.4f}" if isinstance(v, float) else f"{k}: {v}" for k, v in val_metrics.items()])
-            print(f"Epoch {epoch:02d}/{epochs:02d} | Train Loss: {train_metrics['train_loss']:.4f} | {val_summary}")
+            val_summary = " | ".join(
+                [
+                    f"{k}: {v:.4f}" if isinstance(v, float) else f"{k}: {v}"
+                    for k, v in val_metrics.items()
+                ]
+            )
+            print(
+                f"Epoch {epoch:02d}/{epochs:02d} | Train Loss: {train_metrics['train_loss']:.4f} | {val_summary}"
+            )
 
             # Save last checkpoint
             self.save_checkpoint(
@@ -289,16 +318,24 @@ class Trainer:
             else:
                 self.patience_counter += 1
                 if self.patience_counter >= self.early_stopping_patience:
-                    print(f"[TRAINER] Early stopping triggered at epoch {epoch} (No improvement for {self.early_stopping_patience} epochs).")
+                    print(
+                        f"[TRAINER] Early stopping triggered at epoch {epoch} (No improvement for {self.early_stopping_patience} epochs)."
+                    )
                     break
 
         # Final Test Split Evaluation using best model checkpoint
         test_results = {}
         if self.test_loader is not None and best_ckpt_path.is_file():
-            print(f"[TRAINER] Loading best checkpoint from {best_ckpt_path} for test split evaluation...")
+            print(
+                f"[TRAINER] Loading best checkpoint from {best_ckpt_path} for test split evaluation..."
+            )
             best_ckpt = torch.load(best_ckpt_path, map_location=self.device)
             self.model.load_state_dict(best_ckpt["model_state_dict"])
-            test_results = self.test_eval_fn(self.model, self.test_loader, self.device) if self.test_eval_fn else self.validate()
+            test_results = (
+                self.test_eval_fn(self.model, self.test_loader, self.device)
+                if self.test_eval_fn
+                else self.validate()
+            )
 
         summary = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -321,11 +358,24 @@ class Trainer:
         file_path: Path,
         epoch: int,
         metric_val: float,
-        val_metrics: Dict[str, Any],
+        val_metrics: dict[str, Any],
     ) -> None:
-        """Saves full resumable model and optimizer state dictionary."""
+        """Saves full resumable model and optimizer state dictionary with git commit and config hash provenance."""
+        from ml.cyclone.train.track_experiment import get_git_commit_hash
+
+        git_hash = get_git_commit_hash()
+
+        config_p = Path("ml/cyclone/config/model.best.yaml")
+        config_hash = "none"
+        if config_p.is_file():
+            import hashlib
+
+            config_hash = hashlib.sha256(config_p.read_bytes()).hexdigest()[:16]
+
         ckpt = {
             "epoch": epoch,
+            "git_commit": git_hash,
+            "config_hash": config_hash,
             "model_state_dict": self.model.state_dict(),
             "optimizer_state_dict": self.optimizer.state_dict(),
             "scheduler_state_dict": self.scheduler.state_dict() if self.scheduler else None,
@@ -335,7 +385,7 @@ class Trainer:
         }
         torch.save(ckpt, file_path)
 
-    def load_checkpoint(self, checkpoint_path: Union[str, Path]) -> int:
+    def load_checkpoint(self, checkpoint_path: str | Path) -> int:
         """Loads model and optimizer state, returning resumed epoch index."""
         ckpt = torch.load(checkpoint_path, map_location=self.device)
         self.model.load_state_dict(ckpt["model_state_dict"])

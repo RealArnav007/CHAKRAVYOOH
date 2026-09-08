@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import argparse
-import os
-from pathlib import Path
 import sys
-from typing import Optional
+from pathlib import Path
 
 try:
     import pandas as pd
@@ -46,16 +44,22 @@ SLIM_COLUMNS = [
 ]
 
 
-def download_file(url: str, dest_path: Path, force: bool = False, chunk_size: int = 1024 * 64) -> Path:
+def download_file(
+    url: str, dest_path: Path, force: bool = False, chunk_size: int = 1024 * 64
+) -> Path:
     """Streams a remote file to local disk with progress reporting and resume/skip support."""
     dest_path.parent.mkdir(parents=True, exist_ok=True)
 
     if dest_path.exists() and not force and dest_path.stat().st_size > 0:
-        print(f"[IBTrACS] File already exists at {dest_path} ({dest_path.stat().st_size / (1024*1024):.2f} MB). Skipping download (use --force to re-download).")
+        print(
+            f"[IBTrACS] File already exists at {dest_path} ({dest_path.stat().st_size / (1024*1024):.2f} MB). Skipping download (use --force to re-download)."
+        )
         return dest_path
 
     if requests is None:
-        raise RuntimeError("The 'requests' package is required for downloading. Run `pip install requests`.")
+        raise RuntimeError(
+            "The 'requests' package is required for downloading. Run `pip install requests`."
+        )
 
     print(f"[IBTrACS] Downloading from {url} to {dest_path}...")
     headers = {"User-Agent": "Chakravyuh-Cyclone-Intelligence/0.1"}
@@ -90,7 +94,9 @@ def download_file(url: str, dest_path: Path, force: bool = False, chunk_size: in
 def process_ibtracs_csv(raw_csv_path: Path, output_dir: Path) -> dict:
     """Parses raw IBTrACS CSV, extracts key meteorological features, and writes slim parquet + sample."""
     if pd is None:
-        raise RuntimeError("The 'pandas' package is required for processing. Run `pip install pandas pyarrow`.")
+        raise RuntimeError(
+            "The 'pandas' package is required for processing. Run `pip install pandas pyarrow`."
+        )
 
     print(f"[IBTrACS] Parsing {raw_csv_path}...")
     # IBTrACS row 0 is column names, row 1 contains units (e.g. 'kts', 'mb', etc.)
@@ -101,9 +107,20 @@ def process_ibtracs_csv(raw_csv_path: Path, output_dir: Path) -> dict:
     slim_df = df[available_cols].copy()
 
     # Clean numeric types
-    for num_col in ["LAT", "LON", "WMO_WIND", "USA_WIND", "WMO_PRES", "USA_PRES", "STORM_SPEED", "STORM_DIR"]:
+    for num_col in [
+        "LAT",
+        "LON",
+        "WMO_WIND",
+        "USA_WIND",
+        "WMO_PRES",
+        "USA_PRES",
+        "STORM_SPEED",
+        "STORM_DIR",
+    ]:
         if num_col in slim_df.columns:
-            slim_df[num_col] = pd.to_numeric(slim_df[num_col].astype(str).str.strip(), errors="coerce")
+            slim_df[num_col] = pd.to_numeric(
+                slim_df[num_col].astype(str).str.strip(), errors="coerce"
+            )
 
     # Clean strings
     for str_col in ["SID", "NAME", "ISO_TIME", "NATURE", "BASIN"]:
@@ -154,7 +171,7 @@ def process_ibtracs_csv(raw_csv_path: Path, output_dir: Path) -> dict:
     return summary
 
 
-def main(argv: Optional[list] = None) -> int:
+def main(argv: list | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Download and process IBTrACS North Indian Ocean cyclone best-track dataset.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,

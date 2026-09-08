@@ -1,29 +1,29 @@
 """Unit tests for learned uncertainty cones, Gaussian NLL loss, and Monte Carlo dropout."""
 
-import math
 import numpy as np
 import pytest
 import torch
 
-from ml.cyclone.models.heads import DEFAULT_TRACK_HORIZONS, TrackModel
+from ml.cyclone.models.heads import TrackModel
 from ml.cyclone.models.uncertainty import (
-    KM_PER_DEG_LAT,
     monte_carlo_dropout_predict,
     predict_cone_radii,
 )
-from ml.cyclone.train.losses import GaussianNLLLoss, HaversineMetricLoss
+from ml.cyclone.train.losses import GaussianNLLLoss
 
 
 def test_predict_cone_radii_properties():
     """Asserts predict_cone_radii adheres to physical constraints: r(0)=0, monotonicity, and scaling."""
     # (5 horizons, 2 coordinates)
-    log_vars = np.array([
-        [-2.0, -2.0],  # 6h
-        [-1.5, -1.5],  # 12h
-        [-1.0, -1.0],  # 24h
-        [-0.5, -0.5],  # 48h
-        [0.0, 0.0],    # 72h
-    ])
+    log_vars = np.array(
+        [
+            [-2.0, -2.0],  # 6h
+            [-1.5, -1.5],  # 12h
+            [-1.0, -1.0],  # 24h
+            [-0.5, -0.5],  # 48h
+            [0.0, 0.0],  # 72h
+        ]
+    )
 
     radii_95 = predict_cone_radii(log_vars, current_lat=15.0, coverage_level=0.95)
     radii_68 = predict_cone_radii(log_vars, current_lat=15.0, coverage_level=0.68)
@@ -39,7 +39,9 @@ def test_predict_cone_radii_properties():
 
     # 3. Higher confidence level implies larger radius
     for i in range(1, len(radii_95)):
-        assert radii_95[i] >= radii_68[i], f"95% radius ({radii_95[i]}) should exceed 68% ({radii_68[i]})"
+        assert (
+            radii_95[i] >= radii_68[i]
+        ), f"95% radius ({radii_95[i]}) should exceed 68% ({radii_68[i]})"
 
     # 4. Torch tensor input support
     t_log_vars = torch.tensor(log_vars, dtype=torch.float32)

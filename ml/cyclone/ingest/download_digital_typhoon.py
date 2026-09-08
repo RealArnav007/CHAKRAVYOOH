@@ -3,13 +3,10 @@
 from __future__ import annotations
 
 import argparse
-import os
-from pathlib import Path
-import shutil
 import sys
 import tarfile
-from typing import Optional
 import zipfile
+from pathlib import Path
 
 try:
     import numpy as np
@@ -43,7 +40,9 @@ def create_synthetic_digital_typhoon_sample(output_dir: Path, num_samples: int =
     images_dir.mkdir(exist_ok=True)
 
     records = []
-    print(f"[DigitalTyphoon] Generating {num_samples} sample synthetic satellite IR patches for CI/testing...")
+    print(
+        f"[DigitalTyphoon] Generating {num_samples} sample synthetic satellite IR patches for CI/testing..."
+    )
 
     for i in range(num_samples):
         img_id = f"dt_sample_{i:04d}"
@@ -58,7 +57,9 @@ def create_synthetic_digital_typhoon_sample(output_dir: Path, num_samples: int =
                 # Outer cloud shield + eye
                 shield = np.clip(1.0 - (r / 100.0), 0, 1)
                 eyewall = np.exp(-((r - 25) ** 2) / (2 * 12**2))
-                temp_field = 295.0 - 100.0 * shield - 15.0 * eyewall + np.random.normal(0, 1.5, (224, 224))
+                temp_field = (
+                    295.0 - 100.0 * shield - 15.0 * eyewall + np.random.normal(0, 1.5, (224, 224))
+                )
                 temp_field = np.clip(temp_field, 180.0, 310.0).astype(np.float32)
                 np.save(img_path, temp_field)
             else:
@@ -69,27 +70,33 @@ def create_synthetic_digital_typhoon_sample(output_dir: Path, num_samples: int =
         lat = 12.0 + (i * 0.25)
         lon = 85.0 + (i * 0.15)
 
-        records.append({
-            "image_id": img_id,
-            "storm_id": f"DT_{2020 + (i // 25):04d}_{(i % 5):02d}",
-            "image_path": str(img_path),
-            "relative_path": f"images/{img_filename}",
-            "lat": round(lat, 2),
-            "lon": round(lon, 2),
-            "wind_speed_kt": round(wind_kt, 1),
-            "min_pressure_mb": round(pres_mb, 1),
-            "grade": 3 if wind_kt < 34 else (4 if wind_kt < 64 else 5),
-            "timestamp": f"2020-05-{16 + (i // 10):02d}T{(i % 8) * 3:02d}:00:00Z",
-        })
+        records.append(
+            {
+                "image_id": img_id,
+                "storm_id": f"DT_{2020 + (i // 25):04d}_{(i % 5):02d}",
+                "image_path": str(img_path),
+                "relative_path": f"images/{img_filename}",
+                "lat": round(lat, 2),
+                "lon": round(lon, 2),
+                "wind_speed_kt": round(wind_kt, 1),
+                "min_pressure_mb": round(pres_mb, 1),
+                "grade": 3 if wind_kt < 34 else (4 if wind_kt < 64 else 5),
+                "timestamp": f"2020-05-{16 + (i // 10):02d}T{(i % 8) * 3:02d}:00:00Z",
+            }
+        )
 
     index_csv = output_dir / "digital_typhoon_sample.csv"
     if pd is not None:
         pd.DataFrame(records).to_csv(index_csv, index=False)
     else:
         with open(index_csv, "w", encoding="utf-8") as f:
-            f.write("image_id,storm_id,image_path,relative_path,lat,lon,wind_speed_kt,min_pressure_mb,grade,timestamp\n")
+            f.write(
+                "image_id,storm_id,image_path,relative_path,lat,lon,wind_speed_kt,min_pressure_mb,grade,timestamp\n"
+            )
             for r in records:
-                f.write(f"{r['image_id']},{r['storm_id']},{r['image_path']},{r['relative_path']},{r['lat']},{r['lon']},{r['wind_speed_kt']},{r['min_pressure_mb']},{r['grade']},{r['timestamp']}\n")
+                f.write(
+                    f"{r['image_id']},{r['storm_id']},{r['image_path']},{r['relative_path']},{r['lat']},{r['lon']},{r['wind_speed_kt']},{r['min_pressure_mb']},{r['grade']},{r['timestamp']}\n"
+                )
 
     print(f"[DigitalTyphoon] Sample index saved to {index_csv} ({len(records)} records).")
     return index_csv
@@ -117,19 +124,26 @@ def unpack_and_index_digital_typhoon(
     else:
         raise ValueError(f"Unsupported archive format: {archive_path}")
 
-    image_files = list(extract_dir.rglob("*.jpg")) + list(extract_dir.rglob("*.png")) + list(extract_dir.rglob("*.h5")) + list(extract_dir.rglob("*.npy"))
+    image_files = (
+        list(extract_dir.rglob("*.jpg"))
+        + list(extract_dir.rglob("*.png"))
+        + list(extract_dir.rglob("*.h5"))
+        + list(extract_dir.rglob("*.npy"))
+    )
     print(f"[DigitalTyphoon] Discovered {len(image_files):,} satellite image frames.")
 
     records = []
     for img_p in image_files:
         stem = img_p.stem
-        records.append({
-            "image_id": stem,
-            "storm_id": stem.split("_")[0] if "_" in stem else "TYPHOON",
-            "image_path": str(img_p),
-            "wind_speed_kt": 50.0,
-            "min_pressure_mb": 980.0,
-        })
+        records.append(
+            {
+                "image_id": stem,
+                "storm_id": stem.split("_")[0] if "_" in stem else "TYPHOON",
+                "image_path": str(img_p),
+                "wind_speed_kt": 50.0,
+                "min_pressure_mb": 980.0,
+            }
+        )
 
     index_csv = output_dir / "digital_typhoon_index.csv"
     if pd is not None:
@@ -143,14 +157,28 @@ def unpack_and_index_digital_typhoon(
     return index_csv
 
 
-def main(argv: Optional[list] = None) -> int:
+def main(argv: list | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Digital Typhoon dataset unpacker, indexer, and sample generator.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--archive", type=Path, default=None, help="Path to downloaded digital typhoon archive (.tar.gz / .zip)")
-    parser.add_argument("--output-dir", type=Path, default=Path("ml/cyclone/data/digital_typhoon"), help="Output directory")
-    parser.add_argument("--generate-sample-only", action="store_true", help="Generate synthetic test sample dataset.")
+    parser.add_argument(
+        "--archive",
+        type=Path,
+        default=None,
+        help="Path to downloaded digital typhoon archive (.tar.gz / .zip)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("ml/cyclone/data/digital_typhoon"),
+        help="Output directory",
+    )
+    parser.add_argument(
+        "--generate-sample-only",
+        action="store_true",
+        help="Generate synthetic test sample dataset.",
+    )
 
     args = parser.parse_args(argv)
 

@@ -7,16 +7,17 @@ evaluation metrics (Track error, Intensity MAE/RMSE, Classification F1/Accuracy,
 from __future__ import annotations
 
 import argparse
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any
+
 import numpy as np
 import pandas as pd
 
 from ml.cyclone.datasets.splits import make_splits
 from ml.cyclone.eval.metrics import (
     classification_metrics,
-    cone_coverage,
     expected_calibration_error,
     intensity_metrics,
     track_error_km,
@@ -33,15 +34,14 @@ from ml.cyclone.preprocess.scales import (
     lifecycle_stage,
     wind_kt_to_imd_level,
 )
-from ml.cyclone.schema.models import IntensityLevelEnum, StageEnum
-
+from ml.cyclone.schema.models import StageEnum
 
 # -----------------------------------------------------------------------------
 # Tier-0 Composite Predictor
 # -----------------------------------------------------------------------------
 
 
-def tier0_predict(sample: Dict[str, Any]) -> Dict[str, Any]:
+def tier0_predict(sample: dict[str, Any]) -> dict[str, Any]:
     """Tier-0 composite rule-based predictor running identify, classify, intensity, and track baseline."""
     ident = baseline_identify(sample)
     stage = baseline_classify(sample)
@@ -66,12 +66,14 @@ def tier0_predict(sample: Dict[str, Any]) -> Dict[str, Any]:
 # -----------------------------------------------------------------------------
 
 
-def _build_future_lookup(samples: List[Dict[str, Any]]) -> Dict[int, Dict[int, Tuple[float, float]]]:
+def _build_future_lookup(
+    samples: list[dict[str, Any]],
+) -> dict[int, dict[int, tuple[float, float]]]:
     """Builds a lookup mapping sample index -> {horizon_hours: (future_lat, future_lon)}."""
-    future_lookup: Dict[int, Dict[int, Tuple[float, float]]] = {}
+    future_lookup: dict[int, dict[int, tuple[float, float]]] = {}
 
     # Group sample indices by storm_id
-    storm_groups: Dict[str, List[Tuple[int, pd.Timestamp, float, float]]] = {}
+    storm_groups: dict[str, list[tuple[int, pd.Timestamp, float, float]]] = {}
     for idx, s in enumerate(samples):
         sid = str(s.get("storm_id", "STORM"))
         t = pd.to_datetime(s.get("time"), utc=True)
@@ -104,11 +106,11 @@ def _build_future_lookup(samples: List[Dict[str, Any]]) -> Dict[int, Dict[int, T
 
 
 def evaluate_model(
-    predict_fn: Callable[[Dict[str, Any]], Dict[str, Any]],
-    test_samples: List[Dict[str, Any]],
-    future_lookup: Optional[Dict[int, Dict[int, Tuple[float, float]]]] = None,
-    horizons: Optional[List[int]] = None,
-) -> Dict[str, Any]:
+    predict_fn: Callable[[dict[str, Any]], dict[str, Any]],
+    test_samples: list[dict[str, Any]],
+    future_lookup: dict[int, dict[int, tuple[float, float]]] | None = None,
+    horizons: list[int] | None = None,
+) -> dict[str, Any]:
     """Evaluates a model prediction callable against standard ground truth metrics.
 
     Args:
@@ -127,24 +129,24 @@ def evaluate_model(
         future_lookup = _build_future_lookup(test_samples)
 
     # Accumulators
-    ident_y_true: List[int] = []
-    ident_y_pred: List[int] = []
-    ident_conf: List[float] = []
+    ident_y_true: list[int] = []
+    ident_y_pred: list[int] = []
+    ident_conf: list[float] = []
 
-    stage_y_true: List[str] = []
-    stage_y_pred: List[str] = []
-    stage_conf: List[float] = []
+    stage_y_true: list[str] = []
+    stage_y_pred: list[str] = []
+    stage_conf: list[float] = []
 
-    true_winds: List[float] = []
-    pred_winds: List[float] = []
-    true_press: List[float] = []
-    pred_press: List[float] = []
+    true_winds: list[float] = []
+    pred_winds: list[float] = []
+    true_press: list[float] = []
+    pred_press: list[float] = []
 
-    imd_y_true: List[str] = []
-    imd_y_pred: List[str] = []
+    imd_y_true: list[str] = []
+    imd_y_pred: list[str] = []
 
-    track_errors_by_horizon: Dict[int, List[float]] = {h: [] for h in eval_horizons}
-    cone_inside_by_horizon: Dict[int, List[bool]] = {h: [] for h in eval_horizons}
+    track_errors_by_horizon: dict[int, list[float]] = {h: [] for h in eval_horizons}
+    cone_inside_by_horizon: dict[int, list[bool]] = {h: [] for h in eval_horizons}
 
     for idx, sample in enumerate(test_samples):
         # 1. Ground truth values
@@ -201,7 +203,9 @@ def evaluate_model(
 
             # Compute error per horizon
             for h_i, p_pt in enumerate(pred_path):
-                h_val = p_pt.get("t_plus_h", eval_horizons[h_i] if h_i < len(eval_horizons) else None)
+                h_val = p_pt.get(
+                    "t_plus_h", eval_horizons[h_i] if h_i < len(eval_horizons) else None
+                )
                 if h_val in avail_futures and h_val in track_errors_by_horizon:
                     true_lat, true_lon = avail_futures[h_val]
                     p_lat, p_lon = float(p_pt["lat"]), float(p_pt["lon"])
@@ -257,10 +261,10 @@ def evaluate_model(
     )
 
     # (d) Track error metrics
-    mean_track_errors: Dict[str, float] = {}
-    cone_coverage_pcts: Dict[str, float] = {}
-    all_errors: List[float] = []
-    all_cone_inside: List[bool] = []
+    mean_track_errors: dict[str, float] = {}
+    cone_coverage_pcts: dict[str, float] = {}
+    all_errors: list[float] = []
+    all_cone_inside: list[bool] = []
 
     for h in eval_horizons:
         errs = track_errors_by_horizon[h]
@@ -277,7 +281,9 @@ def evaluate_model(
             all_cone_inside.extend(inside)
 
     overall_mean_track_error = round(float(np.mean(all_errors)), 2) if all_errors else 0.0
-    overall_cone_coverage = round((sum(all_cone_inside) / len(all_cone_inside)) * 100.0, 2) if all_cone_inside else 0.0
+    overall_cone_coverage = (
+        round((sum(all_cone_inside) / len(all_cone_inside)) * 100.0, 2) if all_cone_inside else 0.0
+    )
 
     return {
         "num_samples": len(test_samples),
@@ -320,8 +326,8 @@ def evaluate_model(
 
 
 def generate_baseline_report(
-    metrics: Dict[str, Any],
-    output_path: Optional[Union[str, Path]] = None,
+    metrics: dict[str, Any],
+    output_path: str | Path | None = None,
 ) -> str:
     """Formats benchmark evaluation results into a comprehensive Markdown report."""
     ident = metrics["identification"]
@@ -434,7 +440,12 @@ Evaluated against ground truth maximum sustained wind speed (10-minute average, 
 def main() -> None:
     """CLI entry point to execute evaluation over test split and emit baseline_report.md."""
     parser = argparse.ArgumentParser(description="Evaluate cyclone models on standard test splits.")
-    parser.add_argument("--output", type=str, default="ml/cyclone/eval/baseline_report.md", help="Report output path")
+    parser.add_argument(
+        "--output",
+        type=str,
+        default="ml/cyclone/eval/baseline_report.md",
+        help="Report output path",
+    )
     args = parser.parse_args()
 
     print("[EVAL] Loading best-track datasets...")
@@ -471,7 +482,9 @@ def main() -> None:
         f.write(report_text)
 
     print(f"[EVAL] Evaluation complete! Report saved to {out_p} and {mirror_p}")
-    print(f"[EVAL] Baseline Summary: Track 24h error = {metrics['track']['errors_by_horizon_km'].get('24h', 0.0)} km | Wind MAE = {metrics['intensity']['wind_mae_kt']} kt | Ident F1 = {metrics['identification']['macro_f1']}")
+    print(
+        f"[EVAL] Baseline Summary: Track 24h error = {metrics['track']['errors_by_horizon_km'].get('24h', 0.0)} km | Wind MAE = {metrics['intensity']['wind_mae_kt']} kt | Ident F1 = {metrics['identification']['macro_f1']}"
+    )
 
 
 if __name__ == "__main__":

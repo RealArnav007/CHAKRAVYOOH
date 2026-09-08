@@ -8,7 +8,8 @@ Authoritative source of truth for:
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
+
 import pandas as pd
 
 from ml.cyclone.schema.models import IntensityLevelEnum, StageEnum
@@ -98,8 +99,8 @@ def wind_kt_to_saffir_simpson(wind_kt: float) -> str:
 
 
 def lifecycle_stage(
-    row: Union[pd.Series, Dict[str, Any]],
-    history: Optional[Union[pd.DataFrame, List[Dict[str, Any]]]] = None,
+    row: pd.Series | dict[str, Any],
+    history: pd.DataFrame | list[dict[str, Any]] | None = None,
 ) -> StageEnum:
     """Determines meteorological life-cycle stage based on current wind, 24h wind trend, and system nature.
 
@@ -141,7 +142,9 @@ def lifecycle_stage(
                 if len(hist_winds) >= 2:
                     wind_trend = current_wind - float(hist_winds.iloc[-2])
         elif isinstance(history, list) and len(history) > 0:
-            hist_winds = [float(h["wind_kt"]) for h in history if "wind_kt" in h and h["wind_kt"] is not None]
+            hist_winds = [
+                float(h["wind_kt"]) for h in history if "wind_kt" in h and h["wind_kt"] is not None
+            ]
             if hist_winds:
                 max_history_wind = max(max(hist_winds), current_wind)
                 if len(hist_winds) >= 2:

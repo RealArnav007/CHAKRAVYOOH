@@ -9,86 +9,113 @@
     "confidence": 0.98
   },
   "classification": {
-    "stage": "MATURE_TROPICAL_CYCLONE",
-    "confidence": 0.95
+    "stage": "DEVELOPING_DISTURBANCE",
+    "confidence": 0.91
   },
   "intensity": {
-    "level": "VERY_SEVERE_CYCLONIC_STORM",
+    "level": "CYCLONIC_STORM",
     "scale": "IMD",
     "max_wind_kt": 85.0,
     "min_pressure_mb": 950.0,
-    "confidence": 0.91
+    "confidence": 0.9
   },
   "prediction": {
     "current_position": {
-      "lat": 18.50,
-      "lon": 86.80
+      "lat": 18.5,
+      "lon": 86.8
     },
-    "heading_deg": 25.0,
-    "speed_kt": 11.5,
+    "heading_deg": 42.1,
+    "speed_kt": 2.3,
     "forecast_hours": 72,
     "predicted_path": [
       {
         "t_plus_h": 0,
-        "lat": 18.50,
-        "lon": 86.80
+        "lat": 18.5,
+        "lon": 86.8
       },
       {
         "t_plus_h": 6,
-        "lat": 19.45,
-        "lon": 87.20
+        "lat": 18.6709,
+        "lon": 86.9631
       },
       {
         "t_plus_h": 12,
-        "lat": 20.40,
-        "lon": 87.65
+        "lat": 18.9075,
+        "lon": 86.4002
       },
       {
         "t_plus_h": 24,
-        "lat": 21.90,
-        "lon": 88.40
+        "lat": 18.6005,
+        "lon": 85.9574
       },
       {
         "t_plus_h": 48,
-        "lat": 24.10,
-        "lon": 89.50
+        "lat": 18.5868,
+        "lon": 86.3469
       },
       {
         "t_plus_h": 72,
-        "lat": 26.20,
-        "lon": 90.70
+        "lat": 19.0904,
+        "lon": 85.4368
       }
     ],
-    "confidence": 0.88,
+    "confidence": 0.84,
     "uncertainty": {
       "cone_radius_km": [
         0.0,
-        46.0,
-        78.0,
-        132.0,
-        205.0,
-        290.0
+        715.71,
+        733.01,
+        1165.94,
+        1534.72,
+        1552.47
       ]
     }
   },
   "sources": [
-    "ibtracs_replay",
     "insat3d_ir",
-    "era5"
+    "era5",
+    "ibtracs_track"
   ],
-  "model_version": "chakravyuh-brain-0.1",
-  "tier": "tier1",
+  "model_version": "chakravyuh-fusion-net-v1.0",
+  "tier": "mixed",
   "extra": {
-    "saffir_simpson": "Category 3",
-    "intensity_class_probs": {
-      "VSCS": 0.74,
-      "ESCS": 0.16,
-      "SCS": 0.10
+    "saffir_simpson": "Category 2",
+    "provenance": {
+      "sources": {
+        "identification": "tier0",
+        "classification": "tier0",
+        "intensity": "tier0",
+        "prediction": "tier1"
+      },
+      "reasons": {
+        "identification": "Detection confidence (0.31) < threshold (0.50) -> Tier-0 fallback",
+        "classification": "Stage confidence (0.32) < threshold (0.60) -> Tier-0 fallback",
+        "intensity": "Intensity confidence (0.28) < threshold (0.60) -> Tier-0 fallback",
+        "prediction": "Track confidence (0.84) >= threshold (0.50)"
+      },
+      "object_tier": "mixed"
     },
-    "landfall_point": {
-      "lat": 21.65,
-      "lon": 88.35,
-      "eta_hours": 22.5
+    "active_modalities": [
+      "insat3d_ir",
+      "era5",
+      "ibtracs_track"
+    ],
+    "intensity_class_probs": {
+      "DEPRESSION": 0.2847,
+      "DEEP_DEPRESSION": 0.1421,
+      "CYCLONIC_STORM": 0.1207,
+      "SEVERE_CYCLONIC_STORM": 0.1271,
+      "VERY_SEVERE_CYCLONIC_STORM": 0.1194,
+      "EXTREMELY_SEVERE_CYCLONIC_STORM": 0.1034,
+      "SUPER_CYCLONIC_STORM": 0.1026
+    },
+    "stage_class_probs": {
+      "NO_SIGNIFICANT_SYSTEM": 0.3217,
+      "DEVELOPING_DISTURBANCE": 0.1278,
+      "TROPICAL_DEPRESSION": 0.1524,
+      "MATURE_TROPICAL_CYCLONE": 0.1077,
+      "WEAKENING_SYSTEM": 0.1471,
+      "POST_TROPICAL_REMNANT": 0.1434
     }
   }
 }

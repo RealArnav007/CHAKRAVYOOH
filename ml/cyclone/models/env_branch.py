@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Union
+from typing import Any
+
 import torch
 import torch.nn as nn
 
@@ -69,18 +70,32 @@ class EnvBranch(nn.Module):
         return self.net(env_vector)
 
     @classmethod
-    def from_config(cls, cfg: Optional[Union[CycloneConfig, Dict[str, Any]]] = None) -> EnvBranch:
+    def from_config(cls, cfg: CycloneConfig | dict[str, Any] | None = None) -> EnvBranch:
         """Factory constructor instantiating EnvBranch from configuration."""
         if cfg is None:
             cfg = load_config()
 
-        model_cfg = cfg.model if hasattr(cfg, "model") else (cfg.get("model", {}) if isinstance(cfg, dict) else {})
-        env_cfg = getattr(model_cfg, "env_branch", {}) if hasattr(model_cfg, "env_branch") else (
-            model_cfg.get("env_branch", {}) if isinstance(model_cfg, dict) else {}
+        model_cfg = (
+            cfg.model
+            if hasattr(cfg, "model")
+            else (cfg.get("model", {}) if isinstance(cfg, dict) else {})
+        )
+        env_cfg = (
+            getattr(model_cfg, "env_branch", {})
+            if hasattr(model_cfg, "env_branch")
+            else (model_cfg.get("env_branch", {}) if isinstance(model_cfg, dict) else {})
         )
 
-        in_dim = getattr(env_cfg, "in_dim", 6) if hasattr(env_cfg, "in_dim") else env_cfg.get("in_dim", 6)
-        out_dim = getattr(env_cfg, "out_dim", 64) if hasattr(env_cfg, "out_dim") else env_cfg.get("out_dim", 64)
+        in_dim = (
+            getattr(env_cfg, "in_dim", 6)
+            if hasattr(env_cfg, "in_dim")
+            else env_cfg.get("in_dim", 6)
+        )
+        out_dim = (
+            getattr(env_cfg, "out_dim", 64)
+            if hasattr(env_cfg, "out_dim")
+            else env_cfg.get("out_dim", 64)
+        )
 
         return cls(in_dim=in_dim, out_dim=out_dim)
 

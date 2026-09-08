@@ -1,7 +1,5 @@
 """Unit tests for Tier-0 Identification, Stage Classification, and Intensity Estimation baselines."""
 
-import pytest
-
 from ml.cyclone.models.baseline_classify import classify
 from ml.cyclone.models.baseline_identify import identify
 from ml.cyclone.models.baseline_intensity import intensity
@@ -12,7 +10,6 @@ from ml.cyclone.schema.models import (
     IntensityPayload,
     StageEnum,
 )
-
 
 # -----------------------------------------------------------------------------
 # Tier-0 Identification Tests
@@ -37,20 +34,34 @@ def test_identify_calibrated_confidence():
     dep_sample = {
         "wind_kt": 25.0,
         "pres_mb": 1000.0,
-        "history": [{"t_offset_h": -18.0}, {"t_offset_h": -12.0}, {"t_offset_h": -6.0}, {"t_offset_h": 0.0}],
+        "history": [
+            {"t_offset_h": -18.0},
+            {"t_offset_h": -12.0},
+            {"t_offset_h": -6.0},
+            {"t_offset_h": 0.0},
+        ],
     }
     dep_res = identify(dep_sample)
     assert dep_res["detected"] is True
     assert 0.70 <= dep_res["confidence"] <= 0.90
 
     # Case 4: Severe mature cyclone (wind 75 kt)
-    severe_sample = {"wind_kt": 75.0, "pres_mb": 960.0, "history": [{"t_offset_h": -6.0}, {"t_offset_h": 0.0}]}
+    severe_sample = {
+        "wind_kt": 75.0,
+        "pres_mb": 960.0,
+        "history": [{"t_offset_h": -6.0}, {"t_offset_h": 0.0}],
+    }
     severe_res = identify(severe_sample)
     assert severe_res["detected"] is True
     assert severe_res["confidence"] >= 0.90
 
     # Invariant: Monotonic confidence growth with wind margin
-    assert quiet_res["confidence"] < border_res["confidence"] < dep_res["confidence"] < severe_res["confidence"]
+    assert (
+        quiet_res["confidence"]
+        < border_res["confidence"]
+        < dep_res["confidence"]
+        < severe_res["confidence"]
+    )
 
     # Invariant: Never a constant 1.0
     for res in [quiet_res, border_res, dep_res, severe_res]:

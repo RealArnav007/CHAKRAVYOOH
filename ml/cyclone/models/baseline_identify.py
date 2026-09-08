@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, List
+from typing import Any
+
 import numpy as np
 
 from ml.cyclone.schema.models import IdentificationPayload
@@ -11,7 +12,7 @@ from ml.cyclone.schema.models import IdentificationPayload
 IMD_DEPRESSION_WIND_THRESHOLD_KT = 17.0
 
 
-def identify(sample: Dict[str, Any]) -> Dict[str, Any]:
+def identify(sample: dict[str, Any]) -> dict[str, Any]:
     """Identifies cyclone existence from wind magnitude, pressure anomalies, and track persistence.
 
     Confidence Modeling:
@@ -31,7 +32,7 @@ def identify(sample: Dict[str, Any]) -> Dict[str, Any]:
     wind_kt = 0.0 if (raw_w is None or np.isnan(float(raw_w))) else float(raw_w)
     raw_p = sample.get("pres_mb", 1010.0)
     pres_mb = 1010.0 if (raw_p is None or np.isnan(float(raw_p))) else float(raw_p)
-    history: List[Dict[str, Any]] = sample.get("history", [])
+    history: list[dict[str, Any]] = sample.get("history", [])
 
     # 1. Wind logistic component (steepness k = 0.16 centered at 17.0 kt)
     wind_margin = wind_kt - IMD_DEPRESSION_WIND_THRESHOLD_KT

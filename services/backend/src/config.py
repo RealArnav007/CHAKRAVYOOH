@@ -44,6 +44,9 @@ class Settings(BaseSettings):
 
     REPLAY_WINDOW_SECONDS: int = 300
 
+    # Machine-to-machine API key for ML producer ingestion
+    CHAKRAVYUH_SYSTEM_API_KEY: str = "chakravyooh-dev-system-key-2026"
+
     @field_validator("JWT_SECRET_KEY", mode="before")
     @classmethod
     def validate_jwt_secret_entropy(cls, v: str) -> str:

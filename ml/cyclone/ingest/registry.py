@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
+
 from ml.cyclone.ingest.era5 import open_era5, sample_env
 from ml.cyclone.ingest.ibtracs import get_storm, load_tracks
 from ml.cyclone.ingest.satellite import load_image_index, read_image
 
-
-LOADER_REGISTRY: Dict[str, Dict[str, Any]] = {
+LOADER_REGISTRY: dict[str, dict[str, Any]] = {
     "ibtracs": {
         "description": "NOAA IBTrACS best-track historical trajectory dataset",
         "load": load_tracks,
@@ -37,12 +37,12 @@ LOADER_REGISTRY: Dict[str, Dict[str, Any]] = {
 }
 
 
-def list_sources() -> List[str]:
+def list_sources() -> list[str]:
     """Returns a list of all registered dataset source identifiers."""
     return list(LOADER_REGISTRY.keys())
 
 
-def get_loader(source: str) -> Dict[str, Any]:
+def get_loader(source: str) -> dict[str, Any]:
     """Retrieves the loader interface dictionary for a registered source.
 
     Args:
@@ -56,9 +56,7 @@ def get_loader(source: str) -> Dict[str, Any]:
     """
     source_key = source.lower().strip()
     if source_key not in LOADER_REGISTRY:
-        raise KeyError(
-            f"Source '{source}' is not registered. Available sources: {list_sources()}"
-        )
+        raise KeyError(f"Source '{source}' is not registered. Available sources: {list_sources()}")
     return LOADER_REGISTRY[source_key]
 
 

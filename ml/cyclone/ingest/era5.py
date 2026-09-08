@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 import math
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any
+
 import numpy as np
 import pandas as pd
 
@@ -25,12 +26,12 @@ STANDARD_ENV_VARIABLES = [
 ]
 
 
-def _get_nan_env_dict() -> Dict[str, float]:
+def _get_nan_env_dict() -> dict[str, float]:
     """Returns a standardized dictionary of NaN environmental parameters."""
     return {var: float("nan") for var in STANDARD_ENV_VARIABLES}
 
 
-def open_era5(path: Union[str, Path]) -> Optional[Any]:
+def open_era5(path: str | Path) -> Any | None:
     """Safely opens an ERA5 NetCDF file with xarray.
 
     Returns:
@@ -52,11 +53,11 @@ def open_era5(path: Union[str, Path]) -> Optional[Any]:
 
 
 def sample_env(
-    ds: Optional[Any],
-    time: Union[datetime, str, pd.Timestamp],
+    ds: Any | None,
+    time: datetime | str | pd.Timestamp,
     lat: float,
     lon: float,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """Samples environmental atmospheric parameters at a specific (time, lat, lon) point.
 
     Uses spatial bilinear / nearest interpolation and nearest temporal selection.
@@ -73,9 +74,15 @@ def sample_env(
         target_time = pd.to_datetime(time, utc=True).tz_localize(None)
 
         # Determine latitude / longitude coordinate names
-        lat_name = "latitude" if "latitude" in ds.coords else ("lat" if "lat" in ds.coords else None)
-        lon_name = "longitude" if "longitude" in ds.coords else ("lon" if "lon" in ds.coords else None)
-        time_name = "time" if "time" in ds.coords else ("valid_time" if "valid_time" in ds.coords else None)
+        lat_name = (
+            "latitude" if "latitude" in ds.coords else ("lat" if "lat" in ds.coords else None)
+        )
+        lon_name = (
+            "longitude" if "longitude" in ds.coords else ("lon" if "lon" in ds.coords else None)
+        )
+        time_name = (
+            "time" if "time" in ds.coords else ("valid_time" if "valid_time" in ds.coords else None)
+        )
 
         if not lat_name or not lon_name or not time_name:
             return _get_nan_env_dict()

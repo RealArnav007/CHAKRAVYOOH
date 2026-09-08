@@ -11,7 +11,6 @@ from ml.cyclone.preprocess.scales import (
 )
 from ml.cyclone.schema.models import IntensityLevelEnum, StageEnum
 
-
 # -----------------------------------------------------------------------------
 # IMD Intensity Scale Boundary Tests
 # -----------------------------------------------------------------------------
@@ -109,18 +108,55 @@ def test_lifecycle_stage_transitions():
 
 def test_clean_tracks_qc_and_interpolation():
     """Asserts clean_tracks deduplicates, interpolates short gaps, clips outliers, and reports QC."""
-    test_data = pd.DataFrame([
-        # Row 0
-        {"storm_id": "STORM_A", "time": "2020-05-16 00:00:00", "lat": 12.0, "lon": 85.0, "wind_kt": 30.0, "pres_mb": 1000.0},
-        # Row 1: Duplicate timestamp (should be dropped)
-        {"storm_id": "STORM_A", "time": "2020-05-16 00:00:00", "lat": 12.0, "lon": 85.0, "wind_kt": 30.0, "pres_mb": 1000.0},
-        # Row 2: Missing wind and pressure (1-step gap -> should be interpolated)
-        {"storm_id": "STORM_A", "time": "2020-05-16 03:00:00", "lat": 12.5, "lon": 85.2, "wind_kt": None, "pres_mb": None},
-        # Row 3
-        {"storm_id": "STORM_A", "time": "2020-05-16 06:00:00", "lat": 13.0, "lon": 85.4, "wind_kt": 40.0, "pres_mb": 990.0},
-        # Row 4: Physical outlier wind (-10 kt -> should be clipped to 0) & pressure (1050 mb -> clipped to 1030)
-        {"storm_id": "STORM_A", "time": "2020-05-16 09:00:00", "lat": 13.5, "lon": 85.6, "wind_kt": -10.0, "pres_mb": 1050.0},
-    ])
+    test_data = pd.DataFrame(
+        [
+            # Row 0
+            {
+                "storm_id": "STORM_A",
+                "time": "2020-05-16 00:00:00",
+                "lat": 12.0,
+                "lon": 85.0,
+                "wind_kt": 30.0,
+                "pres_mb": 1000.0,
+            },
+            # Row 1: Duplicate timestamp (should be dropped)
+            {
+                "storm_id": "STORM_A",
+                "time": "2020-05-16 00:00:00",
+                "lat": 12.0,
+                "lon": 85.0,
+                "wind_kt": 30.0,
+                "pres_mb": 1000.0,
+            },
+            # Row 2: Missing wind and pressure (1-step gap -> should be interpolated)
+            {
+                "storm_id": "STORM_A",
+                "time": "2020-05-16 03:00:00",
+                "lat": 12.5,
+                "lon": 85.2,
+                "wind_kt": None,
+                "pres_mb": None,
+            },
+            # Row 3
+            {
+                "storm_id": "STORM_A",
+                "time": "2020-05-16 06:00:00",
+                "lat": 13.0,
+                "lon": 85.4,
+                "wind_kt": 40.0,
+                "pres_mb": 990.0,
+            },
+            # Row 4: Physical outlier wind (-10 kt -> should be clipped to 0) & pressure (1050 mb -> clipped to 1030)
+            {
+                "storm_id": "STORM_A",
+                "time": "2020-05-16 09:00:00",
+                "lat": 13.5,
+                "lon": 85.6,
+                "wind_kt": -10.0,
+                "pres_mb": 1050.0,
+            },
+        ]
+    )
 
     cleaned_df, qc = clean_tracks(test_data)
 
@@ -134,7 +170,7 @@ def test_clean_tracks_qc_and_interpolation():
     row_interp = cleaned_df.iloc[1]
     assert row_interp["qc_interpolated"] is True or row_interp["qc_interpolated"] == 1
     assert row_interp["wind_kt"] == 35.0  # Linear midpoint between 30 and 40
-    assert row_interp["pres_mb"] == 995.0 # Linear midpoint between 1000 and 990
+    assert row_interp["pres_mb"] == 995.0  # Linear midpoint between 1000 and 990
 
     # Check clipped values at step 09:00:00
     row_clipped = cleaned_df.iloc[3]

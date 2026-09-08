@@ -3,17 +3,22 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
 import json
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
 from ml.cyclone.datasets.splits import make_splits
-from ml.cyclone.datasets.torch_dataset import CycloneDataset, cyclone_collate_fn, generate_negative_samples
+from ml.cyclone.datasets.torch_dataset import (
+    CycloneDataset,
+    cyclone_collate_fn,
+    generate_negative_samples,
+)
 from ml.cyclone.eval.metrics import (
     classification_metrics,
     expected_calibration_error,
@@ -31,9 +36,9 @@ def train_detection(
     lr: float = 1e-4,
     weight_decay: float = 1e-4,
     backbone: str = "efficientnet_b0",
-    artifact_dir: Optional[Path] = None,
-    device: Optional[torch.device] = None,
-) -> Dict[str, Any]:
+    artifact_dir: Path | None = None,
+    device: torch.device | None = None,
+) -> dict[str, Any]:
     """Trains DetectionModel on satellite IR patches with class-weighted BCE loss using unified Trainer.
 
     Args:
@@ -52,9 +57,9 @@ def train_detection(
     save_dir.mkdir(parents=True, exist_ok=True)
 
     compute_device = device or (
-        torch.device("mps") if torch.backends.mps.is_available()
-        else torch.device("cuda") if torch.cuda.is_available()
-        else torch.device("cpu")
+        torch.device("mps")
+        if torch.backends.mps.is_available()
+        else torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     )
     print(f"[TRAIN] Using compute device: {compute_device}")
 
@@ -75,15 +80,23 @@ def train_detection(
     val_indices = splits["val"]
     test_indices = splits["test"]
 
-    print(f"[TRAIN] Split counts -> Train: {len(train_indices)}, Val: {len(val_indices)}, Test: {len(test_indices)}")
+    print(
+        f"[TRAIN] Split counts -> Train: {len(train_indices)}, Val: {len(val_indices)}, Test: {len(test_indices)}"
+    )
 
     train_ds = CycloneDataset(all_samples, indices=train_indices, mode="image_only")
     val_ds = CycloneDataset(all_samples, indices=val_indices, mode="image_only")
     test_ds = CycloneDataset(all_samples, indices=test_indices, mode="image_only")
 
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, collate_fn=cyclone_collate_fn)
-    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, collate_fn=cyclone_collate_fn)
-    test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, collate_fn=cyclone_collate_fn)
+    train_loader = DataLoader(
+        train_ds, batch_size=batch_size, shuffle=True, collate_fn=cyclone_collate_fn
+    )
+    val_loader = DataLoader(
+        val_ds, batch_size=batch_size, shuffle=False, collate_fn=cyclone_collate_fn
+    )
+    test_loader = DataLoader(
+        test_ds, batch_size=batch_size, shuffle=False, collate_fn=cyclone_collate_fn
+    )
 
     # 3. Model & Loss with Imbalance Weighting
     model = DetectionModel(backbone_name=backbone, pretrained=True)
@@ -93,13 +106,17 @@ def train_detection(
     n_neg = max(1, len(train_labels) - n_pos)
     pos_weight_val = float(n_neg / n_pos)
     pos_weight = torch.tensor([pos_weight_val], dtype=torch.float32, device=compute_device)
-    print(f"[TRAIN] Class balance in train: {n_pos} positive, {n_neg} negative (pos_weight = {pos_weight_val:.2f})")
+    print(
+        f"[TRAIN] Class balance in train: {n_pos} positive, {n_neg} negative (pos_weight = {pos_weight_val:.2f})"
+    )
 
     criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max(1, epochs))
 
-    def step_fn(m: nn.Module, batch: Dict[str, Any], crit: Any, dev: torch.device) -> Tuple[torch.Tensor, Dict[str, Any]]:
+    def step_fn(
+        m: nn.Module, batch: dict[str, Any], crit: Any, dev: torch.device
+    ) -> Tuple[torch.Tensor, dict[str, Any]]:
         imgs = batch["image"].to(dev)
         avail = batch["image_available"].to(dev)
         targets = batch["detected"].to(dev).unsqueeze(1)
@@ -158,12 +175,12 @@ def evaluate_detection(
     model: nn.Module,
     dataloader: DataLoader,
     device: torch.device,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Evaluates detection model emitting Accuracy, Macro-F1, PR-AUC, and ECE."""
     model.eval()
-    y_true_list: List[int] = []
-    y_pred_list: List[int] = []
-    y_prob_list: List[float] = []
+    y_true_list: list[int] = []
+    y_pred_list: list[int] = []
+    y_prob_list: list[float] = []
 
     with torch.no_grad():
         for batch in dataloader:
@@ -198,8 +215,8 @@ def evaluate_detection(
 
 
 def append_to_models_report(
-    results: Dict[str, Any],
-    report_path: Optional[Path] = None,
+    results: dict[str, Any],
+    report_path: Path | None = None,
 ) -> None:
     """Appends model benchmark performance to models_report.md."""
     rep_path = report_path or (Path("ml/cyclone/eval/models_report.md"))
