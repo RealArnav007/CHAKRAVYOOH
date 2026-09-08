@@ -1,0 +1,227 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chakravyuh.ai/schemas/cyclone_intelligence.schema.json",
+  "title": "CycloneIntelligence",
+  "description": "Frozen output contract emitted by the Chakravyuh Cyclone Intelligence Engine.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "cyclone_id",
+    "name",
+    "timestamp",
+    "basin",
+    "identification",
+    "classification",
+    "intensity",
+    "prediction",
+    "sources",
+    "model_version",
+    "tier"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Schema version string, strictly locked to 1.0."
+    },
+    "cyclone_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique identifier for the storm tracking cycle (e.g. CYC-2026-BAY-001)."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Assigned name of the cyclonic system or disturbance designation."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC observation timestamp."
+    },
+    "basin": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Oceanic basin (e.g., North Indian Ocean)."
+    },
+    "identification": {
+      "type": "object",
+      "required": ["detected", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "detected": {
+          "type": "boolean",
+          "description": "True if a coherent tropical cyclone or cyclonic disturbance is detected."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Calibrated detection confidence score in [0, 1]."
+        }
+      }
+    },
+    "classification": {
+      "type": "object",
+      "required": ["stage", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "stage": {
+          "type": "string",
+          "enum": [
+            "NO_SIGNIFICANT_SYSTEM",
+            "DEVELOPING_DISTURBANCE",
+            "TROPICAL_DEPRESSION",
+            "MATURE_TROPICAL_CYCLONE",
+            "WEAKENING_SYSTEM",
+            "POST_TROPICAL_REMNANT"
+          ],
+          "description": "Meteorological life-cycle stage of the system."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Calibrated classification confidence in [0, 1]."
+        }
+      }
+    },
+    "intensity": {
+      "type": "object",
+      "required": ["level", "scale", "max_wind_kt", "min_pressure_mb", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": [
+            "DEPRESSION",
+            "DEEP_DEPRESSION",
+            "CYCLONIC_STORM",
+            "SEVERE_CYCLONIC_STORM",
+            "VERY_SEVERE_CYCLONIC_STORM",
+            "EXTREMELY_SEVERE_CYCLONIC_STORM",
+            "SUPER_CYCLONIC_STORM"
+          ],
+          "description": "IMD basin intensity category."
+        },
+        "scale": {
+          "type": "string",
+          "const": "IMD",
+          "description": "Primary meteorological scale, locked to IMD."
+        },
+        "max_wind_kt": {
+          "type": "number",
+          "minimum": 0.0,
+          "description": "Maximum sustained 3-minute surface wind speed in knots."
+        },
+        "min_pressure_mb": {
+          "type": "number",
+          "minimum": 800.0,
+          "maximum": 1050.0,
+          "description": "Estimated central atmospheric pressure in millibars (hPa)."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Calibrated intensity estimation confidence in [0, 1]."
+        }
+      }
+    },
+    "prediction": {
+      "type": ["object", "null"],
+      "description": "Trajectory forecast and spatial uncertainty cone. Null when detected is false.",
+      "required": [
+        "current_position",
+        "heading_deg",
+        "speed_kt",
+        "forecast_hours",
+        "predicted_path",
+        "confidence",
+        "uncertainty"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "current_position": {
+          "type": "object",
+          "required": ["lat", "lon"],
+          "additionalProperties": false,
+          "properties": {
+            "lat": { "type": "number", "minimum": -90.0, "maximum": 90.0 },
+            "lon": { "type": "number", "minimum": -180.0, "maximum": 180.0 }
+          }
+        },
+        "heading_deg": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 360.0,
+          "description": "Current forward movement heading in degrees from true North."
+        },
+        "speed_kt": {
+          "type": "number",
+          "minimum": 0.0,
+          "description": "Current translation speed in knots."
+        },
+        "forecast_hours": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total forward forecast horizon in hours (e.g. 72)."
+        },
+        "predicted_path": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["t_plus_h", "lat", "lon"],
+            "additionalProperties": false,
+            "properties": {
+              "t_plus_h": { "type": "integer", "minimum": 0 },
+              "lat": { "type": "number", "minimum": -90.0, "maximum": 90.0 },
+              "lon": { "type": "number", "minimum": -180.0, "maximum": 180.0 }
+            }
+          }
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Calibrated trajectory forecast confidence in [0, 1]."
+        },
+        "uncertainty": {
+          "type": "object",
+          "required": ["cone_radius_km"],
+          "additionalProperties": false,
+          "properties": {
+            "cone_radius_km": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "number", "minimum": 0.0 },
+              "description": "Uncertainty cone radii in km parallel to predicted_path points."
+            }
+          }
+        }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "List of active data sources contributing to this cycle."
+    },
+    "model_version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Version identifier of the Cyclone Brain engine."
+    },
+    "tier": {
+      "type": "string",
+      "enum": ["tier1", "tier0", "mixed"],
+      "description": "Engine tier producing this payload."
+    },
+    "extra": {
+      "type": "object",
+      "description": "Free-form supplemental metadata (e.g. Saffir-Simpson category, class probabilities)."
+    }
+  },
+  "additionalProperties": false
+}
