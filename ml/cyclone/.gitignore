@@ -1,0 +1,49 @@
+# Ignore all raw data files by default
+data/*
+!data/.gitkeep
+!data/DATA_CARD.md
+!data/*.md
+
+# Allow subdirectories to be traversed
+!data/*/
+
+# Re-ignore contents of subdirectories
+data/*/*
+
+# Allow sample datasets and small test fixtures in any subdirectory
+!data/*/*_sample.*
+!data/**/_sample.*
+!data/**/*_sample.*
+!data/*/images/*_sample.*
+
+# Python bytecode & caching
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Model checkpoints & training outputs
+checkpoints/
+*.pt
+*.pth
+*.onnx
+*.tflite
+*.safetensors
+logs/
+wandb/
+mlruns/
+
+# Large raw archive formats
+*.nc
+*.nc4
+*.h5
+*.hdf5
+*.tar.gz
+*.zip
+*.parquet
+*.csv
+!*_sample.csv
+!*_sample.parquet

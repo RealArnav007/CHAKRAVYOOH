@@ -1,0 +1,111 @@
+# Project Pukar - Multilingual Deterministic Regex Scoring Rules
+# Configurable keyword/pattern rules mapping phrases -> severity signal + category hint with weights.
+# Coverage: English + Hindi (Devanagari) + Hinglish (Romanized Hindi).
+# Valid Categories: rescue | medical | fire | shelter | other
+# Valid Severities: info | warn | critical
+
+version: "1.1.0"
+
+# Scoring thresholds:
+# 0-34: INFO, 35-74: WARN, 75-100: CRITICAL
+
+categories:
+  - rescue
+  - medical
+  - fire
+  - shelter
+  - other
+
+rules:
+  # ==========================================
+  # CRITICAL SEVERITY (Score 75 - 100)
+  # ==========================================
+  - id: "crit_entrapment_structural"
+    pattern: "(?i)\\b(trapped|buried|under\\s+rubble|collapsed|crushed|debris|fase\\s*(?:hue|hain|h)?|fasa\\s*(?:hua|hai)?|fasi\\s*(?:hui|hai)?|phase\\s*(?:hue|hain)?|dab\\s+gaye|dab\\s+gayi|gir\\s+gaya|gir\\s+gayi|tuta\\s+hua|फंसे|फंसा|फंसी|मलबे\\s*में\\s*दबे|दब\\s*गए|गिर\\s*गया|गिर\\s*गई|ढह\\s*गया)\\b"
+    score: 95
+    severity: "critical"
+    category: "rescue"
+    description: "Physical entrapment, building collapse, or buried under structural debris"
+
+  - id: "crit_drowning_flood_peril"
+    pattern: "(?i)\\b(drowning|washed\\s+away|swept\\s+away|submerged|boat\\s+urgently|doob\\s+rahe|doob\\s+gaya|pani\\s+me\\s+beh\\s+gaye|jaldi\\s+boat\\s+bhejo|नाव\\s*भेजो|डूब\\s*रहे|डूब\\s*गया|बह\\s*गए|जलमग्न)\\b"
+    score: 92
+    severity: "critical"
+    category: "rescue"
+    description: "Active drowning, victim being swept away by flash flood, or urgent rescue vessel needed"
+
+  - id: "crit_active_fire_blast"
+    pattern: "(?i)\\b(building\\s+fire|gas\\s+leak|blast|explosion|cylinder\\s+blast|ablaze|aag\\s+lagi|aag\\s+fail\\s+rahi|cylinder\\s+phat\\s+gaya|dhamaka|भीषण\\s*आग|आग\\s*लगी|सिलेंडर\\s*ब्लास्ट|धमाका|आग\\s*फैल\\s*रही)\\b"
+    score: 90
+    severity: "critical"
+    category: "fire"
+    description: "Active structural fire, LPG explosion, or toxic blast hazard"
+
+  - id: "crit_medical_life_threat"
+    pattern: "(?i)\\b(severe\\s+bleeding|bleeding|arterial|heart\\s+attack|stroke|unconscious|choking|head\\s+injury|fracture|oxygen\\s+depleted|khoon|khoon\\s+beh\\s+raha|khun|behosh|saans\\s+nahi\\s+aarahi|dil\\s+ka\\s+daura|गंभीर\\s*चोट|खून|खून\\s*बह\\s*रहा|बेहोश|सांस\\s*नहीं|हार्ट\\s*अटैक|ऑक्सीजन\\s*की\\s*कमी)\\b"
+    score: 88
+    severity: "critical"
+    category: "medical"
+    description: "Life-threatening hemorrhage, cardiac arrest, unconsciousness, or respiratory failure"
+
+  - id: "crit_vulnerable_population"
+    pattern: "(?i)\\b(infant\\s+in\\s+danger|newborn|pregnant\\s+labor|elderly\\s+trapped|dialysis\\s+emergency|bachha\\s+fasa|buzurg\\s+fase|pregnant\\s+woman|गर्भवती\\s*महिला|बच्चा\\s*फंसा|नवजात|बुजुर्ग\\s*फंसे)\\b"
+    score: 85
+    severity: "critical"
+    category: "rescue"
+    description: "Vulnerable individuals (infants, pregnant women in labor, dialysis patients) in imminent danger"
+
+  # ==========================================
+  # WARN SEVERITY (Score 35 - 74)
+  # ==========================================
+  - id: "warn_rising_floodwaters"
+    pattern: "(?i)\\b(rising\\s+water|water\\s+entering|roof\\s+leak|ground\\s+floor\\s+flooded|water\\s+level\\s+rising|pani\\s+ghar\\s+me\\s+aaraha|pani\\s+chad\\s+raha|pani\\s+ghus\\s+gaya|chhat\\s+tak\\s+pani|पानी\\s*भर\\s*रहा|पानी\\s*घर\\s*में\\s*आ\\s*रहा|जलभराव)\\b"
+    score: 65
+    severity: "warn"
+    category: "rescue"
+    description: "Floodwater ingress threatening safety"
+
+  - id: "warn_ration_water_exhaustion"
+    pattern: "(?i)\\b(no\\s+drinking\\s+water|out\\s+of\\s+food|no\\s+ration|starving|food\\s+exhausted|khana\\s+nahi\\s+hai|pani\\s+khatam|ration\\s+chahiye|khana\\s+khatam|peene\\s+ka\\s+pani|राशन\\s*नहीं|खाना\\s*नहीं|पीने\\s*का\\s*पानी\\s*नहीं|भूखे|राशन\\s*खत्म)\\b"
+    score: 55
+    severity: "warn"
+    category: "shelter"
+    description: "Critical shortage of food, potable water, or emergency dry rations"
+
+  - id: "warn_shelter_blankets"
+    pattern: "(?i)\\b(shelter\\s+needed|need\\s+blankets|displaced|no\\s+electricity\\s+24h|power\\s+outage|chhat\\s+chahiye|kambal\\s+chahiye|light\\s+nahi\\s+hai|tents|शेल्टर\\s*चाहिए|कंबल\\s*चाहिए|बिजली\\s*नहीं\\s*है|तम्बू)\\b"
+    score: 50
+    severity: "warn"
+    category: "shelter"
+    description: "Need for dry shelter, blankets, or power backup"
+
+  - id: "warn_minor_injury_medical"
+    pattern: "(?i)\\b(fever|first\\s+aid|minor\\s+cut|insulin\\s+needed|bandage|medicine\\s+needed|bukhar|dawa\\s+chahiye|patti|chhoti\\s+chot|दवाई\\s*चाहिए|बुखार|पट्टी|प्राथमिक\\s*उपचार)\\b"
+    score: 45
+    severity: "warn"
+    category: "medical"
+    description: "Non-fatal illness, minor cuts, or non-urgent prescription replenishment"
+
+  - id: "warn_hazard_road_blockage"
+    pattern: "(?i)\\b(wall\\s+crack|partial\\s+collapse|tree\\s+fallen|blocked\\s+road|road\\s+damaged|bridge\\s+cracked|deewar\\s+me\\s+crack|rasta\\s+band|ped\\s+gir\\s+gaya|pul\\s+tut\\s+gaya|दीवार\\s*में\\s*दरार|पेड़\\s*गिर\\s*गया|रास्ता\\s*बंद|पुल\\s*क्षतिग्रस्त)\\b"
+    score: 40
+    severity: "warn"
+    category: "other"
+    description: "Roadway blockage, damaged bridge, or cracked non-load bearing wall"
+
+  # ==========================================
+  # INFO SEVERITY (Score 0 - 34)
+  # ==========================================
+  - id: "info_safe_status_checkin"
+    pattern: "(?i)\\b(we\\s+are\\s+safe|reached\\s+shelter|safe\\s+for\\s+now|all\\s+okay|all\\s+good|hum\\s+safe\\s+hain|surakshit\\s+hain|sab\\s+theek|safe\\s+on\\s+roof|evacuated\\s+safely|सुरक्षित\\s*हैं|सब\\s*ठीक\\s*है|कैम्प\\s*पहुंच\\s*गए|सुरक्षित)\\b"
+    score: 10
+    severity: "info"
+    category: "other"
+    description: "Safety check-in, confirmation of evacuation, or non-urgent reassurance"
+
+  - id: "info_general_inquiry"
+    pattern: "(?i)\\b(is\\s+relief\\s+coming|weather\\s+update|where\\s+is\\s+camp|relief\\s+camp\\s+location|camp\\s+kahan\\s+hai|madad\\s+kab\\s+aayegi|update\\s+do|charging\\s+point|राहत\\s*कहाँ\\s*है|कैम्प\\s*की\\s*जानकारी|अपडेट)\\b"
+    score: 20
+    severity: "info"
+    category: "other"
+    description: "General informational query regarding relief operations, weather, or camp facilities"

@@ -1,0 +1,34 @@
+# Project Pukar - Intelligence Layer Observability Configuration
+# ===============================================================
+
+observability:
+  enabled: true
+  log_level: "INFO"
+  log_structured_json: true
+  logger_name: "pukar.ml.observability"
+  window_size: 1000 # Rolling window size for p50/p95 percentiles and health rates
+
+  # Secret scrubbing: keys whose values are masked in structured logs
+  redact_keys:
+    - "api_key"
+    - "groq_api_key"
+    - "secret"
+    - "token"
+    - "authorization"
+    - "password"
+    - "private_key"
+    - "signature"
+    - "aes_key"
+    - "auth_token"
+
+  # Stage SLA warning thresholds in milliseconds
+  sla_thresholds_ms:
+    guard: 20.0
+    regex: 25.0
+    normalize: 150.0
+    groq: 1200.0
+    extract: 300.0
+    false_alarm: 50.0
+    fusion: 15.0
+    briefing: 250.0
+    total_pipeline: 1500.0

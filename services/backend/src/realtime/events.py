@@ -1,0 +1,32 @@
+from enum import Enum
+from typing import Any
+
+from pydantic import BaseModel
+
+
+class RealtimeEventType(str, Enum):
+    NEW_SOS = "NEW_SOS"
+    INCIDENT_CREATED = "INCIDENT_CREATED"
+    REPORT_ADDED = "REPORT_ADDED"
+    INCIDENT_UPDATED = "INCIDENT_UPDATED"
+    SEVERITY_CHANGED = "SEVERITY_CHANGED"
+    ZONE_UPDATED = "ZONE_UPDATED"
+    DISPATCH_UPDATED = "DISPATCH_UPDATED"
+    
+    # Chakravyooh Cyclone Intelligence Events
+    CYCLONE_DETECTED = "CYCLONE_DETECTED"
+    CYCLONE_CLASSIFIED = "CYCLONE_CLASSIFIED"
+    CYCLONE_PREDICTION_UPDATED = "CYCLONE_PREDICTION_UPDATED"
+    CYCLONE_RISK_UPDATED = "CYCLONE_RISK_UPDATED"
+    RISK_ZONE_ELEVATED = "RISK_ZONE_ELEVATED"
+
+    # Chakravyooh Alert Lifecycle Events (Master PRD §19 & §38)
+    CYCLONE_ALERT_CREATED = "CYCLONE_ALERT_CREATED"
+    CYCLONE_ALERT_UPDATED = "CYCLONE_ALERT_UPDATED"
+    CYCLONE_ALERT_SUPERSEDED = "CYCLONE_ALERT_SUPERSEDED"
+    CYCLONE_ALERT_EXPIRED = "CYCLONE_ALERT_EXPIRED"
+
+class RealtimeEvent(BaseModel):
+    event_type: str
+    payload: dict[str, Any]
+    timestamp: int

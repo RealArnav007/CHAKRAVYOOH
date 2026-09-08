@@ -1,0 +1,69 @@
+# ==============================================================================
+# Chakravyuh Cyclone Intelligence Engine — Model Architecture Configuration
+# ==============================================================================
+
+# General model metadata
+model_name: "chakravyuh-fusion-net"
+model_version: "0.1.0"
+device: "auto"  # "auto", "cuda", "mps", or "cpu"
+
+# Tier-0 Deterministic Safety Net Parameters
+tier0:
+  detection_threshold_wind_kt: 17.0        # Minimum wind speed for initial depression
+  stage_rules:
+    depression_wind_max: 27.0
+    deep_depression_wind_max: 33.0
+    cyclonic_storm_wind_max: 47.0
+    severe_cyclonic_storm_wind_max: 63.0
+    very_severe_cyclonic_storm_wind_max: 89.0
+    extremely_severe_cyclonic_storm_wind_max: 119.0
+  track_persistence:
+    decay_rate: 0.05                       # Damping factor towards climatology per 6h
+  parametric_cone:
+    base_radius_km: 0.0                    # Cone radius at t=0
+    growth_rate_km_per_hour: 4.0           # Parametric error growth ~ 290 km at 72h
+
+# Tier-1 Multi-Modal Fusion Network Architecture
+tier1:
+  # Image branch (Satellite IR CNN)
+  image_branch:
+    backbone: "efficientnet_b0"            # Options: "efficientnet_b0", "resnet18", "custom_cnn"
+    pretrained: true                       # Load ImageNet pretrained weights
+    in_channels: 1                         # IR brightness temperature input
+    embedding_dim: 512
+    dropout: 0.2
+
+  # Environmental branch (Atmospheric MLP)
+  env_branch:
+    input_dim: 5                           # [sst, shear, rh, vorticity, ohc]
+    hidden_dims: [64, 128]
+    embedding_dim: 64
+    dropout: 0.1
+
+  # Track sequence branch (Temporal GRU)
+  track_branch:
+    input_dim: 6                           # [lat, lon, wind, pres, speed, heading]
+    hidden_dim: 128
+    num_layers: 2
+    embedding_dim: 128
+    bidirectional: false
+    dropout: 0.1
+
+  # Multi-modal fusion trunk
+  fusion_trunk:
+    hidden_dims: [512, 256]
+    dropout: 0.3
+
+  # Multi-task prediction heads
+  heads:
+    forecast_horizons_hours: [0, 6, 12, 24, 48, 72]
+    num_stage_classes: 6                   # Life-cycle stages
+    num_intensity_classes: 7               # IMD intensity categories
+    uncertainty_method: "heteroscedastic"  # Gaussian log-variance per horizon
+
+# Tier Selection & Confidence Gates in run_cycle()
+confidence_gates:
+  min_detection_confidence: 0.50
+  min_stage_confidence: 0.60
+  min_intensity_confidence: 0.60
+  max_track_variance_ceiling: 5.0          # Max acceptable log-variance before fallback

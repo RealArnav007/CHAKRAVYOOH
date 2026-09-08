@@ -1,0 +1,70 @@
+{
+  "schema_version": "1.0",
+  "cyclone_id": "CYC-2026-NIO-NULL",
+  "name": "Area-of-Interest-42",
+  "timestamp": "2026-09-08T06:00:00Z",
+  "basin": "North Indian Ocean",
+  "identification": {
+    "detected": false,
+    "confidence": 0.31
+  },
+  "classification": {
+    "stage": "DEVELOPING_DISTURBANCE",
+    "confidence": 0.88
+  },
+  "intensity": {
+    "level": "CYCLONIC_STORM",
+    "scale": "IMD",
+    "max_wind_kt": 12.0,
+    "min_pressure_mb": 1012.0,
+    "confidence": 0.9
+  },
+  "prediction": null,
+  "sources": [
+    "insat3d_ir",
+    "era5",
+    "ibtracs_track"
+  ],
+  "model_version": "chakravyuh-fusion-net-v1.0",
+  "tier": "tier0",
+  "extra": {
+    "saffir_simpson": "Tropical Depression",
+    "provenance": {
+      "sources": {
+        "identification": "tier0",
+        "classification": "tier0",
+        "intensity": "tier0",
+        "prediction": "none (detected=false)"
+      },
+      "reasons": {
+        "identification": "Detection confidence (0.30) < threshold (0.50) -> Tier-0 fallback",
+        "classification": "Stage confidence (0.21) < threshold (0.60) -> Tier-0 fallback",
+        "intensity": "Predicted wind speed (None kt) violates physical bounds -> Tier-0 fallback",
+        "prediction": "System not detected; prediction omitted"
+      },
+      "object_tier": "tier0"
+    },
+    "active_modalities": [
+      "insat3d_ir",
+      "era5",
+      "ibtracs_track"
+    ],
+    "intensity_class_probs": {
+      "DEPRESSION": 0.1852,
+      "DEEP_DEPRESSION": 0.1283,
+      "CYCLONIC_STORM": 0.1538,
+      "SEVERE_CYCLONIC_STORM": 0.234,
+      "VERY_SEVERE_CYCLONIC_STORM": 0.1019,
+      "EXTREMELY_SEVERE_CYCLONIC_STORM": 0.1079,
+      "SUPER_CYCLONIC_STORM": 0.0889
+    },
+    "stage_class_probs": {
+      "NO_SIGNIFICANT_SYSTEM": 0.2091,
+      "DEVELOPING_DISTURBANCE": 0.1541,
+      "TROPICAL_DEPRESSION": 0.1596,
+      "MATURE_TROPICAL_CYCLONE": 0.1688,
+      "WEAKENING_SYSTEM": 0.1721,
+      "POST_TROPICAL_REMNANT": 0.1363
+    }
+  }
+}

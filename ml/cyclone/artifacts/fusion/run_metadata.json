@@ -1,0 +1,12 @@
+{
+  "experiment_name": "fusion_net_multitask",
+  "timestamp": "2026-09-08T17:56:14.150140+00:00",
+  "git_commit": "0613679776cb67fc5d71a8f2df8d7e12fcfa75ad",
+  "split_manifest_hash": "1389ac12a36e4979",
+  "config": {
+    "lr": 0.0002,
+    "batch_size": 8,
+    "epochs": 2,
+    "shared_dim": 256
+  }
+}

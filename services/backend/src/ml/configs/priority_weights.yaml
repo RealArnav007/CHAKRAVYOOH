@@ -1,0 +1,36 @@
+# Project Pukar - Priority Fusion Engine Configuration
+# Weights, Thresholds, and Transparency Formula Parameters
+
+version: "1.0.0"
+
+# Weights for multi-factor fusion (must sum to 1.0)
+weights:
+  w_severity: 0.25      # On-device or computed baseline severity
+  w_regex: 0.20         # Deterministic regex keyword score
+  w_local_model: 0.20   # On-device TFLite model score
+  w_groq: 0.35          # Cloud LLM semantic urgency score
+
+# Modifiers & Multipliers
+modifiers:
+  corroboration:
+    enabled: true
+    bonus_per_report: 4.0      # Extra points per nearby corroborating report
+    max_corroboration_bonus: 15.0 # Max boost for dense cluster
+    radius_km: 1.0             # Radius for spatial clustering
+    time_window_minutes: 30    # Window for temporal clustering
+
+  vulnerability_bonus:
+    child_or_elderly: 8.0
+    pregnant: 10.0
+    medical_equipment: 10.0
+
+  temporal_decay:
+    half_life_hours: 6.0       # Priority slowly decays if no new updates occur
+    min_decay_factor: 0.5
+
+# Priority Tier Thresholds (0 - 100)
+thresholds:
+  critical: 75.0  # Immediate tactical dispatch (RED)
+  high: 55.0      # Urgent queue (ORANGE)
+  medium: 35.0    # Monitor & staging (YELLOW)
+  low: 0.0        # Informational / safe status (GREEN)

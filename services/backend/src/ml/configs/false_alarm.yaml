@@ -1,0 +1,81 @@
+# Project Pukar - Content-Based False Alarm & Mock Drill Configuration
+# ======================================================================
+# Detects test/drill language, contradictory disclaimers, and empty/garbage SOS payloads.
+# Complements envelope-level cryptographic signatures and mesh rate-limiting.
+# POLICY: NEVER AUTO-SUPPRESS. Emits likelihood and auditable reasons for the commander.
+
+thresholds:
+  # Likelihood threshold above which is_likely_drill is flagged True
+  drill_threshold: 0.65
+  
+  # Borderline band for optional LLM ambiguity check
+  groq_ambiguity_band:
+    min: 0.30
+    max: 0.70
+
+rule_weights:
+  explicit_test_phrase: 0.90
+  mock_drill_phrase: 0.85
+  ignore_disclaimer: 0.80
+  gibberish_or_empty: 0.75
+  trigger_type_test: 0.70
+  casual_check_phrase: 0.60
+  contradictory_disclaimer: 0.50
+
+patterns:
+  # Explicit test and trial phrases (Multilingual: EN, HI, Hinglish)
+  test_phrases:
+    - '\b(this\s+is\s+a\s+)?test\b'
+    - '\btesting(\s+1\s*2\s*3)?\b'
+    - '\btest\s*(message|msg|call|sos|alert|broadcast|packet)\b'
+    - '\bjust\s+testing\b'
+    - '\bcheck(ing)?\s+(the\s+)?(app|system|network|radio|mesh|connection|beacon)\b'
+    - '\bmic\s+check\b'
+    - '\btrial\s+run\b'
+    - '\bsample\s+alert\b'
+    - '\b(sirf|bas)\s+(test|testing|jaanch)\s+(hai|kar\s+rahe\s+hain|h)\b'
+    - '\bparikshan\b'
+    - '\bjaanch\s+sandesh\b'
+    - '\byeh\s+ek\s+parikshan\s+hai\b'
+    - '\btest\s+ho\s+raha\s+hai\b'
+
+  # Mock drills, simulations, and disaster exercises
+  drill_phrases:
+    - '\bmock\s*drill\b'
+    - '\bdisaster\s+drill\b'
+    - '\b(evacuation|fire|safety|emergency)\s+drill\b'
+    - '\bexercise\s+only\b'
+    - '\bsimulation\s+(exercise|only|test)\b'
+    - '\bdry\s+run\b'
+    - '\babhyaas\b'
+    - '\bmock\s+parikshan\b'
+    - '\btraining\s+exercise\b'
+
+  # Explicit disclaimers asking dispatchers to ignore
+  ignore_phrases:
+    - '\b(please\s+)?ignore(\s+this)?(\s+message|\s+alert|\s+sos)?\b'
+    - '\bdo\s+not\s+(respond|dispatch|send|panic)\b'
+    - '\bfalse\s+alarm\b'
+    - '\baccidental\s+(press|trigger|alert|tap|click)\b'
+    - '\bgalti\s+se\s+(dab\s+gaya|bhej\s+diya|trigger\s+ho\s+gaya)\b'
+    - '\bkripya\s+dhyan\s+na\s+de(n)?\b'
+    - '\bignore\s+karo\b'
+    - '\bkoi\s+madad\s+ki\s+jarurat\s+nahi\s+hai\b'
+    - '\bno\s+emergency\b'
+    - '\bno\s+help\s+needed\b'
+    - '\bjust\s+kidding\b'
+    - '\bmazaak\b'
+
+  # Repetitive character / garbage / keyboard smash
+  garbage_patterns:
+    - '^(.)\1{4,}$'                   # Single character repeated 5+ times (e.g. "aaaaaa")
+    - '^(asdf|qwer|zxcv|1234|test)+$' # Common keyboard smash
+    - '^[0-9\W_]+$'                   # Only punctuation or numbers without distress context
+
+test_trigger_types:
+  - "test"
+  - "manual_test"
+  - "mock_drill"
+  - "periodic_ping"
+  - "sensor_health_check"
+  - "diagnostic"

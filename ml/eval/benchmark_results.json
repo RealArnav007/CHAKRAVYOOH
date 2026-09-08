@@ -1,0 +1,35 @@
+{
+  "model_path": "ml/export/artifacts/pukar_severity_int8.tflite",
+  "model_name": "pukar_severity_int8.tflite",
+  "timestamp": "2026-09-04T08:08:40.534717+00:00",
+  "environment": {
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "processor": "arm",
+    "python_version": "3.11.16",
+    "tensorflow_version": "2.21.0"
+  },
+  "size": {
+    "size_bytes": 152960,
+    "size_kb": 149.38,
+    "size_mb": 0.1459,
+    "budget_gate_mb": 5.0,
+    "gate_passed": true
+  },
+  "latency_ms": {
+    "num_runs": 1000,
+    "warmup_runs": 50,
+    "allocation_time_ms": 7.091,
+    "cold_start_ms": 0.405,
+    "min": 0.007,
+    "mean": 0.009,
+    "p50": 0.01,
+    "p90": 0.01,
+    "p95": 0.01,
+    "p99": 0.01,
+    "max": 0.023,
+    "std_dev": 0.001,
+    "throughput_inferences_per_sec": 110788.0,
+    "target_gate_ms": 30.0,
+    "gate_passed": true
+  }
+}

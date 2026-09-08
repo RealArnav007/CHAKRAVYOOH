@@ -1,0 +1,56 @@
+{
+  "version": "1.0.0",
+  "test_vectors": [
+    {
+      "vector_id": "vector_01_trapped_debris",
+      "input_text": "Roof collapsed in flood, 4 people trapped under debris!",
+      "language": "English",
+      "expected_regex_score": 95,
+      "expected_severity": "critical",
+      "expected_category": "rescue",
+      "matched_rules": [
+        "crit_entrapment_structural"
+      ]
+    },
+    {
+      "vector_id": "vector_02_hindi_cylinder_blast",
+      "input_text": "सिलेंडर ब्लास्ट हुआ है और आग फैल रही है, तुरंत मदद भेजो",
+      "language": "Hindi",
+      "expected_regex_score": 90,
+      "expected_severity": "critical",
+      "expected_category": "fire",
+      "matched_rules": [
+        "crit_active_fire_blast"
+      ]
+    },
+    {
+      "vector_id": "vector_03_hinglish_flood_rescue",
+      "input_text": "Pani chhat tak aa gaya hai, hum 4 log fase hain bachao",
+      "language": "Hinglish",
+      "expected_regex_score": 95,
+      "expected_severity": "critical",
+      "expected_category": "rescue",
+      "matched_rules": [
+        "crit_entrapment_structural"
+      ]
+    },
+    {
+      "vector_id": "vector_04_warn_food_water",
+      "input_text": "Drinking water exhausted and rationing food for 2 days",
+      "language": "English",
+      "expected_regex_score": 15,
+      "expected_severity": "info",
+      "expected_category": "other",
+      "matched_rules": []
+    },
+    {
+      "vector_id": "vector_05_info_safe_checkin",
+      "input_text": "Hum log safe school camp me pahunch gaye hain",
+      "language": "Hinglish",
+      "expected_regex_score": 15,
+      "expected_severity": "info",
+      "expected_category": "other",
+      "matched_rules": []
+    }
+  ]
+}

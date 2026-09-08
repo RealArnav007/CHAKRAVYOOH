@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Beacon | Citizen Emergency SOS Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚨</text></svg>">
+    <link rel="stylesheet" href="css/index.css?v=3.0">
+    <link rel="stylesheet" href="/static/css/index.css?v=3.0">
+    <style>
+        .timeline-step {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            font-size: 0.92rem;
+            color: var(--text-muted);
+            transition: color 0.3s ease;
+        }
+        .timeline-step.active {
+            color: var(--color-cyan);
+            font-weight: 600;
+        }
+        .timeline-step.completed {
+            color: var(--color-green);
+            font-weight: 600;
+        }
+        .step-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid currentColor;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+        .cancel-box {
+            background: rgba(255, 59, 48, 0.12);
+            border: 1px solid var(--color-red);
+            border-radius: var(--radius-md);
+            padding: 1.25rem;
+            margin: 1.5rem 0;
+            display: none;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Enterprise Top Navigation Bar with Fancy Glassmorphic Pill Tabs -->
+    <nav class="beacon-navbar">
+        <a href="landing.html" class="beacon-brand">
+            <div class="beacon-logo-icon">🚨</div>
+            <span class="beacon-brand-name">PROJECT BEACON</span>
+        </a>
+
+        <div class="beacon-nav-links">
+            <a href="landing.html" class="beacon-nav-item">📊 Overview</a>
+            <a href="victim.html" class="beacon-nav-item active">🚨 Citizen SOS</a>
+            <a href="officer.html" class="beacon-nav-item">🛡️ Officer Command</a>
+            <a href="admin.html" class="beacon-nav-item">⚙️ National Admin</a>
+        </div>
+
+        <div>
+            <a href="#authSection" id="navAuthBtn" class="btn-auth-blue" onclick="scrollToAuthSection()">
+                🔑 Login / Auth
+            </a>
+        </div>
+    </nav>
+
+    <div class="app-container" style="max-width: 620px;">
+        <div class="glass-panel text-center" style="position: relative; z-index: 10;">
+            <h2 style="font-size: 2rem; font-weight: 900; color: var(--text-primary); margin-bottom: 0.25rem; letter-spacing: 1px;">
+                BEACON SOS
+            </h2>
+            <p style="color: var(--text-muted); font-size: 0.92rem; margin-bottom: 1rem;">
+                Offline Emergency Mesh Broadcast & Sensor Triage
+            </p>
+
+            <!-- MASSIVE GIANT GLOWING RED SOS BUTTON CONTAINER & LIVE SONAR RINGS -->
+            <div class="sos-trigger-container">
+                <div class="sos-button-wrapper">
+                    <!-- Live Double Expanding Sonar Rings -->
+                    <div class="sos-sonar-ring"></div>
+                    <div class="sos-sonar-ring" style="animation-delay: 1.5s;"></div>
+
+                    <!-- Circular Progress Ring SVG (320px x 320px) -->
+                    <svg class="sos-progress-svg" viewBox="0 0 320 320">
+                        <circle class="sos-progress-bg" cx="160" cy="160" r="150"></circle>
+                        <circle id="sosProgressFill" class="sos-progress-fill" cx="160" cy="160" r="150"></circle>
+                    </svg>
+
+                    <!-- Giant 260px x 260px Red Glowing Breathing SOS Button -->
+                    <button id="sosButton" onclick="triggerSos()" class="sos-primary-btn">
+                        SOS
+                        <span class="sos-btn-sub" style="font-size: 0.85rem !important; font-weight: 800 !important; letter-spacing: 2px !important; color: #ffffff !important; display: block !important; margin-top: 4px !important; font-family: var(--font-mono) !important;">PRESS & HOLD 2S</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Emergency Payload Text Input -->
+            <textarea id="payloadText" class="beacon-input" placeholder="Describe emergency (e.g. Trapped near flooded road, need immediate medical assistance)" rows="3" style="resize: vertical; margin-bottom: 1rem; font-size: 0.95rem;"></textarea>
+
+            <!-- Cancel Countdown Overlay Box -->
+            <div id="cancelBox" class="cancel-box">
+                <p style="color: #ff6b6b; font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem;">
+                    🚨 Emergency Signal Initiated! Cancel window active: <span id="countdown" style="font-family: var(--font-mono); font-size: 1.2rem; font-weight: bold; color: #ffffff;">5</span>s
+                </p>
+                <button onclick="cancelSos()" class="btn-danger" style="padding: 0.6rem 1.25rem; font-size: 0.85rem;">
+                    CANCEL EMERGENCY BROADCAST
+                </button>
+            </div>
+
+            <!-- Transmission Lifecycle Tracker -->
+            <div style="margin-top: 1.75rem; border-top: 1px solid var(--border-subtle); padding-top: 1.25rem; text-align: left;">
+                <h4 style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.82rem; font-family: var(--font-mono); letter-spacing: 1px; text-transform: uppercase;">
+                    Transmission Lifecycle & Routing
+                </h4>
+
+                <div class="timeline-step" id="step1">
+                    <div class="step-icon">1</div>
+                    <span>SOS Packet Created & Signed (HMAC-SHA256)</span>
+                </div>
+
+                <div class="timeline-step" id="step2">
+                    <div class="step-icon">2</div>
+                    <span>Multi-Hop Mesh Peer Broadcast (Bluetooth/Wi-Fi Direct)</span>
+                </div>
+
+                <div class="timeline-step" id="step3">
+                    <div class="step-icon">3</div>
+                    <span>Ingested by Gateway Relay Device</span>
+                </div>
+
+                <div class="timeline-step" id="step4">
+                    <div class="step-icon">4</div>
+                    <span>FastAPI Cloud Backend & Groq Llama-3 AI Triage</span>
+                </div>
+
+                <div class="timeline-step" id="step5">
+                    <div class="step-icon">5</div>
+                    <span>Emergency Officer Responding & Dispatched</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dedicated Bottom Authentication Console -->
+        <div id="authSection" class="glass-panel" style="margin-top: 1.5rem; border-color: var(--color-cyan); box-shadow: var(--glow-medium);">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+                <div class="beacon-logo-icon" style="width: 34px; height: 34px; font-size: 1rem; background: linear-gradient(135deg, var(--color-cyan), var(--color-green));">🔑</div>
+                <div>
+                    <h3 style="font-size: 1.2rem; font-weight: 800; font-family: var(--font-mono); color: var(--text-primary); margin: 0;">
+                        IDENTITY AUTHENTICATION CONSOLE
+                    </h3>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 2px;">
+                        Brevo SMTP 6-Digit OTP Login
+                    </p>
+                </div>
+            </div>
+
+            <!-- STEP 1: Email Form -->
+            <div id="authBottomStepEmail" style="max-width: 540px;">
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; font-size: 0.78rem; font-family: var(--font-mono); color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase;">
+                        OFFICIAL WORK EMAIL
+                    </label>
+                    <input type="email" id="authBottomEmailInput" class="beacon-input" placeholder="officer@beacon.app" />
+                </div>
+
+                <button id="btnBottomSendOtp" onclick="handleBottomSendOtp()" class="btn-primary" style="padding: 0.85rem 1.5rem; width: 100%;">
+                    REQUEST 6-DIGIT OTP CODE ➔
+                </button>
+                <div id="authBottomEmailMsg" style="font-size: 0.82rem; text-align: center; margin-top: 0.85rem; color: var(--color-cyan); display: none;"></div>
+            </div>
+
+            <!-- STEP 2: 6-Digit OTP Grid -->
+            <div id="authBottomStepOtp" style="max-width: 540px; display: none;">
+                <p style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 0.5rem;">
+                    Enter 6-digit verification code sent to <strong id="authBottomTargetEmail" style="color: var(--color-cyan);"></strong>.
+                </p>
+                <p style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--color-orange); margin-bottom: 1rem;">
+                    ⏱️ CODE EXPIRES IN: <span id="authBottomTimer">05:00</span>
+                </p>
+
+                <div class="otp-box-grid">
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="0" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="1" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="2" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="3" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="4" />
+                    <input type="text" maxlength="1" class="otp-digit-input-bottom" data-index="5" />
+                </div>
+
+                <button id="btnBottomVerifyOtp" onclick="handleBottomVerifyOtp()" class="btn-primary" style="padding: 0.85rem 1.5rem; width: 100%;">
+                    VERIFY & AUTHENTICATE ➔
+                </button>
+                <div id="authBottomOtpMsg" style="font-size: 0.82rem; text-align: center; margin-top: 0.85rem; color: var(--color-red); display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/mesh-bg.js?v=3.0"></script>
+    <script src="/static/js/mesh-bg.js?v=3.0"></script>
+    <script src="js/auth-modal.js?v=3.0"></script>
+    <script src="/static/js/auth-modal.js?v=3.0"></script>
+    <script src="js/victim.js?v=3.0"></script>
+    <script src="/static/js/victim.js?v=3.0"></script>
+</body>
+</html>

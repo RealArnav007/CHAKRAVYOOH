@@ -1,0 +1,12 @@
+{
+  "experiment_name": "intensity_stage_b",
+  "timestamp": "2026-09-08T15:12:11.887236+00:00",
+  "git_commit": "2f277e8a067e05cdc2fd373c0e5f2533eb46c721",
+  "split_manifest_hash": "1389ac12a36e4979",
+  "config": {
+    "backbone": "efficientnet_b0",
+    "lr": 0.0002,
+    "stage_b_epochs": 2,
+    "no_pretrain": false
+  }
+}

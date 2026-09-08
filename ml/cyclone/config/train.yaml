@@ -1,0 +1,48 @@
+# ==============================================================================
+# Chakravyuh Cyclone Intelligence Engine — Training & Optimization Config
+# ==============================================================================
+
+# General training setup
+experiment_name: "cyclone_brain_v1"
+output_dir: "ml/cyclone/checkpoints"
+seed: 42
+num_workers: 4
+
+# Optimization hyperparameters
+optimization:
+  batch_size: 32
+  epochs: 50
+  learning_rate: 0.0003
+  weight_decay: 0.0001
+  grad_clip_norm: 1.0
+  mixed_precision: true                     # FP16 / AMP for acceleration
+
+# Learning rate scheduler
+scheduler:
+  type: "cosine_with_warmup"                # "cosine_with_warmup", "step", "reduce_on_plateau"
+  warmup_epochs: 5
+  min_lr: 0.000001
+
+# Multi-Task Loss Weighting
+loss_weights:
+  strategy: "homoscedastic_learnable"       # "homoscedastic_learnable" (Kendall & Gal 2018) or "fixed"
+  initial_weights:
+    detection_bce: 1.0
+    stage_ce: 1.0
+    intensity_huber: 1.0
+    intensity_ce: 0.5
+    track_haversine: 2.0
+    uncertainty_nll: 0.5
+
+# Data Augmentation (Rotation invariance is critical for cyclones)
+augmentation:
+  random_rotation: true                     # 0 - 360 deg physically valid rotation
+  random_horizontal_flip: false             # Flipped storms violate Coriolis vorticity
+  random_vertical_flip: false
+  random_brightness_jitter: 0.05
+
+# Early Stopping & Validation
+validation:
+  eval_every_n_epochs: 1
+  patience: 10
+  primary_metric: "val_track_error_km"     # Checkpoint selection metric
