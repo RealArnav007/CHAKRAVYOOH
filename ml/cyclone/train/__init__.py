@@ -1,1 +1,5 @@
-"""Training loops, loss functions, learning rate schedules, and tracking."""
+"""Training pipeline and model trainers."""
+
+from ml.cyclone.train.train_detection import train_detection
+
+__all__ = ["train_detection"]

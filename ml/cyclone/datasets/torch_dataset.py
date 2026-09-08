@@ -76,6 +76,7 @@ class CycloneDataset(Dataset):
             return {
                 "image": image_tensor,
                 "image_available": image_available,
+                "detected": targets_dict["detected"],
                 "wind_kt": targets_dict["wind_kt"],
                 "pres_mb": targets_dict["pres_mb"],
                 "imd_level_idx": targets_dict["imd_level_idx"],
@@ -118,6 +119,7 @@ def cyclone_collate_fn(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
         return {
             "image": images,
             "image_available": images_available,
+            "detected": torch.stack([item["detected"] for item in batch], dim=0),
             "wind_kt": torch.stack([item["wind_kt"] for item in batch], dim=0),
             "pres_mb": torch.stack([item["pres_mb"] for item in batch], dim=0),
             "imd_level_idx": torch.stack([item["imd_level_idx"] for item in batch], dim=0),
@@ -152,4 +154,63 @@ def cyclone_collate_fn(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
     }
 
 
-__all__ = ["CycloneDataset", "cyclone_collate_fn"]
+def generate_negative_samples(
+    num_samples: int = 20,
+    image_shape: tuple[int, int] = (224, 224),
+    seed: int = 42,
+) -> List[Dict[str, Any]]:
+    """Generates non-cyclone negative sample dictionaries (calm open ocean / low-wind timesteps).
+
+    Used for balanced binary detection pretraining to guard models against false-positive triggers
+    on quiescent background ocean scenes.
+
+    Args:
+        num_samples: Number of negative samples to synthesize.
+        image_shape: (H, W) spatial shape for satellite IR tensor.
+        seed: Random seed for reproducibility.
+
+    Returns:
+        List of sample dictionaries with detected=0.0 and low wind values.
+    """
+    rng = np.random.RandomState(seed)
+    neg_samples: List[Dict[str, Any]] = []
+
+    for i in range(num_samples):
+        # Calm ocean background: wind 5-12 kt, normal sea level pressure 1010-1016 mb
+        wind_kt = float(rng.uniform(4.0, 12.0))
+        pres_mb = float(rng.uniform(1010.0, 1015.0))
+        lat = float(rng.uniform(5.0, 20.0))
+        lon = float(rng.uniform(70.0, 90.0))
+
+        # Synthetic warm ocean IR background (uniform high brightness temp ~295-300K normalized [0.75-0.95] with low spatial variance)
+        base_brightness = rng.uniform(0.75, 0.95)
+        noise = rng.normal(0.0, 0.02, size=(1, image_shape[0], image_shape[1])).astype(np.float32)
+        ir_patch = np.clip(base_brightness + noise, 0.0, 1.0)
+
+        neg_samples.append({
+            "storm_id": f"NON_CYCLONE_BG_{i:03d}",
+            "time": f"2022-01-{(i % 28) + 1:02d}T00:00:00Z",
+            "lat": round(lat, 4),
+            "lon": round(lon, 4),
+            "wind_kt": round(wind_kt, 1),
+            "pres_mb": round(pres_mb, 1),
+            "storm_speed_kt": 0.0,
+            "heading_deg": 0.0,
+            "image_path": None,
+            "image_tensor": ir_patch,
+            "image_available": True,
+            "env": {
+                "sst_c": 28.5,
+                "shear_ms": 5.0,
+                "rh500": 45.0,
+                "vort850": 2.0,
+                "mslp_mb": pres_mb,
+                "wind10m_ms": 3.0,
+            },
+            "history": [],
+        })
+
+    return neg_samples
+
+
+__all__ = ["CycloneDataset", "cyclone_collate_fn", "generate_negative_samples"]
