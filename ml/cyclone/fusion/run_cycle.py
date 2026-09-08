@@ -12,7 +12,6 @@ import numpy as np
 import torch
 
 from ml.cyclone.config import CycloneConfig, load_config
-from ml.cyclone.eval.error_analysis import DEMO_STORMS_DATA
 from ml.cyclone.features.fusion import (
     DEFAULT_HORIZONS,
     IMD_LEVEL_MAP,
@@ -205,6 +204,7 @@ def load_sample_for_cycle(
         }
 
     # 2. Check landmark demo storms (Amphan, Fani, Biparjoy)
+    from ml.cyclone.eval.error_analysis import DEMO_STORMS_DATA
     matched_key = None
     for k in DEMO_STORMS_DATA.keys():
         if k in norm_id or norm_id in k or norm_id.split("_")[0] in k:

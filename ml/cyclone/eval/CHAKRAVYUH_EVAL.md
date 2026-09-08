@@ -1,7 +1,7 @@
 # 🌪️ CHAKRAVYUH CYCLONE INTELLIGENCE ENGINE
 ## Official Comprehensive Model Evaluation & Operational Readiness Report
 
-**Generated:** 2026-09-08 15:25:21 UTC  
+**Generated:** 2026-09-08 17:15:58 UTC  
 **Target Basin:** North Indian Ocean (Bay of Bengal & Arabian Sea)  
 **Evaluated Architecture:** Multi-Modal `FusionNet` (Satellite IR `resnet18/efficientnet_b0` + ERA5 Atmospheric MLP + Kinematic GRU)  
 **Evaluation Standard:** Zero-Leakage Spatio-Temporal Held-Out Test Splits & Real Historical Storm Replays  

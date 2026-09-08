@@ -323,9 +323,20 @@ class Trainer:
         metric_val: float,
         val_metrics: Dict[str, Any],
     ) -> None:
-        """Saves full resumable model and optimizer state dictionary."""
+        """Saves full resumable model and optimizer state dictionary with git commit and config hash provenance."""
+        from ml.cyclone.train.track_experiment import get_git_commit_hash
+        git_hash = get_git_commit_hash()
+        
+        config_p = Path("ml/cyclone/config/model.best.yaml")
+        config_hash = "none"
+        if config_p.is_file():
+            import hashlib
+            config_hash = hashlib.sha256(config_p.read_bytes()).hexdigest()[:16]
+
         ckpt = {
             "epoch": epoch,
+            "git_commit": git_hash,
+            "config_hash": config_hash,
             "model_state_dict": self.model.state_dict(),
             "optimizer_state_dict": self.optimizer.state_dict(),
             "scheduler_state_dict": self.scheduler.state_dict() if self.scheduler else None,

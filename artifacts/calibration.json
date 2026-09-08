@@ -1,22 +1,27 @@
 {
+  "metadata": {
+    "timestamp": "2026-09-08T17:15:55.287864+00:00",
+    "git_commit": "4d1a169b4f6dedecf9b75a1c080291d4c154af69",
+    "config_hash": "e982929465d58613"
+  },
   "detection": {
-    "temperature": 1.3546174764633179
+    "temperature": 1.3445587158203125
   },
   "stage": {
-    "temperature": 2.912426233291626
+    "temperature": 2.981785535812378
   },
   "intensity_cls": {
-    "temperature": 1.4513459205627441
+    "temperature": 3.056743621826172
   },
   "track_cone": {
     "target_coverage": 0.95,
-    "global_multiplier": 3.4607,
+    "global_multiplier": 3.212,
     "per_horizon_multipliers": {
-      "6h": 0.5,
-      "12h": 1.108,
-      "24h": 1.2224,
-      "48h": 2.7183,
-      "72h": 3.943
+      "6h": 0.6444,
+      "12h": 1.0399,
+      "24h": 1.675,
+      "48h": 3.0937,
+      "72h": 3.6867
     }
   }
 }

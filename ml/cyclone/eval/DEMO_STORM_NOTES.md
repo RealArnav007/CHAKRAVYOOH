@@ -1,7 +1,7 @@
 # 🎙️ CHAKRAVYUH PITCH NARRATION & DEMO STORM ERROR ANALYSIS
 ## Tactical Judge-Facing Talking Points, Strength Highlights & Governance Notes
 
-**Generated:** 2026-09-08 15:28:35 UTC  
+**Generated:** 2026-09-08 17:16:01 UTC  
 **Basin Coverage:** North Indian Ocean (Bay of Bengal & Arabian Sea)  
 **Key Strategy:** Highlight transformative multi-modal neural capabilities (recurvature, rapid intensification, anisotropic cones) while demonstrating airtight maturity regarding known edge cases and deterministic Tier-0 gating.
 
@@ -65,7 +65,7 @@
 3. **Eye Wall Organization & Peak Sustained Winds**: Automated Dvorak head correctly classified Fani as an Extremely Severe Cyclonic Storm (ESCS) at peak 115 kt.
 
 ### ⚠️ Known Weak Moments & How to Proactively Address Them
-1. **Early Low-Latitude Genesis Jitter (0h–6h)**: Near equator (5°N), weak Coriolis forces cause wandering depression centers. *Talking Point*: Emphasize our Tier-0 inertial gate that locks short-term $t \le 6$h trajectory to persistence, avoiding erratic neural swings.
+1. **Early Low-Latitude Genesis Jitter (0h–6h)**: Near equator (5°N), weak Coriolis forces cause wandering depression centers. *Talking Point*: Emphasize our Tier-0 inertial gate that locks short-term t <= 6h trajectory to persistence, avoiding erratic neural swings.
 2. **High Environmental Shear Boundary**: Minor 6 kt under-prediction during rapid shear transition.
 
 ### 📋 Intensity Estimation Error by IMD Category

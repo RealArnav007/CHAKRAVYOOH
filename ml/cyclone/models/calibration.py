@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import json
 import math
 from pathlib import Path
@@ -230,10 +231,24 @@ class ModelCalibrator:
         self.cone_recalibrator = VarianceRecalibrator(target_coverage=0.95)
 
     def save(self, filepath: Union[str, Path]) -> Path:
-        """Persists all calibration parameters to JSON."""
+        """Persists all calibration parameters to JSON with git commit and config hash provenance."""
         path = Path(filepath)
         path.parent.mkdir(parents=True, exist_ok=True)
+        
+        from ml.cyclone.train.track_experiment import get_git_commit_hash
+        git_hash = get_git_commit_hash()
+        config_p = Path("ml/cyclone/config/model.best.yaml")
+        config_hash = "none"
+        if config_p.is_file():
+            import hashlib
+            config_hash = hashlib.sha256(config_p.read_bytes()).hexdigest()[:16]
+
         data = {
+            "metadata": {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "git_commit": git_hash,
+                "config_hash": config_hash,
+            },
             "detection": self.detection_scaler.to_dict(),
             "stage": self.stage_scaler.to_dict(),
             "intensity_cls": self.intensity_scaler.to_dict(),

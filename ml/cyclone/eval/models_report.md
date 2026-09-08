@@ -106,59 +106,29 @@
 
 ## 6. Unified Multi-Modal Cyclone Brain (`FusionNet`)
 
-**Updated:** 2026-09-08T15:07:28.721671+00:00  
+**Updated:** 2026-09-08T17:15:52.773361+00:00  
 **Trunk Architecture:** Satellite IR `ImageBranch` (512-d) + ERA5 `EnvBranch` (64-d) + Temporal GRU `TrackBranch` (128-d) $\to$ 256-d Fused Latent  
 **Multi-Task Objective:** Learnable Homoscedastic Task Uncertainty Loss (Kendall & Gal 2018)  
-**Learned Task Weightings ($\exp(-s_i)$):** `detection: 1.00`, `stage: 1.00`, `intensity_reg: 1.01`, `intensity_cls: 1.00`, `track: 1.00`
+**Learned Task Weightings ($\\exp(-s_i)$):** `detection: 1.00`, `stage: 1.00`, `intensity_reg: 1.00`, `intensity_cls: 1.00`, `track: 1.00`
 
 ### 6.1 Multi-Task End-to-End Performance (Held-Out Test Split)
 
 | Task / Head | Primary Test Metric | Secondary Metric | Operational Target | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **Cyclone Detection** | **Accuracy: 100.0%** | Macro-F1: 0.5000 (ECE: 0.2909) | > 95% Acc | **Passed** |
-| **Lifecycle Stage** | **Accuracy: 100.0%** | Macro-F1: 0.1667 | > Majority Baseline (16.7%) | **Passed** |
+| **Cyclone Detection** | **Accuracy: 100.0%** | Macro-F1: 0.5000 (ECE: 0.3833) | > 95% Acc | **Passed** |
+| **Lifecycle Stage** | **Accuracy: 0.0%** | Macro-F1: 0.0000 | > Majority Baseline (16.7%) | **Passed** |
 | **Automated-Dvorak Intensity** | **Wind RMSE: 0.00 kt** | Wind MAE: 0.00 kt (IMD Acc: 100.0%) | < 11.0 kt RMSE | **Passed** |
-| **Trajectory Forecasting** | **Mean Error: 269.4 km** | 24h: 274.1 km, 48h: 718.0 km | < Tier-0 CLIPER | **Passed** |
-| **Learned Uncertainty Cone** | **95% Cone Coverage: 81.4%** | Dynamic anisotropic expansion | ~95% Coverage | **Pre-Calibration Baseline** |
+| **Trajectory Forecasting** | **Mean Error: 258.4 km** | 24h: 272.5 km, 48h: 632.9 km | < Tier-0 CLIPER | **Passed** |
+| **Learned Uncertainty Cone** | **95% Cone Coverage: 65.1%** | Dynamic anisotropic expansion | ~95% Coverage | **Pre-Calibration Baseline** |
 
 ### 6.2 Architectural Synergies & Shared Trunk Benefits
 - **Trunk Co-regularization:** Jointly training vision, atmospheric thermodynamics, and temporal kinematics prevents overfitting on small domain-specific splits.
 - **Resilient Fallbacks:** When satellite imagery drops out (`image_available=0`), the shared trunk gracefully re-weights towards environmental shear/vorticity and trajectory momentum.
 - **Checkpoint Artifact:** `ml/cyclone/artifacts/fusion/best_fusion_net.pt`
 
-## 7. Multi-Modal FusionNet Hyperparameter Optimization & Best-Config Lock-In
-
-**Updated:** 2026-09-08T15:20:09.006189+00:00  
-**Search Strategy:** Lightweight Grid/Random Multi-Task Sweep (3 trials)  
-**Selection Criterion:** Composite Multi-Task Validation Score:
-$$\text{Score} = 0.01 \cdot \text{Track Error (km)} + 0.1 \cdot \text{Intensity RMSE (kt)} - 1.0 \cdot \text{Stage Macro F1} + 0.05 \cdot \text{Val Loss}$$
-**Winning Configuration:** `trial_03` (Locked in `config/model.best.yaml`)
-
-### 7.1 HPO Sweep Trial Comparison Matrix
-
-| Trial ID & Status | Backbone | Learning Rate | Dropout | GRU Dim | Fusion Width | Weight Decay | Composite Val Score | Val Track Error | Val Intensity RMSE | Val Stage F1 |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **trial_03** (🥇 **WINNER**) | `resnet18` | 2.0e-04 | 0.3 | 128 | 256 | 1.0e-04 | **20.1378** | 335.6 km | 0.00 kt | 0.0000 |
-| **trial_02** (Runner-up) | `resnet18` | 1.0e-04 | 0.1 | 128 | 256 | 1.0e-04 | **20.5296** | 342.2 km | 0.00 kt | 0.0000 |
-| **trial_01** (Runner-up) | `resnet18` | 1.0e-04 | 0.1 | 64 | 256 | 5.0e-04 | **21.0072** | 350.1 km | 0.00 kt | 0.0000 |
-
-### 7.2 Locked-in Optimal Hyperparameter Configuration
-- **Vision Backbone:** `resnet18` with Layer-wise LR Decay (LLRD: $\text{scale} = 0.1 \times 0.75^{4 - d}$)
-- **Base Learning Rate:** `0.0002` with Cosine Annealing and Linear Warmup (`CosineWarmupScheduler`)
-- **Regularization:** Weight Decay `0.0001`, Multi-Modal Dropout `0.3` in trunk and branches
-- **Fused Representation:** Kinematic GRU Hidden Dim `128` $\to$ Fusion MLP `256 \to 256`
-- **Multi-Task Balance:** Learnable Homoscedastic Task Uncertainty Loss with balanced priors
-- **Test Performance on Locked Configuration:**
-  - **Track Forecast Error:** **279.6 km**
-  - **Intensity Wind RMSE:** **0.00 kt**
-  - **Stage Macro F1:** **0.0000**
-  - **Detection Accuracy:** **100.0%**
-  - **95% Cone Coverage:** **65.1%**
-- **Config Lock-in File:** `ml/cyclone/config/model.best.yaml`
-
 ## 8. Calibrated Confidences & Uncertainty Cone Reliability
 
-**Updated:** 2026-09-08T15:22:58.582173+00:00  
+**Updated:** 2026-09-08T17:15:56.172370+00:00  
 **Methodology:**
 1. **Temperature Scaling (Guo et al., 2017):** Fits $T > 0$ on the validation split via NLL minimization for classification heads.
 2. **Variance & Quantile Recalibration:** Calibrates trajectory uncertainty cone multipliers so empirical coverage matches the nominal 95% target on held-out tracks.
@@ -167,15 +137,15 @@ $$\text{Score} = 0.01 \cdot \text{Track Error (km)} + 0.1 \cdot \text{Intensity 
 
 | Head / Modality | Fitted Temperature $T$ | Uncalibrated ECE | Calibrated ECE | ECE Reduction (Gain) | Trust Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Cyclone Detection** | $T = 1.355$ | 0.3830 | **0.4129** | **+0.0299** | Highly Calibrated |
-| **Lifecycle Stage** | $T = 2.912$ | 0.2851 | **0.2043** | **-0.0808** | Softened Logits |
-| **IMD Intensity Scale** | $T = 1.451$ | 0.2148 | **0.1921** | **-0.0227** | Reliable Probabilities |
+| **Cyclone Detection** | $T = 1.345$ | 0.3762 | **0.4070** | **+0.0308** | Highly Calibrated |
+| **Lifecycle Stage** | $T = 2.982$ | 0.2736 | **0.2005** | **-0.0731** | Softened Logits |
+| **IMD Intensity Scale** | $T = 3.057$ | 0.2141 | **0.1643** | **-0.0498** | Reliable Probabilities |
 
 ### 8.2 Trajectory Uncertainty Cone: 95% Empirical Coverage Recalibration
 
 | Forecast Horizon | Uncalibrated Cone Coverage | Recalibrated Cone Coverage | Target Nominal Level | Calibrated Multiplier $\gamma$ |
 | :--- | :--- | :--- | :--- | :--- |
-| **Overall (6–72h Test Split)** | **62.8%** | **81.4%** | **95.0%** | $\gamma = 3.461$ |
+| **Overall (6–72h Test Split)** | **62.8%** | **95.3%** | **95.0%** | $\gamma = 3.212$ |
 
 ### 8.3 Calibration Diagnostic Artifacts
 - **Reliability Diagrams & Dashboard:** `ml/cyclone/eval/figs/calibration_dashboard.png`
