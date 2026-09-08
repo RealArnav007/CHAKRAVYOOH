@@ -1,0 +1,57 @@
+model_name: chakravyuh-fusion-net-best
+model_version: 1.0.0-tuned
+device: auto
+hpo_status: locked_best
+tier1:
+  image_branch:
+    backbone: resnet18
+    pretrained: true
+    in_channels: 1
+    embedding_dim: 512
+    dropout: 0.3
+  env_branch:
+    input_dim: 6
+    hidden_dims:
+    - 64
+    - 128
+    embedding_dim: 64
+    dropout: 0.15
+  track_branch:
+    input_dim: 7
+    hidden_dim: 128
+    num_layers: 2
+    embedding_dim: 128
+    bidirectional: false
+    dropout: 0.15
+  fusion_trunk:
+    hidden_dims:
+    - 256
+    - 256
+    dropout: 0.3
+  heads:
+    forecast_horizons_hours:
+    - 0
+    - 6
+    - 12
+    - 24
+    - 48
+    - 72
+    num_stage_classes: 6
+    num_intensity_classes: 7
+    uncertainty_method: heteroscedastic
+optimization:
+  learning_rate: 0.0002
+  weight_decay: 0.0001
+  backbone_lr_ratio: 0.1
+  layer_decay: 0.75
+  scheduler: cosine_with_warmup
+  warmup_epochs: 1
+  early_stopping_patience: 5
+loss_weights:
+  strategy: homoscedastic_learnable
+  initial_weights:
+    detection: 0.0
+    stage: 0.0
+    intensity_reg: 0.0
+    intensity_cls: 0.0
+    track: 0.0

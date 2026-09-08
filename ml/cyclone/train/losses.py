@@ -142,6 +142,7 @@ class MultiTaskLoss(nn.Module):
     def __init__(
         self,
         class_weights: Optional[Dict[str, torch.Tensor]] = None,
+        init_log_vars: Optional[Dict[str, float]] = None,
         huber_beta: float = 5.0,
         min_log_var: float = -4.0,
         max_log_var: float = 6.0,
@@ -151,12 +152,13 @@ class MultiTaskLoss(nn.Module):
         self.max_log_var = max_log_var
 
         # Learnable log-variance parameters s_i = log(sigma_i^2)
+        inits = init_log_vars or {}
         self.log_vars = nn.ParameterDict({
-            "detection": nn.Parameter(torch.tensor(0.0)),
-            "stage": nn.Parameter(torch.tensor(0.0)),
-            "intensity_reg": nn.Parameter(torch.tensor(0.0)),
-            "intensity_cls": nn.Parameter(torch.tensor(0.0)),
-            "track": nn.Parameter(torch.tensor(0.0)),
+            "detection": nn.Parameter(torch.tensor(float(inits.get("detection", 0.0)))),
+            "stage": nn.Parameter(torch.tensor(float(inits.get("stage", 0.0)))),
+            "intensity_reg": nn.Parameter(torch.tensor(float(inits.get("intensity_reg", 0.0)))),
+            "intensity_cls": nn.Parameter(torch.tensor(float(inits.get("intensity_cls", 0.0)))),
+            "track": nn.Parameter(torch.tensor(float(inits.get("track", 0.0)))),
         })
 
         # Task loss functions

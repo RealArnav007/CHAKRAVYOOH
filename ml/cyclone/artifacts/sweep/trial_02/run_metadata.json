@@ -1,0 +1,21 @@
+{
+  "experiment_name": "sweep_trial_02",
+  "timestamp": "2026-09-08T15:20:03.313174+00:00",
+  "git_commit": "93c782e4525efe9eef5ab3390d1bc3c9f598d0f6",
+  "split_manifest_hash": "1389ac12a36e4979",
+  "config": {
+    "lr": 0.0001,
+    "weight_decay": 0.0001,
+    "dropout": 0.1,
+    "backbone": "resnet18",
+    "track_hidden_dim": 128,
+    "fusion_hidden_dim": 256,
+    "loss_init": {
+      "detection": 0.0,
+      "stage": 0.0,
+      "intensity_reg": 0.0,
+      "intensity_cls": 0.0,
+      "track": 0.0
+    }
+  }
+}
