@@ -8,6 +8,7 @@ import logging
 from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 
+from ml.cyclone.preprocess.scales import wind_kt_to_saffir_simpson
 from ml.cyclone.schema.models import (
     ClassificationPayload,
     CycloneIntelligence,
@@ -74,9 +75,9 @@ def select_tier(
     cfg = config if isinstance(config, ConfidenceGatesConfig) else ConfidenceGatesConfig(**(config or {}))
 
     # Check input availability flags
-    has_image = bool(inputs.get("image_available", False)) or (inputs.get("image") is not None)
-    has_env = bool(inputs.get("env_available", False)) or (inputs.get("env_vector") is not None)
-    has_track = bool(inputs.get("track_available", True)) and (inputs.get("track_sequence") is not None or inputs.get("track_history") is not None or "lat" in inputs)
+    has_image = bool(inputs.get("image_available", False))
+    has_env = bool(inputs.get("env_available", False))
+    has_track = bool(inputs.get("track_available", True))
 
     # 1. Failure mode check: If only track is available and both image & env are missing -> Fallback to Tier-0
     if not has_image and not has_env:
@@ -91,12 +92,18 @@ def select_tier(
     # -------------------------------------------------------------------------
 
     if field == "identification":
+        det_flag = bool(tier1_out.get("detected", False)) if isinstance(tier1_out, dict) else getattr(tier1_out, "detected", False)
         conf = _extract_confidence(tier1_out)
         if conf is None:
             return tier0_out, "tier0", "Tier-1 identification confidence missing -> Tier-0 fallback"
+
+        obs_wind = float(inputs.get("wind_kt", 0.0))
         if conf >= cfg.min_detection_confidence:
+            if not det_flag and not has_image and obs_wind >= 17.0:
+                return tier0_out, "tier0", f"Tier-1 (no-image) non-detection overridden by observed wind ({obs_wind} kt >= 17 kt) -> Tier-0 fallback"
             source = "tier1 (image+env)" if has_image else "tier1 (env+track fallback)"
-            return tier1_out, "tier1", f"Detection confidence ({conf:.2f}) >= threshold ({cfg.min_detection_confidence:.2f}) via {source}"
+            status_str = "Detection" if det_flag else "Non-detection"
+            return tier1_out, "tier1", f"{status_str} confidence ({conf:.2f}) >= threshold ({cfg.min_detection_confidence:.2f}) via {source}"
         else:
             return tier0_out, "tier0", f"Detection confidence ({conf:.2f}) < threshold ({cfg.min_detection_confidence:.2f}) -> Tier-0 fallback"
 
@@ -155,6 +162,7 @@ def gate_and_assemble_cyclone_intelligence(
     basin: str = "North Indian Ocean",
     timestamp: Optional[str] = None,
     model_version: str = "chakravyuh-fusion-net-v1.0",
+    extra: Optional[Dict[str, Any]] = None,
 ) -> CycloneIntelligence:
     """Gates per-field outputs and builds a certified, schema-validated CycloneIntelligence object.
 
@@ -228,16 +236,17 @@ def gate_and_assemble_cyclone_intelligence(
 
         # Build active sources list
         active_sources = []
-        if inputs.get("image_available", False) or inputs.get("image") is not None:
+        if bool(inputs.get("image_available", False)):
             active_sources.append("insat3d_ir")
-        if inputs.get("env_available", False) or inputs.get("env_vector") is not None:
+        if bool(inputs.get("env_available", False)):
             active_sources.append("era5")
-        if inputs.get("track_available", True):
+        if bool(inputs.get("track_available", True)):
             active_sources.append("ibtracs_track")
         if not active_sources:
             active_sources = ["ibtracs_climatology"]
 
         extra_metadata = {
+            "saffir_simpson": wind_kt_to_saffir_simpson(int_obj.max_wind_kt),
             "provenance": {
                 "sources": provenance_sources,
                 "reasons": provenance_reasons,
@@ -245,6 +254,12 @@ def gate_and_assemble_cyclone_intelligence(
             },
             "active_modalities": active_sources,
         }
+        if extra:
+            for k, v in extra.items():
+                if k == "provenance" and isinstance(v, dict):
+                    extra_metadata["provenance"].update(v)
+                else:
+                    extra_metadata[k] = v
 
         # Assemble Master Payload
         return CycloneIntelligence(
