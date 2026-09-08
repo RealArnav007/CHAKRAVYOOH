@@ -104,103 +104,71 @@ def train_track(
         track_layers=2,
         num_horizons=len(DEFAULT_TRACK_HORIZONS),
         decoder_type=decoder_type,
-    ).to(compute_device)
+    )
 
     nll_criterion = GaussianNLLLoss(min_log_var=-7.0, max_log_var=7.0)
-    haversine_metric = HaversineMetricLoss()
-
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max(1, epochs))
 
-    best_val_err = float("inf")
-    best_checkpoint_path = save_dir / "best_track_model.pt"
-    history: List[Dict[str, Any]] = []
+    def track_step_fn(m: nn.Module, batch: Dict[str, Any], crit: Any, dev: torch.device) -> Tuple[torch.Tensor, Dict[str, Any]]:
+        env = torch.nan_to_num(batch["env_vector"].to(dev), nan=0.0)
+        track = torch.nan_to_num(batch["track_sequence"].to(dev), nan=0.0)
+        target_deltas = torch.nan_to_num(batch["targets"]["future_deltas"].to(dev), nan=0.0)
+        horizon_masks = batch["targets"]["horizon_masks"].to(dev)
 
-    # 3. Training Loop
-    print(f"[TRACK] Starting probabilistic training (Gaussian NLL) for {epochs} epochs...")
-    for epoch in range(1, epochs + 1):
-        model.train()
-        train_nll_losses = []
-        train_hav_losses = []
+        winds = torch.tensor([meta.get("wind_kt", 25.0) for meta in batch["meta"]], dtype=torch.float32, device=dev)
+        sample_w = torch.clamp(1.0 + (winds - 34.0) * 0.02, min=0.8, max=2.5)
 
-        for batch in train_loader:
-            env = torch.nan_to_num(batch["env_vector"].to(compute_device), nan=0.0)
-            track = torch.nan_to_num(batch["track_sequence"].to(compute_device), nan=0.0)
-            target_deltas = torch.nan_to_num(batch["targets"]["future_deltas"].to(compute_device), nan=0.0)
-            horizon_masks = batch["targets"]["horizon_masks"].to(compute_device)
-
-            # Analysis coordinates (lat0, lon0)
-            coords = torch.stack([
-                torch.tensor([m["lat"] for m in batch["meta"]], dtype=torch.float32, device=compute_device),
-                torch.tensor([m["lon"] for m in batch["meta"]], dtype=torch.float32, device=compute_device),
-            ], dim=1)
-
-            # Intensity-based sample weights (scale up severe cyclones)
-            winds = torch.tensor([m.get("wind_kt", 25.0) for m in batch["meta"]], dtype=torch.float32, device=compute_device)
-            sample_w = torch.clamp(1.0 + (winds - 34.0) * 0.02, min=0.8, max=2.5)
-
-            optimizer.zero_grad()
-            out = model(env_vector=env, track_sequence=track)
-
-            # Primary optimization objective: Gaussian NLL (mean + log-variance)
-            nll_loss = nll_criterion(
-                pred_mu=out["deltas"],
-                pred_log_var=out["log_vars"],
-                target=target_deltas,
-                horizon_masks=horizon_masks,
-                sample_weights=sample_w,
-            )
-
-            # Reported track distance metric in km
-            with torch.no_grad():
-                hav_loss = haversine_metric(
-                    pred_deltas=out["deltas"],
-                    target_deltas=target_deltas,
-                    current_coords=coords,
-                    horizon_masks=horizon_masks,
-                    sample_weights=sample_w,
-                )
-
-            if not torch.isnan(nll_loss):
-                nll_loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
-                optimizer.step()
-                train_nll_losses.append(nll_loss.item())
-                train_hav_losses.append(hav_loss.item())
-
-        scheduler.step()
-        val_met = evaluate_probabilistic_track_model(model, val_loader, compute_device, mc_samples=1)
-        v_errs = val_met["errors_by_horizon_km"]
-        mean_err = val_met["mean_error_km"]
-        val_cov = val_met["cone_coverage"]["coverage_pct"]
-
-        print(
-            f"Epoch {epoch:02d}/{epochs:02d} | NLL Loss: {np.mean(train_nll_losses) if train_nll_losses else 0.0:.3f} | "
-            f"Train Hav: {np.mean(train_hav_losses) if train_hav_losses else 0.0:.1f} km | "
-            f"Val Error: {mean_err:.1f} km | Val Cone Cov: {val_cov:.1f}% | 24h: {v_errs.get('24h', 0.0):.1f} km"
+        out = m(env_vector=env, track_sequence=track)
+        loss = crit(
+            pred_mu=out["deltas"],
+            pred_log_var=out["log_vars"],
+            target=target_deltas,
+            horizon_masks=horizon_masks,
+            sample_weights=sample_w,
         )
+        return loss, {"loss": loss.item()}
 
-        history.append({
-            "epoch": epoch,
-            "train_nll_loss": round(float(np.mean(train_nll_losses) if train_nll_losses else 0.0), 4),
-            "train_haversine_km": round(float(np.mean(train_hav_losses) if train_hav_losses else 0.0), 2),
-            "val_mean_error_km": mean_err,
-            "val_cone_coverage_pct": val_cov,
-            "val_errors_by_horizon": v_errs,
-        })
+    tracker = ExperimentTracker(
+        experiment_name="probabilistic_track",
+        run_dir=save_dir,
+        config={"decoder_type": decoder_type, "lr": lr, "batch_size": batch_size, "epochs": epochs},
+        split_indices=splits,
+    )
 
-        if mean_err <= best_val_err:
-            best_val_err = mean_err
-            torch.save({
-                "epoch": epoch,
-                "model_state_dict": model.state_dict(),
-                "val_metrics": val_met,
-                "decoder_type": decoder_type,
-            }, best_checkpoint_path)
+    def track_eval_wrapper(m: nn.Module, dl: DataLoader, dev: torch.device) -> Dict[str, Any]:
+        met = evaluate_probabilistic_track_model(m, dl, dev, mc_samples=1)
+        return {
+            "mean_error_km": met["mean_error_km"],
+            "val_loss": met["mean_error_km"],
+            "cone_coverage_pct": met["cone_coverage"]["coverage_pct"],
+        }
+
+    trainer = Trainer(
+        model=model,
+        criterion=nll_criterion,
+        train_loader=train_loader,
+        val_loader=val_loader,
+        test_loader=test_loader,
+        optimizer=optimizer,
+        scheduler=scheduler,
+        device=compute_device,
+        save_dir=save_dir,
+        tracker=tracker,
+        step_fn=track_step_fn,
+        eval_fn=track_eval_wrapper,
+        early_stopping_metric="mean_error_km",
+        early_stopping_mode="min",
+        early_stopping_patience=10,
+        checkpoint_prefix="best_track_model",
+    )
+
+    trainer_summary = trainer.train(epochs=epochs)
 
     # 4. Final Evaluation on Held-Out Test Split
     print(f"[TRACK] Evaluating best learned model on held-out test split (MC samples: {mc_samples})...")
-    best_ckpt = torch.load(best_checkpoint_path, map_location=compute_device)
+    best_ckpt_path = save_dir / "best_track_model.pt"
+    best_ckpt = torch.load(best_ckpt_path, map_location=compute_device)
     model.load_state_dict(best_ckpt["model_state_dict"])
     learned_test_metrics = evaluate_probabilistic_track_model(
         model, test_loader, compute_device, mc_samples=mc_samples
@@ -216,7 +184,6 @@ def train_track(
         l_err = learned_test_metrics["errors_by_horizon_km"].get(h_str, 0.0)
         c_err = cliper_test_metrics["errors_by_horizon_km"].get(h_str, 0.0)
         delta = round(l_err - c_err, 2)
-        h_int = int(h_str.replace("h", ""))
         cov_pct = learned_test_metrics["cone_coverage"]["coverage_by_horizon_pct"].get(h_str, 0.0)
         mean_radius = learned_test_metrics["mean_cone_radii_km"].get(h_str, 0.0)
 
@@ -234,24 +201,17 @@ def train_track(
         "decoder_type": decoder_type,
         "mc_samples": mc_samples,
         "epochs": epochs,
-        "best_epoch": best_ckpt["epoch"],
+        "best_epoch": trainer_summary["best_epoch"],
         "val_metrics": best_ckpt["val_metrics"],
         "learned_test_metrics": learned_test_metrics,
         "cliper_test_metrics": cliper_test_metrics,
         "comparison_by_horizon": comparison_by_horizon,
-        "history": history,
+        "history": trainer.history,
     }
 
     metrics_path = save_dir / "track_metrics.json"
     with open(metrics_path, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)
-
-    print(f"[TRACK] Best checkpoint saved to {best_checkpoint_path}")
-    print(
-        f"[TRACK] Test Results -> Overall Error: {learned_test_metrics['mean_error_km']:.1f} km | "
-        f"Learned 95% Cone Coverage: {learned_test_metrics['cone_coverage']['coverage_pct']:.1f}% "
-        f"({learned_test_metrics['cone_coverage']['inside_count']}/{learned_test_metrics['cone_coverage']['total_count']})"
-    )
 
     return results
 

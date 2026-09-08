@@ -87,87 +87,67 @@ def train_stage(
         track_dim=7,
         track_hidden_dim=128,
         num_stages=6,
-    ).to(compute_device)
+    )
 
     weights = torch.tensor(DEFAULT_STAGE_CLASS_WEIGHTS, dtype=torch.float32, device=compute_device)
     criterion = nn.CrossEntropyLoss(weight=weights)
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max(1, epochs))
 
-    best_val_f1 = -1.0
-    best_checkpoint_path = save_dir / "best_stage_model.pt"
-    history: List[Dict[str, Any]] = []
+    def stage_step_fn(m: nn.Module, batch: Dict[str, Any], crit: Any, dev: torch.device) -> Tuple[torch.Tensor, Dict[str, Any]]:
+        env = torch.nan_to_num(batch["env_vector"].to(dev), nan=0.0)
+        track = torch.nan_to_num(batch["track_sequence"].to(dev), nan=0.0)
+        targets = torch.clamp(batch["targets"]["stage_idx"].to(dev), min=0, max=5)
+        out = m(env_vector=env, track_sequence=track)
+        loss = crit(out["stage_logits"], targets)
+        return loss, {"loss": loss.item()}
 
-    # 3. Training Loop
-    print(f"[STAGE] Starting sanity training for {epochs} epochs...")
-    for epoch in range(1, epochs + 1):
-        model.train()
-        train_losses = []
+    tracker = ExperimentTracker(
+        experiment_name="stage_classification",
+        run_dir=save_dir,
+        config={"lr": lr, "batch_size": batch_size, "epochs": epochs},
+        split_indices=splits,
+    )
 
-        for batch in train_loader:
-            env = torch.nan_to_num(batch["env_vector"].to(compute_device), nan=0.0)
-            track = torch.nan_to_num(batch["track_sequence"].to(compute_device), nan=0.0)
-            targets = torch.clamp(batch["targets"]["stage_idx"].to(compute_device), min=0, max=5)
+    trainer = Trainer(
+        model=model,
+        criterion=criterion,
+        train_loader=train_loader,
+        val_loader=val_loader,
+        test_loader=test_loader,
+        optimizer=optimizer,
+        scheduler=scheduler,
+        device=compute_device,
+        save_dir=save_dir,
+        tracker=tracker,
+        step_fn=stage_step_fn,
+        eval_fn=evaluate_stage_model,
+        early_stopping_metric="macro_f1",
+        early_stopping_mode="max",
+        early_stopping_patience=10,
+        checkpoint_prefix="best_stage_model",
+    )
 
-            optimizer.zero_grad()
-            out = model(env_vector=env, track_sequence=track)
-            loss = criterion(out["stage_logits"], targets)
+    trainer_summary = trainer.train(epochs=epochs)
+    test_metrics = trainer_summary["test_metrics"]
 
-            if not torch.isnan(loss):
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
-                optimizer.step()
-                train_losses.append(loss.item())
-
-        scheduler.step()
-        val_met = evaluate_stage_model(model, val_loader, compute_device)
-        print(
-            f"Epoch {epoch:02d}/{epochs:02d} | Train Loss: {np.mean(train_losses) if train_losses else 0.0:.4f} | "
-            f"Val Acc: {val_met['accuracy']:.4f} | Val Macro-F1: {val_met['macro_f1']:.4f}"
-        )
-
-        history.append({
-            "epoch": epoch,
-            "train_loss": round(float(np.mean(train_losses) if train_losses else 0.0), 4),
-            "val_accuracy": val_met["accuracy"],
-            "val_macro_f1": val_met["macro_f1"],
-        })
-
-        if val_met["macro_f1"] >= best_val_f1:
-            best_val_f1 = val_met["macro_f1"]
-            torch.save({
-                "epoch": epoch,
-                "model_state_dict": model.state_dict(),
-                "val_metrics": val_met,
-            }, best_checkpoint_path)
-
-    # 4. Final Evaluation on Test Split
-    print("[STAGE] Evaluating best model on held-out test split...")
-    best_ckpt = torch.load(best_checkpoint_path, map_location=compute_device)
-    model.load_state_dict(best_ckpt["model_state_dict"])
-    test_metrics = evaluate_stage_model(model, test_loader, compute_device)
-
-    # Majority class baseline reference (1/6 = ~0.1667)
     majority_f1_baseline = 0.1667
 
     results = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "model_type": "Non-Image EnvBranch(64-d) + TrackBranch(128-d) -> StageHead",
         "epochs": epochs,
-        "best_epoch": best_ckpt["epoch"],
-        "val_metrics": best_ckpt["val_metrics"],
+        "best_epoch": trainer_summary["best_epoch"],
+        "val_metrics": trainer.validate(),
         "test_metrics": test_metrics,
         "majority_class_baseline_f1": majority_f1_baseline,
         "f1_improvement_over_baseline": round(test_metrics["macro_f1"] - majority_f1_baseline, 4),
-        "history": history,
+        "history": trainer.history,
     }
 
     metrics_path = save_dir / "stage_metrics.json"
     with open(metrics_path, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)
-
-    print(f"[STAGE] Best checkpoint saved to: {best_checkpoint_path}")
-    print(f"[STAGE] Test Results -> Acc: {test_metrics['accuracy']:.4f}, Macro-F1: {test_metrics['macro_f1']:.4f} (vs Majority Baseline {majority_f1_baseline})")
 
     return results
 

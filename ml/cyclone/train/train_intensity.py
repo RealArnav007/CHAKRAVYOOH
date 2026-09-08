@@ -92,14 +92,22 @@ def train_intensity(
     huber_loss_fn = nn.SmoothL1Loss(beta=2.0)
     ce_loss_fn = nn.CrossEntropyLoss(weight=cls_weights)
 
+    def intensity_step_fn(m: nn.Module, batch: Dict[str, Any], crit: Any, dev: torch.device) -> Tuple[torch.Tensor, Dict[str, Any]]:
+        img = torch.nan_to_num(batch["image"].to(dev), nan=0.0)
+        avail = batch["image_available"].to(dev)
+        target_w = torch.nan_to_num(batch["wind_kt"].to(dev).unsqueeze(1), nan=25.0)
+        target_imd = torch.clamp(batch["imd_level_idx"].to(dev), min=0, max=6)
+
+        out = m(img, image_available=avail)
+        loss = huber_loss_fn(out["wind_kt"], target_w) + 0.5 * ce_loss_fn(out["imd_logits"], target_imd)
+        return loss, {"loss": loss.item()}
+
     # 2. Stage A: Large External Pretraining (if not --no-pretrain)
-    model = IntensityModel(backbone_name=backbone, pretrained=True).to(compute_device)
-    stage_a_history = []
+    model = IntensityModel(backbone_name=backbone, pretrained=True)
     stage_a_val_rmse = None
 
     if not no_pretrain and stage_a_epochs > 0:
         print("[INTENSITY] === STAGE A: Pretraining on External Satellite Imagery ===")
-        # Load external imagery index (DrivenData / Digital Typhoon)
         ext_index = load_image_index()
         if not ext_index.empty:
             ext_samples = []
@@ -124,95 +132,56 @@ def train_intensity(
         opt_a = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
         sched_a = torch.optim.lr_scheduler.CosineAnnealingLR(opt_a, T_max=max(1, stage_a_epochs))
 
-        for ep in range(1, stage_a_epochs + 1):
-            model.train()
-            train_losses = []
-            for batch in ext_train_loader:
-                img = torch.nan_to_num(batch["image"].to(compute_device), nan=0.0)
-                avail = batch["image_available"].to(compute_device)
-                target_w = torch.nan_to_num(batch["wind_kt"].to(compute_device).unsqueeze(1), nan=25.0)
-                target_imd = torch.clamp(batch["imd_level_idx"].to(compute_device), min=0, max=6)
-
-                opt_a.zero_grad()
-                out = model(img, image_available=avail)
-                loss = huber_loss_fn(out["wind_kt"], target_w) + 0.5 * ce_loss_fn(out["imd_logits"], target_imd)
-                if not torch.isnan(loss):
-                    loss.backward()
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
-                    opt_a.step()
-                    train_losses.append(loss.item())
-
-            sched_a.step()
-            val_met = evaluate_intensity_model(model, nio_val_loader, compute_device)
-            stage_a_val_rmse = val_met["wind_rmse_kt"]
-            print(f"[Stage A] Epoch {ep:02d}/{stage_a_epochs:02d} | Train Loss: {np.mean(train_losses) if train_losses else 0.0:.4f} | Val RMSE: {val_met['wind_rmse_kt']:.2f} kt | Val MAE: {val_met['wind_mae_kt']:.2f} kt")
-            stage_a_history.append({"epoch": ep, "val_rmse_kt": val_met["wind_rmse_kt"], "val_mae_kt": val_met["wind_mae_kt"]})
+        trainer_a = Trainer(
+            model=model,
+            criterion=huber_loss_fn,
+            train_loader=ext_train_loader,
+            val_loader=nio_val_loader,
+            optimizer=opt_a,
+            scheduler=sched_a,
+            device=compute_device,
+            save_dir=save_dir / "stage_a",
+            step_fn=intensity_step_fn,
+            eval_fn=evaluate_intensity_model,
+            early_stopping_metric="wind_rmse_kt",
+            early_stopping_mode="min",
+            checkpoint_prefix="stage_a_intensity",
+        )
+        summary_a = trainer_a.train(epochs=stage_a_epochs)
+        stage_a_val_rmse = summary_a.get("best_metric_value")
 
     # 3. Stage B: Fine-Tuning on North Indian Ocean Subset
     print(f"[INTENSITY] === STAGE B: Fine-Tuning on NIO Subset ({'Transfer-Learning' if not no_pretrain else 'Scratch'}) ===")
     opt_b = torch.optim.AdamW(model.parameters(), lr=lr * 0.5 if not no_pretrain else lr, weight_decay=weight_decay)
     sched_b = torch.optim.lr_scheduler.CosineAnnealingLR(opt_b, T_max=max(1, stage_b_epochs))
 
-    best_val_rmse = float("inf")
-    best_checkpoint_path = save_dir / "best_intensity_model.pt"
-    stage_b_history = []
+    tracker_b = ExperimentTracker(
+        experiment_name="intensity_stage_b",
+        run_dir=save_dir,
+        config={"backbone": backbone, "lr": lr, "stage_b_epochs": stage_b_epochs, "no_pretrain": no_pretrain},
+        split_indices=splits,
+    )
 
-    for ep in range(1, stage_b_epochs + 1):
-        model.train()
-        train_losses = []
-        for batch in nio_train_loader:
-            img = torch.nan_to_num(batch["image"].to(compute_device), nan=0.0)
-            avail = batch["image_available"].to(compute_device)
-            target_w = torch.nan_to_num(batch["wind_kt"].to(compute_device).unsqueeze(1), nan=25.0)
-            target_imd = torch.clamp(batch["imd_level_idx"].to(compute_device), min=0, max=6)
+    trainer_b = Trainer(
+        model=model,
+        criterion=huber_loss_fn,
+        train_loader=nio_train_loader,
+        val_loader=nio_val_loader,
+        test_loader=nio_test_loader,
+        optimizer=opt_b,
+        scheduler=sched_b,
+        device=compute_device,
+        save_dir=save_dir,
+        tracker=tracker_b,
+        step_fn=intensity_step_fn,
+        eval_fn=evaluate_intensity_model,
+        early_stopping_metric="wind_rmse_kt",
+        early_stopping_mode="min",
+        checkpoint_prefix="best_intensity_model",
+    )
 
-            opt_b.zero_grad()
-            out = model(img, image_available=avail)
-            loss = huber_loss_fn(out["wind_kt"], target_w) + 0.5 * ce_loss_fn(out["imd_logits"], target_imd)
-            if not torch.isnan(loss):
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
-                opt_b.step()
-                train_losses.append(loss.item())
-
-        sched_b.step()
-        val_met = evaluate_intensity_model(model, nio_val_loader, compute_device)
-        print(
-            f"[Stage B] Epoch {ep:02d}/{stage_b_epochs:02d} | Train Loss: {np.mean(train_losses):.4f} | "
-            f"Val RMSE: {val_met['wind_rmse_kt']:.2f} kt | Val MAE: {val_met['wind_mae_kt']:.2f} kt | "
-            f"IMD Acc: {val_met['imd_accuracy']:.4f} | IMD F1: {val_met['imd_macro_f1']:.4f}"
-        )
-
-        stage_b_history.append({
-            "epoch": ep,
-            "val_rmse_kt": val_met["wind_rmse_kt"],
-            "val_mae_kt": val_met["wind_mae_kt"],
-            "imd_accuracy": val_met["imd_accuracy"],
-            "imd_macro_f1": val_met["imd_macro_f1"],
-        })
-
-        if val_met["wind_rmse_kt"] <= best_val_rmse:
-            best_val_rmse = val_met["wind_rmse_kt"]
-            torch.save({
-                "epoch": ep,
-                "model_state_dict": model.state_dict(),
-                "backbone": backbone,
-                "no_pretrain": no_pretrain,
-                "val_metrics": val_met,
-            }, best_checkpoint_path)
-
-    # 4. Final Evaluation on Held-Out Test Split
-    print("[INTENSITY] Evaluating best model on held-out test split...")
-    best_ckpt = torch.load(best_checkpoint_path, map_location=compute_device)
-    model.load_state_dict(best_ckpt["model_state_dict"])
-    test_metrics = evaluate_intensity_model(model, nio_test_loader, compute_device)
-
-    # 5. Measure Transfer Learning Comparison (Scratch vs Pretrain)
-    transfer_gain_kt = None
-    if not no_pretrain:
-        # Pretrained RMSE vs DrivenData ballpark comparison
-        stage_b_final_rmse = test_metrics["wind_rmse_kt"]
-        print(f"[INTENSITY] Pretrained Test RMSE: {stage_b_final_rmse:.2f} kt (vs DrivenData Benchmark ~8.5-11.0 kt)")
+    summary_b = trainer_b.train(epochs=stage_b_epochs)
+    test_metrics = summary_b["test_metrics"]
 
     results = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -220,20 +189,17 @@ def train_intensity(
         "pretraining_enabled": not no_pretrain,
         "stage_a_epochs": stage_a_epochs if not no_pretrain else 0,
         "stage_b_epochs": stage_b_epochs,
-        "best_epoch": best_ckpt["epoch"],
+        "best_epoch": summary_b["best_epoch"],
         "stage_a_val_rmse_kt": stage_a_val_rmse,
-        "val_metrics": best_ckpt["val_metrics"],
+        "val_metrics": trainer_b.validate(),
         "test_metrics": test_metrics,
-        "stage_b_history": stage_b_history,
+        "stage_b_history": trainer_b.history,
         "drivendata_ballpark_rmse_kt": "8.5 - 11.0 kt",
     }
 
     metrics_path = save_dir / "intensity_metrics.json"
     with open(metrics_path, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)
-
-    print(f"[INTENSITY] Best checkpoint saved to {best_checkpoint_path}")
-    print(f"[INTENSITY] Final Test Results: Wind RMSE = {test_metrics['wind_rmse_kt']:.2f} kt, Wind MAE = {test_metrics['wind_mae_kt']:.2f} kt, IMD Acc = {test_metrics['imd_accuracy']:.4f}")
 
     return results
 

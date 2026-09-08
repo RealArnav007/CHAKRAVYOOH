@@ -34,7 +34,7 @@ def train_detection(
     artifact_dir: Optional[Path] = None,
     device: Optional[torch.device] = None,
 ) -> Dict[str, Any]:
-    """Trains DetectionModel on satellite IR patches with class-weighted BCE loss.
+    """Trains DetectionModel on satellite IR patches with class-weighted BCE loss using unified Trainer.
 
     Args:
         epochs: Number of training epochs.
@@ -86,9 +86,8 @@ def train_detection(
     test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, collate_fn=cyclone_collate_fn)
 
     # 3. Model & Loss with Imbalance Weighting
-    model = DetectionModel(backbone_name=backbone, pretrained=True).to(compute_device)
+    model = DetectionModel(backbone_name=backbone, pretrained=True)
 
-    # Calculate class imbalance ratio for pos_weight
     train_labels = [all_samples[i].get("wind_kt", 0.0) >= 17.0 for i in train_indices]
     n_pos = max(1, sum(train_labels))
     n_neg = max(1, len(train_labels) - n_pos)
@@ -100,82 +99,57 @@ def train_detection(
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max(1, epochs))
 
-    best_val_f1 = -1.0
-    best_checkpoint_path = save_dir / "best_detection_model.pt"
-    history: List[Dict[str, Any]] = []
+    def step_fn(m: nn.Module, batch: Dict[str, Any], crit: Any, dev: torch.device) -> Tuple[torch.Tensor, Dict[str, Any]]:
+        imgs = batch["image"].to(dev)
+        avail = batch["image_available"].to(dev)
+        targets = batch["detected"].to(dev).unsqueeze(1)
+        out = m(imgs, image_available=avail)
+        loss = crit(out["logits"], targets)
+        return loss, {"loss": loss.item()}
 
-    # 4. Training Loop
-    print(f"[TRAIN] Starting training for {epochs} epochs...")
-    for epoch in range(1, epochs + 1):
-        model.train()
-        train_losses = []
+    # 4. Setup Experiment Tracker & Trainer
+    tracker = ExperimentTracker(
+        experiment_name="detection_pretrain",
+        run_dir=save_dir,
+        config={"backbone": backbone, "lr": lr, "batch_size": batch_size, "epochs": epochs},
+        split_indices=splits,
+    )
 
-        for batch in train_loader:
-            images = batch["image"].to(compute_device)
-            available = batch["image_available"].to(compute_device)
-            targets = batch["detected"].to(compute_device).unsqueeze(1)
+    trainer = Trainer(
+        model=model,
+        criterion=criterion,
+        train_loader=train_loader,
+        val_loader=val_loader,
+        test_loader=test_loader,
+        optimizer=optimizer,
+        scheduler=scheduler,
+        device=compute_device,
+        save_dir=save_dir,
+        tracker=tracker,
+        step_fn=step_fn,
+        eval_fn=evaluate_detection,
+        early_stopping_metric="macro_f1",
+        early_stopping_mode="max",
+        early_stopping_patience=10,
+        checkpoint_prefix="best_detection_model",
+    )
 
-            optimizer.zero_grad()
-            out = model(images, image_available=available)
-            loss = criterion(out["logits"], targets)
-            loss.backward()
-            optimizer.step()
+    trainer_summary = trainer.train(epochs=epochs)
 
-            train_losses.append(loss.item())
-
-        scheduler.step()
-        mean_train_loss = float(np.mean(train_losses)) if train_losses else 0.0
-
-        # Validation pass
-        val_metrics = evaluate_detection(model, val_loader, compute_device)
-        print(
-            f"Epoch {epoch:02d}/{epochs:02d} | Train Loss: {mean_train_loss:.4f} | "
-            f"Val Acc: {val_metrics['accuracy']:.4f} | Val F1: {val_metrics['macro_f1']:.4f} | "
-            f"Val PR-AUC: {val_metrics['pr_auc']:.4f} | Val ECE: {val_metrics['ece']:.4f}"
-        )
-
-        history.append({
-            "epoch": epoch,
-            "train_loss": round(mean_train_loss, 4),
-            "val_accuracy": val_metrics["accuracy"],
-            "val_macro_f1": val_metrics["macro_f1"],
-            "val_pr_auc": val_metrics["pr_auc"],
-            "val_ece": val_metrics["ece"],
-        })
-
-        if val_metrics["macro_f1"] >= best_val_f1:
-            best_val_f1 = val_metrics["macro_f1"]
-            torch.save({
-                "epoch": epoch,
-                "model_state_dict": model.state_dict(),
-                "backbone": backbone,
-                "pos_weight": pos_weight_val,
-                "val_metrics": val_metrics,
-            }, best_checkpoint_path)
-
-    # 5. Final Evaluation on Test Split
-    print("[TRAIN] Evaluating best checkpoint on held-out test split...")
-    best_ckpt = torch.load(best_checkpoint_path, map_location=compute_device)
-    model.load_state_dict(best_ckpt["model_state_dict"])
-    test_metrics = evaluate_detection(model, test_loader, compute_device)
-
+    # 5. Package results
     results = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "backbone": backbone,
         "epochs": epochs,
-        "best_epoch": best_ckpt["epoch"],
-        "val_metrics": best_ckpt["val_metrics"],
-        "test_metrics": test_metrics,
-        "history": history,
+        "best_epoch": trainer_summary["best_epoch"],
+        "val_metrics": trainer.validate(),
+        "test_metrics": trainer_summary["test_metrics"],
+        "history": trainer.history,
     }
 
-    # Save metrics JSON
     metrics_path = save_dir / "detection_metrics.json"
     with open(metrics_path, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)
-
-    print(f"[TRAIN] Checkpoint saved: {best_checkpoint_path}")
-    print(f"[TRAIN] Test Results -> Acc: {test_metrics['accuracy']:.4f}, Macro-F1: {test_metrics['macro_f1']:.4f}, PR-AUC: {test_metrics['pr_auc']:.4f}, ECE: {test_metrics['ece']:.4f}")
 
     return results
 
