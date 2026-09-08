@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Pukaar</string>
+    <string name="title_map">Map</string>
+    <string name="title_overview">Overview</string>
+    <string name="title_alerts">Alerts</string>
+    <string name="title_sos">SOS</string>
+    <string name="title_mesh">Mesh</string>
+    <string name="title_settings">Settings</string>
+    <string name="title_home">Home</string>
+</resources>
