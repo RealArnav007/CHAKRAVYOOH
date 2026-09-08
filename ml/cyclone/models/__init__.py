@@ -11,6 +11,7 @@ from ml.cyclone.models.baseline_track import (
 )
 from ml.cyclone.models.env_branch import EnvBranch
 from ml.cyclone.models.heads import (
+    DEFAULT_TRACK_HORIZONS,
     DetectionHead,
     DetectionModel,
     IntensityHead,
@@ -19,6 +20,7 @@ from ml.cyclone.models.heads import (
     StageHead,
     StageModel,
     TrackHead,
+    TrackModel,
 )
 from ml.cyclone.models.image_branch import ImageBranch
 from ml.cyclone.models.track_branch import TrackBranch
@@ -42,4 +44,6 @@ __all__ = [
     "StageHead",
     "StageModel",
     "TrackHead",
+    "TrackModel",
+    "DEFAULT_TRACK_HORIZONS",
 ]

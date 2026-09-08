@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any, Dict, Optional, Tuple, Union
+import numpy as np
 import torch
 import torch.nn as nn
 
@@ -317,39 +318,178 @@ class IntensityModel(nn.Module):
 # -----------------------------------------------------------------------------
 
 
+DEFAULT_TRACK_HORIZONS: List[int] = [6, 12, 24, 48, 72]
+
+
 class TrackHead(nn.Module):
-    """Track forecasting head predicting multi-horizon (dlat, dlon) displacements and log-variances."""
+    """Track forecasting head decoding multi-horizon (dlat, dlon) displacements and uncertainty from embeddings."""
 
     def __init__(
         self,
-        embedding_dim: int = 512,
+        embedding_dim: int = 192,
         num_horizons: int = 5,  # 6h, 12h, 24h, 48h, 72h
         hidden_dim: int = 256,
         dropout: float = 0.2,
+        decoder_type: str = "mlp",
     ) -> None:
         super().__init__()
         self.num_horizons = num_horizons
-        self.mlp = nn.Sequential(
-            nn.Linear(embedding_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Dropout(p=dropout),
-            nn.Linear(hidden_dim, num_horizons * 4),  # [mu_dlat, mu_dlon, log_var_lat, log_var_lon] per horizon
-        )
+        self.embedding_dim = embedding_dim
+        self.decoder_type = decoder_type
+
+        if decoder_type == "gru":
+            # Autoregressive GRU step decoder hook
+            self.rnn_cell = nn.GRUCell(2, hidden_dim)
+            self.init_proj = nn.Linear(embedding_dim, hidden_dim)
+            self.step_out = nn.Linear(hidden_dim, 4)
+            self.mlp = None
+        else:
+            # Direct multi-output MLP decoder
+            self.mlp = nn.Sequential(
+                nn.Linear(embedding_dim, hidden_dim),
+                nn.LayerNorm(hidden_dim),
+                nn.GELU(),
+                nn.Dropout(p=dropout),
+                nn.Linear(hidden_dim, hidden_dim),
+                nn.LayerNorm(hidden_dim),
+                nn.GELU(),
+                nn.Dropout(p=dropout),
+                nn.Linear(hidden_dim, num_horizons * 4),  # [mu_dlat, mu_dlon, log_var_lat, log_var_lon]
+            )
+            self.rnn_cell = None
 
     def forward(self, embedding: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Emits predicted displacements (B, H, 2) and heteroscedastic log-variances (B, H, 2)."""
-        out = self.mlp(embedding).view(-1, self.num_horizons, 4)
-        deltas = out[..., :2]       # [mu_dlat, mu_dlon]
-        log_vars = out[..., 2:]     # [log_var_lat, log_var_lon]
+        """Emits predicted displacements (B, H, 2) and heteroscedastic log-variances (B, H, 2).
+
+        Args:
+            embedding: Feature tensor of shape (B, embedding_dim).
+
+        Returns:
+            Tuple of (deltas, log_vars) where:
+                - deltas: (B, H, 2) [dlat, dlon] relative to analysis origin (t=0)
+                - log_vars: (B, H, 2) [log_var_lat, log_var_lon]
+        """
+        if self.decoder_type == "gru" and self.rnn_cell is not None:
+            batch_size = embedding.shape[0]
+            h = self.init_proj(embedding)
+            curr_in = torch.zeros(batch_size, 2, device=embedding.device)
+            deltas_list, logvars_list = [], []
+
+            for _ in range(self.num_horizons):
+                h = self.rnn_cell(curr_in, h)
+                step_pred = self.step_out(h)
+                d = step_pred[:, :2]
+                lv = step_pred[:, 2:]
+                deltas_list.append(d)
+                logvars_list.append(lv)
+                curr_in = d
+
+            deltas = torch.stack(deltas_list, dim=1)
+            log_vars = torch.stack(logvars_list, dim=1)
+        else:
+            out = self.mlp(embedding).view(-1, self.num_horizons, 4)
+            deltas = out[..., :2]
+            log_vars = out[..., 2:]
+
         return deltas, log_vars
+
+    @staticmethod
+    def deltas_to_path(
+        current_lat: float,
+        current_lon: float,
+        deltas: Union[torch.Tensor, np.ndarray],
+        horizons: Optional[List[int]] = None,
+    ) -> List[Dict[str, Any]]:
+        """Converts relative (dlat, dlon) displacement predictions to absolute predicted_path list.
+
+        Args:
+            current_lat: Storm analysis latitude at t=0.
+            current_lon: Storm analysis longitude at t=0.
+            deltas: (H, 2) array/tensor of [dlat, dlon].
+            horizons: Forecast horizons in hours (default: [6, 12, 24, 48, 72]).
+
+        Returns:
+            List of dicts starting with t=0 at current position, followed by each horizon.
+        """
+        eval_horizons = horizons or DEFAULT_TRACK_HORIZONS
+        d_arr = deltas.detach().cpu().numpy() if isinstance(deltas, torch.Tensor) else np.asarray(deltas)
+
+        path = [{"t_plus_h": 0, "lat": round(float(current_lat), 4), "lon": round(float(current_lon), 4)}]
+
+        for idx, h in enumerate(eval_horizons):
+            if idx < len(d_arr):
+                dlat, dlon = float(d_arr[idx, 0]), float(d_arr[idx, 1])
+                pred_lat = round(float(np.clip(current_lat + dlat, -90.0, 90.0)), 4)
+                pred_lon = round(float((current_lon + dlon + 540.0) % 360.0 - 180.0), 4)
+                path.append({"t_plus_h": int(h), "lat": pred_lat, "lon": pred_lon})
+
+        return path
+
+
+class TrackModel(nn.Module):
+    """Learned multi-modal trajectory forecasting model (EnvBranch + TrackBranch -> TrackHead)."""
+
+    def __init__(
+        self,
+        env_dim: int = 6,
+        env_out_dim: int = 64,
+        track_dim: int = 7,
+        track_hidden_dim: int = 128,
+        track_layers: int = 2,
+        num_horizons: int = 5,
+        dropout: float = 0.2,
+        decoder_type: str = "mlp",
+    ) -> None:
+        super().__init__()
+        from ml.cyclone.models.env_branch import EnvBranch
+        from ml.cyclone.models.track_branch import TrackBranch
+
+        self.env_branch = EnvBranch(in_dim=env_dim, hidden_dim=64, out_dim=env_out_dim, dropout=dropout)
+        self.track_branch = TrackBranch(
+            input_dim=track_dim,
+            hidden_dim=track_hidden_dim,
+            num_layers=track_layers,
+            out_dim=track_hidden_dim,
+            dropout=dropout,
+        )
+        fused_dim = env_out_dim + track_hidden_dim  # 64 + 128 = 192-d
+        self.track_head = TrackHead(
+            embedding_dim=fused_dim,
+            num_horizons=num_horizons,
+            hidden_dim=256,
+            dropout=dropout,
+            decoder_type=decoder_type,
+        )
+
+    def forward(
+        self,
+        env_vector: torch.Tensor,
+        track_sequence: torch.Tensor,
+        seq_lengths: Optional[torch.Tensor] = None,
+    ) -> Dict[str, torch.Tensor]:
+        """Forward pass predicting future trajectory displacements and uncertainty log-variances."""
+        env_emb = self.env_branch(env_vector)
+        track_emb = self.track_branch(track_sequence, seq_lengths=seq_lengths)
+
+        fused_emb = torch.cat([env_emb, track_emb], dim=-1)
+        deltas, log_vars = self.track_head(fused_emb)
+
+        return {
+            "deltas": deltas,
+            "log_vars": log_vars,
+            "embedding": fused_emb,
+        }
 
 
 __all__ = [
     "DetectionHead",
     "DetectionModel",
     "StageClassificationHead",
+    "StageHead",
+    "StageModel",
     "IntensityHead",
     "IntensityModel",
     "TrackHead",
+    "TrackModel",
+    "DEFAULT_TRACK_HORIZONS",
 ]

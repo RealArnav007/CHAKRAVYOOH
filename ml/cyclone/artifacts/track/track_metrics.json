@@ -1,0 +1,166 @@
+{
+  "timestamp": "2026-09-08T14:49:38.074570+00:00",
+  "decoder_type": "mlp",
+  "epochs": 8,
+  "best_epoch": 8,
+  "val_metrics": {
+    "mean_error_km": 0.0,
+    "errors_by_horizon_km": {
+      "6h": 0.0,
+      "12h": 0.0,
+      "24h": 0.0,
+      "48h": 0.0,
+      "72h": 0.0
+    }
+  },
+  "learned_test_metrics": {
+    "mean_error_km": 0.0,
+    "errors_by_horizon_km": {
+      "6h": 0.0,
+      "12h": 0.0,
+      "24h": 0.0,
+      "48h": 0.0,
+      "72h": 0.0
+    }
+  },
+  "cliper_test_metrics": {
+    "mean_error_km": 415.21,
+    "errors_by_horizon_km": {
+      "6h": 31.04,
+      "12h": 119.73,
+      "24h": 412.65,
+      "48h": 1265.53,
+      "72h": 2147.11
+    }
+  },
+  "comparison_by_horizon": {
+    "6h": {
+      "learned_error_km": 0.0,
+      "cliper_error_km": 31.04,
+      "delta_km": -31.04,
+      "learned_beats_cliper": true
+    },
+    "12h": {
+      "learned_error_km": 0.0,
+      "cliper_error_km": 119.73,
+      "delta_km": -119.73,
+      "learned_beats_cliper": true
+    },
+    "24h": {
+      "learned_error_km": 0.0,
+      "cliper_error_km": 412.65,
+      "delta_km": -412.65,
+      "learned_beats_cliper": true
+    },
+    "48h": {
+      "learned_error_km": 0.0,
+      "cliper_error_km": 1265.53,
+      "delta_km": -1265.53,
+      "learned_beats_cliper": true
+    },
+    "72h": {
+      "learned_error_km": 0.0,
+      "cliper_error_km": 2147.11,
+      "delta_km": -2147.11,
+      "learned_beats_cliper": true
+    }
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss_km": 0.0,
+      "val_mean_error_km": 0.0,
+      "val_errors_by_horizon": {
+        "6h": 0.0,
+        "12h": 0.0,
+        "24h": 0.0,
+        "48h": 0.0,
+        "72h": 0.0
+      }
+    },
+    {
+      "epoch": 2,
+      "train_loss_km": 0.0,
+      "val_mean_error_km": 0.0,
+      "val_errors_by_horizon": {
+        "6h": 0.0,
+        "12h": 0.0,
+        "24h": 0.0,
+        "48h": 0.0,
+        "72h": 0.0
+      }
+    },
+    {
+      "epoch": 3,
+      "train_loss_km": 0.0,
+      "val_mean_error_km": 0.0,
+      "val_errors_by_horizon": {
+        "6h": 0.0,
+        "12h": 0.0,
+        "24h": 0.0,
+        "48h": 0.0,
+        "72h": 0.0
+      }
+    },
+    {
+      "epoch": 4,
+      "train_loss_km": 0.0,
+      "val_mean_error_km": 0.0,
+      "val_errors_by_horizon": {
+        "6h": 0.0,
+        "12h": 0.0,
+        "24h": 0.0,
+        "48h": 0.0,
+        "72h": 0.0
+      }
+    },
+    {
+      "epoch": 5,
+      "train_loss_km": 0.0,
+      "val_mean_error_km": 0.0,
+      "val_errors_by_horizon": {
+        "6h": 0.0,
+        "12h": 0.0,
+        "24h": 0.0,
+        "48h": 0.0,
+        "72h": 0.0
+      }
+    },
+    {
+      "epoch": 6,
+      "train_loss_km": 0.0,
+      "val_mean_error_km": 0.0,
+      "val_errors_by_horizon": {
+        "6h": 0.0,
+        "12h": 0.0,
+        "24h": 0.0,
+        "48h": 0.0,
+        "72h": 0.0
+      }
+    },
+    {
+      "epoch": 7,
+      "train_loss_km": 0.0,
+      "val_mean_error_km": 0.0,
+      "val_errors_by_horizon": {
+        "6h": 0.0,
+        "12h": 0.0,
+        "24h": 0.0,
+        "48h": 0.0,
+        "72h": 0.0
+      }
+    },
+    {
+      "epoch": 8,
+      "train_loss_km": 0.0,
+      "val_mean_error_km": 0.0,
+      "val_errors_by_horizon": {
+        "6h": 0.0,
+        "12h": 0.0,
+        "24h": 0.0,
+        "48h": 0.0,
+        "72h": 0.0
+      }
+    }
+  ]
+}
