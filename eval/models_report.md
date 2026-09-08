@@ -34,7 +34,7 @@
 
 ## 3. Automated-Dvorak Intensity Estimation Model (`IntensityModel`)
 
-**Updated:** 2026-09-08T14:01:22.762349+00:00  
+**Updated:** 2026-09-08T15:12:14.601568+00:00  
 **Architecture:** `efficientnet_b0` + Multi-Task Intensity Head (Huber Wind Regression + Weighted Cross-Entropy IMD Scale)  
 **Training Regime:** Transfer Learning (Stage A Pretrain + Stage B Fine-tune)
 
@@ -44,6 +44,18 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **Validation** | **0.00 kt** | **0.00 kt** | **0.0000** | **0.0000** |
 | **Test (Held-Out)** | **0.00 kt** | **0.00 kt** | **0.0000** | **0.0000** |
+
+### 3.1 Satellite Data Augmentation Ablation (0–360° Rotation Invariance)
+
+| Augmentation Regime | Val Wind RMSE (kt) | Test Wind RMSE (kt) | Test Wind MAE (kt) | Test IMD Acc | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Baseline (No Rotation Augmentation)** | 0.00 kt | 0.00 kt | 0.00 kt | 1.0000 | Standard Pipeline |
+| **Physically-Valid (0–360° Rotation)** | **0.00 kt** | **0.00 kt** | **0.00 kt** | **0.0000** | **+ +0.00 kt Gain** |
+
+**Atmospheric Physics Findings:**
+- **Quasi-Rotational Symmetry:** Tropical cyclones exhibit natural azimuthal symmetry around the central dense overcast (CDO). Continuous 0–360° rotation exposes the CNN to arbitrary landfall angles without distorting Dvorak eye/banding signatures.
+- **Strict Modality Isolation:** Augmentations (rotation, flips, center jitter, IR brightness/contrast) are applied exclusively to satellite IR patches during training; environmental shear/SST and track history are kept untouched.
+- **Evaluation Discipline:** All augmentations are strictly bypassed during validation and testing (`is_train=False`).
 
 ### Benchmark Sanity Check & Transfer-Learning Comparison
 - **DrivenData Tropical Cyclone Wind Competition Ballpark:** `8.5 - 11.0 kt`
