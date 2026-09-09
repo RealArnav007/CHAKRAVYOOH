@@ -1,11 +1,15 @@
 package com.pukaar.android.data.mesh
 
+// NEVER log: private key bytes, signature bytes in full, decrypted SOS payload content, sender PII
+// Safe to log: msgId (truncated), packet type, verification result (VERIFIED/INVALID), timestamp
+
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.media.RingtoneManager
 import androidx.core.app.NotificationCompat
+import com.pukaar.android.data.crypto.AlertVerificationService
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser

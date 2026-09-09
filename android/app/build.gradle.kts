@@ -21,6 +21,7 @@ android {
             useSupportLibrary = true
         }
         buildConfigField("String", "BASE_URL", "\"https://pukaar.live\"")
+        buildConfigField("String", "BACKEND_PUBLIC_KEY", "\"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEd2P3s7gR3r7zV5d4e1u2b8y9a0c1e2f3g4h5i6j7k8l9m0n1o2p3q4r5s6t7u8v9w0x1y2z3a4b5c6d7e8f9g==\"")
     }
 
     buildTypes {
