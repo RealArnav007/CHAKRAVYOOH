@@ -1,0 +1,36 @@
+{
+  "device": "cpu",
+  "iterations": 25,
+  "timestamp": "2026-09-08T17:56:37.374818+00:00",
+  "git_commit": "0613679776cb67fc5d71a8f2df8d7e12fcfa75ad",
+  "config_hash": "e982929465d58613",
+  "tier0_baseline": {
+    "mean_ms": 0.06,
+    "p50_ms": 0.06,
+    "p90_ms": 0.07,
+    "p95_ms": 0.08,
+    "p99_ms": 0.12,
+    "min_ms": 0.06,
+    "max_ms": 0.13
+  },
+  "tier1_fusion_net": {
+    "mean_ms": 92.61,
+    "p50_ms": 92.79,
+    "p90_ms": 93.41,
+    "p95_ms": 93.7,
+    "p99_ms": 94.13,
+    "min_ms": 91.36,
+    "max_ms": 94.25
+  },
+  "full_run_cycle_pipeline": {
+    "mean_ms": 98.66,
+    "p50_ms": 96.92,
+    "p90_ms": 99.34,
+    "p95_ms": 103.76,
+    "p99_ms": 120.39,
+    "min_ms": 96.11,
+    "max_ms": 125.3
+  },
+  "replay_throughput_fps": 63910.5,
+  "is_real_time_capable": true
+}

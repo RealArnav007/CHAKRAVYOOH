@@ -1,12 +1,27 @@
-﻿# Python
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+*$py.class
 *.class
 *.so
-.venv/
-venv/
-ENV/
-env/
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
 # Databases & local stores
 *.db
@@ -14,18 +29,48 @@ env/
 *.sqlite3
 pukar.db
 
-# Environment & credentials
+# Virtual environments & credentials
 .env
 .env.local
 .env.*.local
+.venv
+env/
+venv/
+ENV/
 
 # IDE & OS
 .vscode/
 .idea/
+*.swp
+*.swo
 .DS_Store
 Thumbs.db
 
-# Pytest & Coverage
+# Pytest / mypy / ruff / Coverage
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .coverage
 htmlcov/
+
+# Android build outputs
+.gradle/
+android/app/build/
+android/.gradle/
+*.apk
+*.aab
+
+# Large ML data files & checkpoints (keep sample files and data cards)
+ml/cyclone/data/*
+!ml/cyclone/data/.gitkeep
+!ml/cyclone/data/DATA_CARD.md
+!ml/cyclone/data/*.md
+!ml/cyclone/data/*/
+ml/cyclone/data/*/*
+!ml/cyclone/data/*/*_sample.*
+!ml/cyclone/data/**/_sample.*
+!ml/cyclone/data/**/*_sample.*
+!ml/cyclone/data/*/images/*_sample.*
+
+ml/cyclone/checkpoints/
+ml/cyclone/logs/

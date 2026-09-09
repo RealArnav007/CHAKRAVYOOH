@@ -1,40 +1,19 @@
-﻿# 🌀 Chakravyooh (चक्रव्यूह)
+# 🌀 Chakravyooh (चक्रव्यूह) / Pukaar (पुकार)
 
-> **Chakravyooh** is an AI-powered disaster intelligence platform and offline-first emergency mesh network. 
-
-Conventional disaster response systems are largely reactive—they wait for destruction to happen before activating emergency workflows. Chakravyooh completely re-engineers this paradigm by operating across the entire lifecycle of a disaster: 
-
-**Detect → Understand → Predict → Assess Risk → Warn → Deliver → Survive Network Failure**
+> **Chakravyooh & Pukaar** is a physics-informed AI disaster intelligence platform and offline-first emergency mesh network.
+> Conventional disaster response systems are largely reactive—they wait for destruction to happen before activating emergency workflows. Chakravyooh completely re-engineers this paradigm across the entire disaster lifecycle:
+> **Detect → Understand → Predict → Assess Risk → Warn → Deliver → Survive Network Failure**
 
 ---
 
-## 🏛 Core Capabilities
-
-The platform combines two major operational capabilities:
-
-### 1. Cyclone Intelligence Pipeline (Proactive)
-Powered by multi-source machine learning models (Satellite IR, Environmental data, Ocean tracks), Chakravyooh identifies and tracks tropical cyclones long before they make landfall.
-- **AI Tracking:** Tracks trajectory, velocity, and stages using PyTorch baselines.
-- **Geospatial Risk Engine:** Uses haversine math to intersect predicted cyclone cones with pre-defined population zones, assigning real-time dynamic threat levels (`NORMAL` -> `EMERGING` -> `HIGH` -> `CRITICAL` -> `EXTREME`).
-- **Offline Cryptographic Alerts:** Automatically generates and signs `CYCLONE_WARNING` alerts using backend authority `Ed25519` keys, versioning them as the risk escalates.
-
-### 2. Resilient Mesh Infrastructure (Reactive/Survival)
-When disasters inevitably knock out cell towers and internet, ordinary Android phones form a self-healing mesh:
-- **Offline Relay:** A victim's SOS hops phone-to-phone over Bluetooth/Wi-Fi Aware with no network at all, until it reaches a single phone with connectivity.
-- **Zero-Trust Security:** Every SOS message is signed with `Ed25519` and payload-encrypted with `X25519`. Relay nodes cannot read or tamper with packets.
-- **AI Triage:** On reaching the cloud, an LLM layer (Groq/Llama 3) extracts intent and assigns a triage priority score (1-100), routing critical emergencies to commanders instantly.
-
----
-
-## 🏗 System Architecture
-
-The Chakravyooh ecosystem spans ML inference, Cloud services, Web Dashboards, and Android native mesh networks.
+## 🏛 Core Architecture & Capabilities
 
 ```mermaid
 graph TD
-    subgraph "Machine Learning Engine"
-        Data[Satellite / ERA5 / IBTrACS] --> Fusion[Multimodal Fusion Net]
-        Fusion --> Predict[Trajectory & Intensity Predictor]
+    subgraph "ML Intelligence Engine (Chakravyuh)"
+        Data[Satellite IR / ERA5 / IBTrACS] --> Fusion[Multi-Modal FusionNet]
+        Fusion --> Gate[Tier-Gate Fail-Safe Engine]
+        Gate --> Predict[Trajectory & Intensity Predictor]
         Predict -.->|POST /api/v1/cyclone/intelligence| API[FastAPI Backend]
     end
 
@@ -51,12 +30,12 @@ graph TD
         Correlation --> WS
     end
 
-    subgraph "Mesh Network (Untrusted P2P)"
-        Victim[Victim Device\nSigns & Encrypts] -.->|Bluetooth Mesh| Relay1[Relay Node]
+    subgraph "Pukaar Android Client & Mesh Network"
+        Victim[Victim Device\nSigns & Encrypts] -.->|Bluetooth / Wi-Fi Mesh| Relay1[Relay Node]
         Relay1 -.-> Gateway[Gateway Device\nHas Internet]
         Gateway -->|POST /api/v1/sos/ingest| API_SOS
         
-        Alerter -.->|Push via FCM/SMS| Gateway
+        Alerter -.->|Push / WS / Mesh| Gateway
         Gateway -.->|Relay Signed Warning| Relay1
     end
 
@@ -67,103 +46,56 @@ graph TD
 
 ---
 
-## 🛠 Tech Stack
+## 📱 Pukaar Android Client
 
-**Backend Services**
-- **Language:** Python 3.11+
-- **Framework:** FastAPI
-- **Database:** PostgreSQL (Neon DB) + SQLAlchemy AsyncIO
-- **Cryptography:** PyNaCl (`Ed25519` signing, `X25519` SealedBox encryption)
-- **AI Triage:** Groq API (Llama 3)
-- **Realtime:** WebSockets (Outbox Pattern)
-
-**Machine Learning**
-- **Framework:** PyTorch, Torchvision
-- **Data Prep:** Pandas, Scikit-learn
-- **Data Sources:** ERA5, IBTrACS, Digital Typhoon IR
-
-**Client Applications**
-- **Android:** Native Kotlin, Bluetooth Low Energy (BLE) Mesh
-- **Web:** HTML/CSS/JS, React Dashboard
+- **Animated UI Screens**: Full-screen splash with canvas cyclone rotation, 3-page onboarding with Keystore identity creation, home screen with 200dp sweeping radar widget and 2x2 situation cards.
+- **Interactive Geospatial Cyclone Map**: Satellite Aubergine dark theme, glowing crosshair, forecast polylines, and uncertainty cones.
+- **Decentralized Multi-Hop SOS**: Dual-tab (SEND & INBOX) with ECDSA signing, multi-hop relay dispatch, and triage indicators.
+- **Mesh Status & Peer Graph**: Real-time interactive node visualization for Bluetooth LE and Wi-Fi Aware mesh nodes.
+- **Hackathon Demo Mode**: One-touch toggle in Settings with simulated Arabian Sea cyclone (`CY-2026-001`), risk zones, and incoming flood distress.
 
 ---
 
 ## 🔒 Cryptographic Security Model
 
-Because the P2P mesh network is inherently untrusted, Chakravyooh enforces a strict zero-trust boundary at the cloud layer:
-
-1. **SOS Encryption:** The plaintext payload of a distress call is encrypted using the Backend's `X25519` public key.
-2. **SOS Authentication:** 15 immutable fields are packed into canonical bytes and signed using `Ed25519`. Modification by a relay node immediately triggers a `401 BAD_SIGNATURE`.
-3. **Alert Verification:** The backend signs generated warnings (`CYCLONE_WARNING`) with its own private authority key. Offline Android clients cache the authority public key to verify incoming mesh alerts before displaying them.
-4. **Idempotency:** Replay attacks are stopped by a strict ±5 minute clock-drift window and a database-backed unique constraint.
+1. **Zero-Trust SOS Encryption:** Distress messages are encrypted with the Backend's `X25519` key.
+2. **SOS Authentication:** Canonical packet fields signed with `Ed25519` / `ECDSA` (EC P-256).
+3. **Alert Verification:** Backend authority key signs alerts; offline Android clients verify cryptographic integrity before display.
+4. **Replay & TTL Protection:** ±5 minute timestamp window and database-backed message deduplication prevent packet spoofing and network congestion.
 
 ---
 
-## 🚀 Getting Started (Backend Development)
+## ⚡ Quickstart
 
-The backend is entirely containerized and ready for rapid local development.
-
-### Prerequisites
-- Python 3.11+
-- PostgreSQL (Local or Neon DB)
-
-### Setup Instructions
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/RealArnav007/CHAKRAVYOOH.git
-   cd CHAKRAVYOOH/services/backend
-   ```
-
-2. **Create a virtual environment:**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # Windows: .\venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
-
-3. **Environment Configuration:**
-   Copy the example environment file and fill in your database/SMTP credentials.
-   ```bash
-   cp .env.example .env
-   ```
-   *(Note: If cryptographic keys like `JWT_SECRET_KEY` or `BACKEND_X25519_PRIVATE_KEY` are left blank, the app auto-generates ephemeral keys for local testing).*
-
-4. **Run the server:**
-   ```bash
-   uvicorn src.main:app --reload --port 8000
-   ```
-   Visit `http://localhost:8000/docs` to view the interactive OpenAPI documentation.
-
-### Running the Test Suite
-The backend is protected by a comprehensive 67-suite `pytest` integration and unit test layer covering both the offline mesh ingestion and cyclone intelligence pathways.
+### 1. ML & Backend Services
 ```bash
-pytest tests/ -v
+# Python Virtual Environment
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r ml/cyclone/requirements.lock.txt
+
+# Run Live Demo Dry-Run
+python scripts/demo_dryrun.py --storm Amphan --jump landfall-24h
+
+# Run Backend
+cd services/backend
+pip install -r requirements.txt
+uvicorn src.main:app --reload --port 8000
+```
+
+### 2. Android App (Pukaar)
+```bash
+cd android
+./gradlew assembleDebug
 ```
 
 ---
 
-## 🗺 Project Structure
-
-```text
-CHAKRAVYOOH/
-├── ml/                             # Machine Learning Engine
-│   └── cyclone/                    # Cyclone baseline models & PyTorch tracks
-├── services/
-│   └── backend/                    # Core FastAPI Backend
-│       ├── src/
-│       │   ├── api/                # REST Routes
-│       │   ├── auth/               # JWT, Brevo OTP, RBAC
-│       │   ├── cyclone/            # Cyclone Intelligence & Signed Alerts
-│       │   ├── sos/                # SOS Ingestion & Deduplication
-│       │   ├── incidents/          # Haversine Clustering
-│       │   ├── zones/              # Severity State Machine
-│       │   ├── ml/                 # AI Triage Interface (Groq)
-│       │   └── database/           # SQLAlchemy Models
-│       └── tests/                  # 67 Pytest Suites
-├── frontend/                       # Web Dashboards
-└── README.md
-```
+## 🧪 Verification & Evaluation
+- **Model Card:** [`ml/cyclone/MODEL_CARD.md`](file:///Users/rana/Documents/Chakravyooh/ml/cyclone/MODEL_CARD.md)
+- **Evaluation Report:** [`eval/CHAKRAVYUH_EVAL.md`](file:///Users/rana/Documents/Chakravyooh/eval/CHAKRAVYUH_EVAL.md)
+- **Pitch Narration Notes:** [`eval/DEMO_STORM_NOTES.md`](file:///Users/rana/Documents/Chakravyooh/eval/DEMO_STORM_NOTES.md)
+- **SOS Pipeline Integrity:** [`tests/test_sos_unbroken.py`](file:///Users/rana/Documents/Chakravyooh/tests/test_sos_unbroken.py)
 
 ---
 *Built to save lives when the grid goes dark.*
