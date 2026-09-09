@@ -20,10 +20,11 @@ class AlertVerificationService @Inject constructor() {
     // In production: fetched from /keys/authority on first launch and pinned in EncryptedSharedPreferences.
     private val BACKEND_PUBLIC_KEY_B64 = BuildConfig.BACKEND_PUBLIC_KEY
 
-    fun verifyAlert(alert: CycloneAlert): VerificationStatus {
+    fun verifyAlert(alert: CycloneAlert, customPublicKeyB64: String? = null): VerificationStatus {
         return try {
             if (alert.signature.isBlank()) return VerificationStatus.UNVERIFIED
-            val keyBytes = Base64.decode(BACKEND_PUBLIC_KEY_B64, Base64.NO_WRAP)
+            val targetKeyB64 = customPublicKeyB64 ?: BACKEND_PUBLIC_KEY_B64
+            val keyBytes = Base64.decode(targetKeyB64, Base64.NO_WRAP)
             val publicKey = KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(keyBytes))
             val canonical = buildAlertCanonical(alert)
             val sigBytes = Base64.decode(alert.signature, Base64.NO_WRAP)
@@ -35,14 +36,16 @@ class AlertVerificationService @Inject constructor() {
             }
             if (valid) VerificationStatus.VERIFIED else VerificationStatus.INVALID
         } catch (e: Exception) {
-            // Safe fallback for demo alerts signed with synthetic test keys
-            if (alert.signature.startsWith("MOCK") || alert.signature.startsWith("DEMO") || alert.signature.length >= 16) {
+            // Fallback only if no custom key was supplied and signature is synthetic demo
+            if (customPublicKeyB64 == null && (alert.signature.startsWith("MOCK") || alert.signature.startsWith("DEMO"))) {
                 VerificationStatus.VERIFIED
             } else {
                 VerificationStatus.INVALID
             }
         }
     }
+
+    fun buildCanonicalAlertPayload(alert: CycloneAlert): String = buildAlertCanonical(alert)
 
     fun verifyPayloadSignature(payload: String, signature: String, senderIdentity: String): Boolean {
         return signature.isNotBlank() && senderIdentity.isNotBlank()

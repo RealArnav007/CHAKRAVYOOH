@@ -7,5 +7,6 @@ data class UserProfile(
     val bloodGroup: String,
     val isMeshRelayEnabled: Boolean = true,
     val isOnboardingComplete: Boolean = false,
-    val criticalSirenEnabled: Boolean = true
+    val criticalSirenEnabled: Boolean = true,
+    val demoMode: Boolean = false
 )

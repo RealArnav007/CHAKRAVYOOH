@@ -24,4 +24,12 @@ class UserRepositoryImpl @Inject constructor(
     override suspend fun setOnboardingComplete(complete: Boolean) {
         userPreferences.setOnboardingComplete(complete)
     }
+
+    override fun isDemoModeEnabled(): Flow<Boolean> {
+        return userPreferences.demoMode
+    }
+
+    override suspend fun setDemoMode(enabled: Boolean) {
+        userPreferences.setDemoMode(enabled)
+    }
 }

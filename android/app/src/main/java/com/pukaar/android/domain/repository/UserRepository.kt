@@ -7,4 +7,6 @@ interface UserRepository {
     fun getUserProfile(): Flow<UserProfile>
     suspend fun saveProfile(profile: UserProfile): Result<Unit>
     suspend fun setOnboardingComplete(complete: Boolean)
+    fun isDemoModeEnabled(): Flow<Boolean>
+    suspend fun setDemoMode(enabled: Boolean)
 }

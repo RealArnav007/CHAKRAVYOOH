@@ -226,6 +226,53 @@ fun SettingsScreen(
                 }
             }
 
+            // Demo Mode Section
+            item {
+                GlowCard(
+                    glowColor = PukaarColors.AccentAmber,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = "DEMO MODE",
+                            fontFamily = RajdhaniFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = PukaarColors.AccentAmber
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Hackathon Demo Data",
+                                    fontFamily = RajdhaniFontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    color = PukaarColors.TextPrimary
+                                )
+                                Text(
+                                    text = "Uses simulated cyclone data for presentation",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = PukaarColors.TextSecondary
+                                )
+                            }
+                            Switch(
+                                checked = profile.demoMode,
+                                onCheckedChange = { viewModel.toggleDemoMode(it) },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = PukaarColors.AccentAmber,
+                                    checkedTrackColor = PukaarColors.AccentAmber.copy(alpha = 0.3f)
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
             item {
                 Spacer(modifier = Modifier.height(16.dp))
             }

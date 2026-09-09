@@ -28,6 +28,7 @@ class UserPreferences @Inject constructor(
         val KEY_MESH_RELAY = booleanPreferencesKey("pukaar_mesh_relay")
         val KEY_ONBOARDING_DONE = booleanPreferencesKey("pukaar_onboarding_done")
         val KEY_CRITICAL_SIREN = booleanPreferencesKey("pukaar_critical_siren")
+        val KEY_DEMO_MODE = booleanPreferencesKey("demo_mode")
     }
 
     val userProfile: Flow<UserProfile> = context.pukaarDataStore.data.map { prefs ->
@@ -38,8 +39,13 @@ class UserPreferences @Inject constructor(
             bloodGroup = prefs[KEY_BLOOD_GROUP] ?: "O+",
             isMeshRelayEnabled = prefs[KEY_MESH_RELAY] ?: true,
             isOnboardingComplete = prefs[KEY_ONBOARDING_DONE] ?: false,
-            criticalSirenEnabled = prefs[KEY_CRITICAL_SIREN] ?: true
+            criticalSirenEnabled = prefs[KEY_CRITICAL_SIREN] ?: true,
+            demoMode = prefs[KEY_DEMO_MODE] ?: false
         )
+    }
+
+    val demoMode: Flow<Boolean> = context.pukaarDataStore.data.map { prefs ->
+        prefs[KEY_DEMO_MODE] ?: false
     }
 
     suspend fun saveProfile(profile: UserProfile) {
@@ -51,6 +57,7 @@ class UserPreferences @Inject constructor(
             prefs[KEY_MESH_RELAY] = profile.isMeshRelayEnabled
             prefs[KEY_ONBOARDING_DONE] = profile.isOnboardingComplete
             prefs[KEY_CRITICAL_SIREN] = profile.criticalSirenEnabled
+            prefs[KEY_DEMO_MODE] = profile.demoMode
         }
     }
 
@@ -63,6 +70,12 @@ class UserPreferences @Inject constructor(
     suspend fun setMeshRelayEnabled(enabled: Boolean) {
         context.pukaarDataStore.edit { prefs ->
             prefs[KEY_MESH_RELAY] = enabled
+        }
+    }
+
+    suspend fun setDemoMode(enabled: Boolean) {
+        context.pukaarDataStore.edit { prefs ->
+            prefs[KEY_DEMO_MODE] = enabled
         }
     }
 }

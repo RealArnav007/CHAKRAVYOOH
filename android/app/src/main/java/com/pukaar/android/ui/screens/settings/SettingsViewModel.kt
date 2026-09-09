@@ -39,4 +39,10 @@ class SettingsViewModel @Inject constructor(
             userRepository.setMeshRelayEnabled(enabled)
         }
     }
+
+    fun toggleDemoMode(enabled: Boolean) {
+        viewModelScope.launch {
+            userRepository.setDemoMode(enabled)
+        }
+    }
 }
